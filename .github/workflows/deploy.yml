@@ -19,19 +19,17 @@ jobs:
         node-version: '20'
     
     - name: Install Backend Dependencies
-      working-directory: ./dashboard
       run: npm ci
     
     - name: Install Frontend Dependencies
-      working-directory: ./dashboard/client
+      working-directory: ./client
       run: npm ci
     
     - name: Build Frontend
-      working-directory: ./dashboard/client
+      working-directory: ./client
       run: npm run build
     
     - name: Copy Assets to Build
-      working-directory: ./dashboard
       run: |
         cp -r assets/wallpapers client/build/ 2>/dev/null || true
         cp -r assets/emojis client/build/ 2>/dev/null || true
@@ -41,9 +39,9 @@ jobs:
       with:
         name: dashboard-build
         path: |
-          dashboard/
-          !dashboard/node_modules/
-          !dashboard/client/node_modules/
+          .
+          !node_modules/
+          !client/node_modules/
 
   deploy:
     needs: build-and-test
