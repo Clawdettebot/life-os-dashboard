@@ -53,21 +53,55 @@ jobs:
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     
     steps:
-    - name: Download Build Artifact
-      uses: actions/download-artifact@v4
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Setup SSH
+      uses: webfactory/ssh-agent@v0.8.0
       with:
-        name: dashboard-build
-        path: dashboard
+        ssh-private-key: ${{ secrets.VPS_SSH_KEY }}
     
-    # Add your deployment steps here
-    # Examples:
-    # - Deploy to VPS via SSH
-    # - Deploy to Vercel
-    # - Deploy to Netlify
-    # - Deploy to AWS/GCP/Azure
-    
-    - name: Deployment Placeholder
+    - name: Add VPS to known hosts
       run: |
-        echo "✅ Build successful!"
-        echo "🚀 Ready for deployment"
-        echo "Configure deployment step based on your hosting provider"
+        mkdir -p ~/.ssh
+        ssh-keyscan -H ${{ secrets.VPS_HOST }} >> ~/.ssh/known_hosts
+    
+    - name: Deploy to VPS
+      env:
+        VPS_HOST: ${{ secrets.VPS_HOST }}
+        VPS_USER: ${{ secrets.VPS_USER }}
+        VPS_PATH: ${{ secrets.VPS_PATH }}
+      run: |
+        echo "🚀 Deploying to VPS..."
+        
+        # SSH into VPS and deploy
+        ssh $VPS_USER@$VPS_HOST << 'EOF'
+          cd $VPS_PATH
+          
+          # Pull latest code
+          git pull origin main
+          
+          # Install backend dependencies
+          npm install
+          
+          # Build frontend
+          cd client
+          npm install
+          npm run build
+          cd ..
+          
+          # Copy assets
+          cp -r assets/wallpapers client/build/ 2>/dev/null || true
+          cp -r assets/emojis client/build/ 2>/dev/null || true
+          
+          # Restart the server (using pm2 or direct node)
+          if command -v pm2 &> /dev/null; then
+            pm2 restart dashboard || pm2 start server.js --name dashboard
+          else
+            pkill -f "node server.js" || true
+            sleep 2
+            nohup node server.js > dashboard.log 2>&1 &
+          fi
+          
+          echo "✅ Deployment complete!"
+        EOF
