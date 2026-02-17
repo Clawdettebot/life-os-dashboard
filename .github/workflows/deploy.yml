@@ -56,6 +56,15 @@ jobs:
       uses: webfactory/ssh-agent@v0.8.0
       with:
         ssh-private-key: ${{ secrets.VPS_SSH_KEY }}
+        log-public-key: false
+    
+    - name: Debug SSH Setup
+      run: |
+        echo "Testing SSH agent..."
+        ssh-add -l || echo "No keys in agent"
+        echo "VPS_HOST is set: ${{ secrets.VPS_HOST != '' }}"
+        echo "VPS_USER is set: ${{ secrets.VPS_USER != '' }}"
+        echo "VPS_PATH is set: ${{ secrets.VPS_PATH != '' }}"
     
     - name: Deploy to VPS
       env:
@@ -66,4 +75,4 @@ jobs:
         echo "🚀 Deploying to VPS..."
         
         # SSH into VPS and deploy
-        ssh -o StrictHostKeyChecking=no $VPS_USER@$VPS_HOST "cd $VPS_PATH && git pull origin main && npm install && cd client && npm install && npm run build && cd .. && cp -r assets/wallpapers client/build/ 2>/dev/null || true && cp -r assets/emojis client/build/ 2>/dev/null || true && (pm2 restart dashboard || pm2 start server.js --name dashboard || (pkill -f 'node server.js' && sleep 2 && nohup node server.js > dashboard.log 2>&1 &)) && echo '✅ Deployment complete!'"
+        ssh -vvv -o StrictHostKeyChecking=no -o ConnectTimeout=10 "$VPS_USER@$VPS_HOST" "echo 'SSH connection successful' && cd $VPS_PATH && git pull origin main && npm install && cd client && npm install && npm run build && cd .. && cp -r assets/wallpapers client/build/ 2>/dev/null || true && cp -r assets/emojis client/build/ 2>/dev/null || true && (pm2 restart dashboard || pm2 start server.js --name dashboard || (pkill -f 'node server.js' && sleep 2 && nohup node server.js > dashboard.log 2>&1 &)) && echo '✅ Deployment complete!'"
