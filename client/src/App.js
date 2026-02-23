@@ -102,7 +102,7 @@ function App() {
 
   const fetchMoods = async () => {
     try {
-      const res = await fetch('/api, /moods');
+      const res = await fetch('/api/moods');
       const data = await res.json();
       setMoodsData(data);
     } catch (e) { console.error('Failed to fetch moods:', e); }
@@ -117,7 +117,7 @@ function App() {
   // ── DATA FETCHING ──
   const fetchSubagents = async () => {
     try {
-      const res = await fetch('/api, /subagents');
+      const res = await fetch('/api/subagents');
       const data = await res.json();
       setSubagents(data.subagents || "No active subagents."); 
     } catch (e) {}
@@ -131,20 +131,20 @@ function App() {
         calendarData, analyticsData, streamsData, inventoryData, journalData,
         googleCalendarStatus
       ] = await Promise.all([
-        fetch('/api, /tasks').then(r => r.json()),
-        fetch('/api, /projects').then(r => r.json()),
-        fetch('/api, /tables/finances').then(r => r.json().then(j => j.data || [])),
-        fetch('/api, /tables/habits').then(r => r.json().then(j => j.data || [])),
-        fetch('/api, /tables/notes').then(r => r.json().then(j => j.data || [])),
-        fetch('/api, /tables/health').then(r => r.json().then(j => j.data || [])),
-        fetch('/api, /tables/goals').then(r => r.json().then(j => j.data || [])),
-        fetch('/api, /tables/schedule').then(r => r.json().then(j => j.data || [])),
-        fetch('/api, /content/calendar').then(r => r.json()),
-        fetch('/api, /analytics').then(r => r.json()),
-        fetch('/api, /streams').then(r => r.json()),
-        fetch('/api, /inventory').then(r => r.json()),
-        fetch('/api, /journal').then(r => r.json()),
-        fetch('/api, /google-calendar/status').then(r => r.json()).catch(() => ({ connected: false }))
+        fetch('/api/tasks').then(r => r.json()),
+        fetch('/api/projects').then(r => r.json()),
+        fetch('/api/tables/finances').then(r => r.json().then(j => j.data || [])),
+        fetch('/api/tables/habits').then(r => r.json().then(j => j.data || [])),
+        fetch('/api/tables/notes').then(r => r.json().then(j => j.data || [])),
+        fetch('/api/tables/health').then(r => r.json().then(j => j.data || [])),
+        fetch('/api/tables/goals').then(r => r.json().then(j => j.data || [])),
+        fetch('/api/tables/schedule').then(r => r.json().then(j => j.data || [])),
+        fetch('/api/content/calendar').then(r => r.json()),
+        fetch('/api/analytics').then(r => r.json()),
+        fetch('/api/streams').then(r => r.json()),
+        fetch('/api/inventory').then(r => r.json()),
+        fetch('/api/journal').then(r => r.json()),
+        fetch('/api/google-calendar/status').then(r => r.json()).catch(() => ({ connected: false }))
       ]);
 
       setTasks({
@@ -205,7 +205,7 @@ function App() {
     fetchAllData,
     spawnSubagent: async (task, agentId) => {
       try {
-        const res = await fetch('/api, /subagents/spawn', {
+        const res = await fetch('/api/subagents/spawn', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ task, agentId })
@@ -218,7 +218,7 @@ function App() {
     },
     killSubagent: async (target) => {
       try {
-        await fetch('/api, /subagents/kill', {
+        await fetch('/api/subagents/kill', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ target })
@@ -490,7 +490,7 @@ function App() {
                   key={id} 
                   className="mood-option"
                   onClick={async () => {
-                    await fetch('/api, /moods/' + selectedAgent, {
+                    await fetch('/api/moods/' + selectedAgent, {
                       method: 'POST',
                       headers: { 'Content-Type': 'application/json' },
                       body: JSON.stringify({ mood: id })
@@ -624,7 +624,7 @@ function App() {
                   key={id} 
                   className="mood-option"
                   onClick={async () => {
-                    await fetch('/api, /moods/' + selectedAgent, {
+                    await fetch('/api/moods/' + selectedAgent, {
                       method: 'POST',
                       headers: { 'Content-Type': 'application/json' },
                       body: JSON.stringify({ mood: id })
