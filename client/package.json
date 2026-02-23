@@ -5,6 +5,7 @@
   "dependencies": {
     "axios": "^1.5.0",
     "chart.js": "^4.5.1",
+    "lucide-react": "^0.574.0",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "react-router-dom": "^6.15.0",
@@ -12,7 +13,8 @@
   },
   "scripts": {
     "start": "react-scripts start",
-    "build": "react-scripts build",
+    "build": "react-scripts build && npm run copy-assets",
+    "copy-assets": "cp -r ../../assets/wallpapers build/ && cp -r ../../assets/emojis build/ && cp -r public/logo build/",
     "test": "react-scripts test",
     "eject": "react-scripts eject"
   },

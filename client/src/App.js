@@ -1,7 +1,23 @@
 import React, { useState, useEffect, useRef } from 'react';
 import io from 'socket.io-client';
 import Chart from 'chart.js/auto';
+import { Timer, BarChart3 } from 'lucide-react';
 import './App.css';
+
+// Import new components
+import FinanceView from './components/FinanceView';
+import KanbanBoard from './components/KanbanBoard';
+import CalendarView from './components/CalendarView';
+import HabitsView from './components/HabitsView';
+import IconPicker from './components/IconPicker';
+import InventoryView from './components/InventoryView';
+import GoogleCalendarWidget from './components/GoogleCalendarWidget';
+import CortexView from './components/CortexView';
+import ExpensesView from './components/ExpensesView';
+import NotesView from './components/NotesView';
+import ContentSchedulerView from './components/ContentSchedulerView';
+import BlogVoiceView from './components/BlogVoiceView';
+import ProjectsView from './components/ProjectsView';
 
 // ── CONSTANTS & CONFIG ──
 const QUOTES = [
@@ -30,6 +46,7 @@ function App() {
   const [activePage, setActivePage] = useState('dashboard');
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [activeModal, setActiveModal] = useState(null);
+  const [theme, setTheme] = useState(localStorage.getItem('lifeos-theme') || 'light');
   
   // Feature State
   const [focusMode, setFocusMode] = useState(false);
@@ -52,10 +69,14 @@ function App() {
   const [streams, setStreams] = useState([]);
   const [inventory, setInventory] = useState({ items: [], raw: '' });
   const [journal, setJournal] = useState([]);
+  const [googleCalendarConnected, setGoogleCalendarConnected] = useState(false);
   
   // Wallpaper State
   const [currentWallpaper, setCurrentWallpaper] = useState(0);
   const [showWallpaperSelector, setShowWallpaperSelector] = useState(false);
+  
+  // Logo Animation State - swaps PNG to GIF every minute
+  const [logoAnimated, setLogoAnimated] = useState(false);
   const wallpapers = [
     '/wallpapers/wp1.png',
     '/wallpapers/wp2.png',
@@ -74,25 +95,81 @@ function App() {
     '/wallpapers/wp15.png'
   ];
   
-  // Mood State
-  const [currentMood, setCurrentMood] = useState('working');
+  // Mood State - from API
+  const [moodsData, setMoodsData] = useState({ moods: {}, agents: {} });
   const [showMoodSelector, setShowMoodSelector] = useState(false);
-  const moods = [
-    { id: 'working', label: 'Working', gif: '/emojis/working.gif' },
-    { id: 'searching', label: 'Searching', gif: '/emojis/searching.gif' },
-    { id: 'happy', label: 'Happy', gif: '/emojis/happy.gif' },
-    { id: 'code', label: 'Coding', gif: '/emojis/code.gif' },
-    { id: 'mistake', label: 'Oops', gif: '/emojis/mistake.gif' },
-    { id: 'sleepy', label: 'Sleepy', gif: '/emojis/sleepy.gif' },
-    { id: 'journal', label: 'Journaling', gif: '/emojis/journal.gif' },
-    { id: 'confused', label: 'Confused', gif: '/emojis/confused.gif' },
-    { id: 'finance', label: 'Finance', gif: '/emojis/finance.gif' },
-    { id: 'focus', label: 'Focus', gif: '/emojis/focus.gif' }
-  ];
+  const [selectedAgent, setSelectedAgent] = useState('clawdette');
+
+  const fetchMoods = async () => {
+    try {
+      const res = await fetch('/api, /moods');
+      const data = await res.json();
+      setMoodsData(data);
+    } catch (e) { console.error('Failed to fetch moods:', e); }
+  };
+
+  useEffect(() => { fetchMoods(); }, []);
 
   // Refs for Charts & Intervals
   const chartRefs = useRef({});
   const pomoInterval = useRef(null);
+
+  // ── DATA FETCHING ──
+  const fetchSubagents = async () => {
+    try {
+      const res = await fetch('/api, /subagents');
+      const data = await res.json();
+      setSubagents(data.subagents || "No active subagents."); 
+    } catch (e) {}
+  };
+
+  const fetchAllData = async () => {
+    try {
+      const [
+        tasksList, projectsList, financesList, habitsList,
+        notesList, healthList, goalsList, scheduleList,
+        calendarData, analyticsData, streamsData, inventoryData, journalData,
+        googleCalendarStatus
+      ] = await Promise.all([
+        fetch('/api, /tasks').then(r => r.json()),
+        fetch('/api, /projects').then(r => r.json()),
+        fetch('/api, /tables/finances').then(r => r.json().then(j => j.data || [])),
+        fetch('/api, /tables/habits').then(r => r.json().then(j => j.data || [])),
+        fetch('/api, /tables/notes').then(r => r.json().then(j => j.data || [])),
+        fetch('/api, /tables/health').then(r => r.json().then(j => j.data || [])),
+        fetch('/api, /tables/goals').then(r => r.json().then(j => j.data || [])),
+        fetch('/api, /tables/schedule').then(r => r.json().then(j => j.data || [])),
+        fetch('/api, /content/calendar').then(r => r.json()),
+        fetch('/api, /analytics').then(r => r.json()),
+        fetch('/api, /streams').then(r => r.json()),
+        fetch('/api, /inventory').then(r => r.json()),
+        fetch('/api, /journal').then(r => r.json()),
+        fetch('/api, /google-calendar/status').then(r => r.json()).catch(() => ({ connected: false }))
+      ]);
+
+      setTasks({
+        active: tasksList.active || [],
+        completed: tasksList.completed || [],
+        all: tasksList.all || []
+      });
+      setProjects(projectsList.projects || []);
+      setFinances(financesList);
+      setHabits(habitsList);
+      setNotes(notesList);
+      setHealth(healthList);
+      setGoals(goalsList);
+      setSchedule(scheduleList.data || []);
+      setCalendar(calendarData);
+      setAnalytics(analyticsData);
+      setStreams(streamsData.streams || []);
+      setInventory(inventoryData || { items: [], raw: '' });
+      setJournal(journalData?.entries || []);
+      setGoogleCalendarConnected(!!googleCalendarStatus?.connected);
+      setAchievements(checkAchievements({ tasks: tasksList.all, projects: projectsList.projects, finances: financesList, notes: notesList }));
+    } catch (error) {
+      console.error('Error fetching data:', error);
+    }
+  };
 
   // ── API HELPER ──
   const API = {
@@ -110,7 +187,7 @@ function App() {
         body: JSON.stringify(data)
       });
       fetchAllData();
-      triggerSFX('作成'); // Created
+      triggerSFX('作成');
     },
     update: async (table, id, data) => {
       await fetch(`/api/tables/${table}/${id}`, {
@@ -123,29 +200,30 @@ function App() {
     delete: async (table, id) => {
       await fetch(`/api/tables/${table}/${id}`, { method: 'DELETE' });
       fetchAllData();
-      triggerSFX('削除'); // Deleted
+      triggerSFX('削除');
     },
+    fetchAllData,
     spawnSubagent: async (task, agentId) => {
       try {
-        const res = await fetch('/api/subagents/spawn', {
+        const res = await fetch('/api, /subagents/spawn', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ task, agentId })
         });
         const data = await res.json();
-        triggerSFX('召喚'); // Summon
+        triggerSFX('召喚');
         fetchSubagents();
         return data;
       } catch (e) { console.error(e); }
     },
     killSubagent: async (target) => {
       try {
-        await fetch('/api/subagents/kill', {
+        await fetch('/api, /subagents/kill', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ target })
         });
-        triggerSFX('消滅'); // Vanish
+        triggerSFX('消滅');
         fetchSubagents();
       } catch (e) { console.error(e); }
     }
@@ -171,11 +249,26 @@ function App() {
     fetchSubagents();
     
     const savedTheme = localStorage.getItem('lifeos-theme');
-    if (savedTheme === 'dark') document.documentElement.setAttribute('data-theme', 'dark');
+    if (savedTheme === 'dark') {
+      document.documentElement.setAttribute('data-theme', 'dark');
+      setTheme('dark');
+    }
+
+    // Logo animation: swap PNG to GIF every 60 seconds
+    const logoInterval = setInterval(() => {
+      setLogoAnimated(prev => !prev);
+    }, 60000);
+
+    // Wallpaper auto-rotation: change every 5 minutes
+    const wallpaperInterval = setInterval(() => {
+      setCurrentWallpaper(prev => (prev + 1) % wallpapers.length);
+    }, 300000); // 5 minutes
 
     return () => {
       newSocket.close();
       if (pomoInterval.current) clearInterval(pomoInterval.current);
+      clearInterval(logoInterval);
+      clearInterval(wallpaperInterval);
     };
   }, []);
 
@@ -183,72 +276,25 @@ function App() {
     if (activePage === 'analytics' || activePage === 'finances') renderCharts();
   }, [activePage, finances, tasks]);
 
-  const fetchSubagents = async () => {
-    try {
-      const res = await fetch('/api/subagents');
-      const data = await res.json();
-      // Parse the CLI output roughly or just store raw for now if simple
-      // Ideally backend returns JSON, but it returns stdout string. 
-      // Let's just store the string or try to parse if needed.
-      // For now, let's assume raw string display is okay or basic parsing.
-      setSubagents(data.subagents || "No active subagents."); 
-    } catch (e) {}
-  };
-
-  const fetchAllData = async () => {
-    try {
-      const [
-        tasksList, projectsList, financesList, habitsList,
-        notesList, healthList, goalsList, scheduleList,
-        calendarData, analyticsData, streamsData, inventoryData, journalData
-      ] = await Promise.all([
-        fetch('/api/tasks').then(r => r.json()),
-        fetch('/api/projects/detailed').then(r => r.json()),
-        API.get('finances'),
-        API.get('habits'),
-        API.get('notes'),
-        API.get('health'),
-        API.get('goals'),
-        API.get('schedule'),
-        fetch('/api/content/calendar').then(r => r.json()),
-        fetch('/api/analytics').then(r => r.json()),
-        fetch('/api/streams').then(r => r.json()),
-        fetch('/api/inventory').then(r => r.json()),
-        fetch('/api/journal').then(r => r.json())
-      ]);
-
-      setTasks({
-        active: tasksList.active || [],
-        completed: tasksList.completed || [],
-        all: tasksList.all || []
-      });
-      setProjects(projectsList.projects || []);
-      setFinances(financesList);
-      setHabits(habitsList);
-      setNotes(notesList);
-      setHealth(healthList);
-      setGoals(goalsList);
-      setSchedule(scheduleList.data || []);
-      setCalendar(calendarData);
-      setAnalytics(analyticsData);
-      setStreams(streamsData.streams || []);
-      setInventory(inventoryData || { items: [], raw: '' });
-      setJournal(journalData?.entries || []);
-      setAchievements(checkAchievements({ tasks: tasksList.all, projects: projectsList.projects, finances: financesList, notes: notesList }));
-    } catch (error) {
-      console.error('Error fetching data:', error);
+  // ── ACTIONS ──
+  const navigateTo = (page) => {
+    setActivePage(page);
+    // Close sidebar on mobile after navigation
+    if (window.innerWidth <= 768) {
+      setSidebarOpen(false);
     }
   };
 
-  // ── ACTIONS ──
   const toggleTheme = () => {
     const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
     if (isDark) {
       document.documentElement.removeAttribute('data-theme');
       localStorage.setItem('lifeos-theme', 'light');
+      setTheme('light');
     } else {
       document.documentElement.setAttribute('data-theme', 'dark');
       localStorage.setItem('lifeos-theme', 'dark');
+      setTheme('dark');
       triggerSFX('闇');
     }
   };
@@ -369,11 +415,17 @@ function App() {
           )}
         </div>
       </div>
+      
+      {/* Google Calendar Upcoming Events */}
+      <GoogleCalendarWidget 
+        connected={googleCalendarConnected} 
+        onViewCalendar={() => setActivePage('calendar')}
+      />
     </div>
   );
 
   return (
-    <div className={`app-container ${sidebarOpen ? 'sidebar-open' : ''}`}>
+    <div className={`app-container ${sidebarOpen ? 'sidebar-open' : ''} ${focusMode ? 'focus-active' : ''}`}>
       {/* Wallpaper Background */}
       <div 
         className="wallpaper-bg" 
@@ -383,13 +435,6 @@ function App() {
       
       {/* Wallpaper Selector */}
       <div className="wallpaper-selector">
-        <div 
-          className="wallpaper-toggle"
-          onClick={() => setShowWallpaperSelector(!showWallpaperSelector)}
-          title="Change Wallpaper"
-        >
-          🖼️
-        </div>
         {showWallpaperSelector && (
           <div className="wallpaper-thumbs-container">
             {wallpapers.map((wp, i) => (
@@ -408,7 +453,11 @@ function App() {
           onClick={() => setShowWallpaperSelector(!showWallpaperSelector)}
           title="Change Wallpaper"
         >
-          🖼️
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
+            <circle cx="8.5" cy="8.5" r="1.5"/>
+            <polyline points="21 15 16 10 5 21"/>
+          </svg>
         </div>
       </div>
       
@@ -418,23 +467,37 @@ function App() {
       <div className={`focus-overlay ${focusMode ? 'active' : ''}`}>
         <button className="focus-close" onClick={() => setFocusMode(false)}><i className="fas fa-times"></i> EXIT</button>
         
-        {/* Mood Display in Focus Mode */}
-        <div className="focus-mood" style={{position: 'absolute', top: '20px', left: '20px'}}>
-          <div className="mood-display" onClick={() => setShowMoodSelector(!showMoodSelector)}>
-            <img 
-              src={moods.find(m => m.id === currentMood)?.gif || moods[0].gif} 
-              alt={currentMood}
-              className="mood-emoji"
-            />
-            <span className="mood-label">{moods.find(m => m.id === currentMood)?.label || 'Working'}</span>
-          </div>
+        {/* Mood Display - Clawdette & Knowledge Knaight */}
+        <div className="focus-mood" style={{position: 'absolute', top: '20px', left: '20px', display: 'flex', gap: '10px'}}>
+          {['clawdette', 'knowledge-knaight'].map(agentId => {
+            const agent = moodsData.agents[agentId];
+            const mood = agent ? moodsData.moods[agent.currentMood] : null;
+            return (
+              <div key={agentId} className="mood-display" onClick={() => { setSelectedAgent(agentId); setShowMoodSelector(!showMoodSelector); }}>
+                <img 
+                  src={mood?.gif || '/moods/ready.gif'} 
+                  alt={agent?.currentMood || 'ready'}
+                  className="mood-emoji"
+                />
+                <span className="mood-label">{agent?.name || agentId}</span>
+              </div>
+            );
+          })}
           {showMoodSelector && (
             <div className="mood-selector">
-              {moods.map(mood => (
+              {Object.entries(moodsData.moods).map(([id, mood]) => (
                 <div 
-                  key={mood.id} 
+                  key={id} 
                   className="mood-option"
-                  onClick={() => { setCurrentMood(mood.id); setShowMoodSelector(false); }}
+                  onClick={async () => {
+                    await fetch('/api, /moods/' + selectedAgent, {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({ mood: id })
+                    });
+                    fetchMoods();
+                    setShowMoodSelector(false);
+                  }}
                 >
                   <img src={mood.gif} alt={mood.label} />
                   <span>{mood.label}</span>
@@ -459,102 +522,178 @@ function App() {
 
       {/* ═══ SIDEBAR ═══ */}
       <aside className={`sidebar ${sidebarOpen ? 'open' : ''}`}>
-        <div className="sidebar-header"><span className="logo-icon">墨</span><div className="logo">LIFE OS</div></div>
+        <div className="sidebar-header">
+          <div className="logo-container" onClick={toggleTheme}>
+            <img 
+              src={logoAnimated 
+                ? (theme === 'dark' ? '/logo/logo-animated-2.gif' : '/logo/logo-animated-1.gif')
+                : (theme === 'dark' ? '/logo/logo-light.png' : '/logo/logo-dark.png')
+              } 
+              alt="LIFE OS" 
+              className="logo-image"
+            />
+          </div>
+        </div>
         <nav className="sidebar-nav">
           <div className="nav-section">
             <div className="nav-section-label">Command</div>
-            {['dashboard', 'tasks', 'projects'].map(p => (
-              <div key={p} className={`nav-item ${activePage === p ? 'active' : ''}`} onClick={() => setActivePage(p)}>
+            {['dashboard'].map(p => (
+              <div key={p} className={`nav-item ${activePage === p ? 'active' : ''}`} onClick={() => navigateTo(p)}>
                 <span style={{textTransform:'capitalize'}}>{p}</span>
               </div>
             ))}
-            <div className="nav-item" onClick={() => setFocusMode(true)}>Focus Mode</div>
+            <div className={`nav-item ${activePage === 'subagents' ? 'active' : ''}`} onClick={() => navigateTo('subagents')}>Subagents</div>
+          </div>
+          <div className="nav-section">
+            <div className="nav-section-label">Work</div>
+            {['tasks', 'projects', 'calendar', 'streams', 'inventory'].map(p => (
+              <div key={p} className={`nav-item ${activePage === p ? 'active' : ''}`} onClick={() => navigateTo(p)}>
+                <span style={{textTransform:'capitalize'}}>{p}</span>
+              </div>
+            ))}
+          </div>
+          <div className="nav-section">
+            <div className="nav-section-label">Content</div>
+            <div className={`nav-item ${activePage === 'content' ? 'active' : ''}`} onClick={() => navigateTo('content')}>
+              <span>📅 Scheduler</span>
+            </div>
+            <div className={`nav-item ${activePage === 'blog' ? 'active' : ''}`} onClick={() => navigateTo('blog')}>
+              <span>📝 Blog & Voice</span>
+            </div>
           </div>
           <div className="nav-section">
             <div className="nav-section-label">Life</div>
-            {['finances', 'calendar', 'streams', 'habits'].map(p => (
-              <div key={p} className={`nav-item ${activePage === p ? 'active' : ''}`} onClick={() => setActivePage(p)}>
-                <span style={{textTransform:'capitalize'}}>{p}</span>
+            {['finances', 'habits'].map(p => (
+              <div key={p} className={`nav-item ${activePage === p ? 'active' : ''}`} onClick={() => navigateTo(p)}>
+                <span style={{textTransform:'capitalize'}}>{p === 'finances' ? '💰 Finances' : p}</span>
               </div>
             ))}
           </div>
           <div className="nav-section">
-            <div className="nav-section-label">Tools</div>
-            {['notes', 'subagents', 'pomodoro', 'analytics', 'inventory', 'journal'].map(p => (
-              <div key={p} className={`nav-item ${activePage === p ? 'active' : ''}`} onClick={() => setActivePage(p)}>
+            <div className="nav-section-label">Second Brain</div>
+            {['notes', 'journal'].map(p => (
+              <div key={p} className={`nav-item ${activePage === p ? 'active' : ''}`} onClick={() => navigateTo(p)}>
                 <span style={{textTransform:'capitalize'}}>{p}</span>
               </div>
             ))}
+            <div className={`nav-item ${activePage === 'cortex' ? 'active' : ''}`} onClick={() => navigateTo('cortex')}>
+              <span>🧠 Cortex</span>
+            </div>
+          </div>
+          <div className="nav-section tools-grid-section">
+            <div className="nav-section-label">Tools</div>
+            <div className="tools-icon-grid">
+              <button 
+                className={`tool-icon-btn ${activePage === 'pomodoro' ? 'active' : ''}`}
+                onClick={() => navigateTo('pomodoro')}
+                title="Pomodoro"
+              >
+                <Timer size={22} />
+              </button>
+              <button 
+                className={`tool-icon-btn ${activePage === 'analytics' ? 'active' : ''}`}
+                onClick={() => navigateTo('analytics')}
+                title="Analytics"
+              >
+                <BarChart3 size={22} />
+              </button>
+            </div>
           </div>
         </nav>
+        
+        {/* Mood Display - Both Agents */}
+        <div className="sidebar-mood-section">
+          {['clawdette', 'knowledge-knaight'].map(agentId => {
+            const agent = moodsData.agents[agentId];
+            const mood = agent ? moodsData.moods[agent.currentMood] : null;
+            return (
+              <div key={agentId} className="mood-display-large" onClick={() => { setSelectedAgent(agentId); setShowMoodSelector(!showMoodSelector); }}>
+                <img 
+                  src={mood?.gif || '/moods/ready.gif'} 
+                  alt={agent?.currentMood || 'ready'}
+                  className="mood-emoji-large"
+                />
+                <span className="mood-label-large">{agent?.name || agentId}</span>
+              </div>
+            );
+          })}
+          {showMoodSelector && (
+            <div className="mood-selector-dropdown">
+              {Object.entries(moodsData.moods).map(([id, mood]) => (
+                <div 
+                  key={id} 
+                  className="mood-option"
+                  onClick={async () => {
+                    await fetch('/api, /moods/' + selectedAgent, {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({ mood: id })
+                    });
+                    fetchMoods();
+                    setShowMoodSelector(false);
+                  }}
+                >
+                  <img src={mood.gif} alt={mood.label} />
+                  <span>{mood.label}</span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
       </aside>
+
+      {/* Sidebar Overlay - closes sidebar when clicked on mobile */}
+      <div 
+        className={`sidebar-overlay ${sidebarOpen ? 'active' : ''}`} 
+        onClick={() => setSidebarOpen(false)}
+      />
 
       {/* ═══ MAIN ═══ */}
       <main className="main-content">
         <div className="top-bar">
           <div className="top-bar-left">
             <button className="menu-toggle" onClick={() => setSidebarOpen(!sidebarOpen)}>☰</button>
-            
-            {/* Mood Display replaces logo */}
-            <div className="mood-display" onClick={() => setShowMoodSelector(!showMoodSelector)}>
-              <img 
-                src={moods.find(m => m.id === currentMood)?.gif || moods[0].gif} 
-                alt={currentMood}
-                className="mood-emoji"
-              />
-              <span className="mood-label">{moods.find(m => m.id === currentMood)?.label || 'Working'}</span>
-            </div>
-            {showMoodSelector && (
-              <div className="mood-selector" style={{position: 'absolute', top: '60px', left: '60px'}}>
-                {moods.map(mood => (
-                  <div 
-                    key={mood.id} 
-                    className="mood-option"
-                    onClick={() => { setCurrentMood(mood.id); setShowMoodSelector(false); }}
-                  >
-                    <img src={mood.gif} alt={mood.label} />
-                    <span>{mood.label}</span>
-                  </div>
-                ))}
-              </div>
-            )}
+            <span className="top-bar-greeting">Life OS — <strong>GUAPDAD 4000</strong></span>
+            <span className="top-bar-page" style={{marginLeft: '20px', textTransform: 'capitalize', fontWeight: 600, color: 'var(--grey-700)'}}>{activePage}</span>
           </div>
           <div className="top-bar-right">
-            <button className="theme-toggle" onClick={toggleTheme}>◑</button>
-            <button className="top-bar-btn" onClick={() => setActiveModal('quickAdd')}>+ ADD</button>
+            <button 
+              className="quick-add-btn"
+              onClick={() => setActiveModal('quickAdd')}
+              title="Add new"
+              style={{
+                background: 'transparent',
+                border: 'none',
+                fontSize: '1.3rem',
+                cursor: 'pointer',
+                padding: '4px 8px',
+                borderRadius: '4px',
+                marginRight: '8px'
+              }}
+            >
+              +
+            </button>
+            <button 
+              className={`focus-mode-btn ${focusMode ? 'active' : ''}`}
+              onClick={() => setFocusMode(!focusMode)}
+              title="Focus Mode"
+            >
+              <span className="focus-kanji">集</span>
+            </button>
+            <span className="top-bar-date">{new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' })}</span>
           </div>
         </div>
 
         <section className="page-section active">
-          <div className="section-header">
-            <h1 className="section-title" style={{textTransform:'capitalize'}}>{activePage}</h1>
-          </div>
 
           {activePage === 'dashboard' && renderDashboard()}
 
           {activePage === 'tasks' && (
-            <div className="task-list">
-              {tasks.all.map((t, i) => (
-                <div key={i} className="task-item" onClick={() => toggleTask(t)}>
-                  <div className={`task-checkbox ${t.status === 'completed' ? 'checked' : ''}`}></div>
-                  <div className="task-content">
-                    <div className="task-title" style={{textDecoration: t.status === 'completed' ? 'line-through' : 'none'}}>{t.description || t.title}</div>
-                    <span className="tag">{t.status}</span>
-                  </div>
-                </div>
-              ))}
-            </div>
+            <KanbanBoard tasks={tasks.all} api={API} />
           )}
 
           {activePage === 'projects' && (
-            <div className="grid-2">
-              {projects.map((p, i) => (
-                <div key={i} className="project-card">
-                  <div className="project-name">{p.title}</div>
-                  <div className="project-type">{p.status}</div>
-                </div>
-              ))}
-            </div>
+            <ProjectsView api={API} />
           )}
 
           {activePage === 'pomodoro' && (
@@ -570,141 +709,19 @@ function App() {
           )}
 
           {activePage === 'finances' && (
-            <div>
-              <div className="grid-3">
-                <div className="stat-card"><div className="stat-label">Income</div><div className="stat-value">${finances.filter(f=>f.type==='income').reduce((s,f)=>s+Number(f.amount),0)}</div></div>
-                <div className="stat-card"><div className="stat-label">Expenses</div><div className="stat-value">${finances.filter(f=>f.type==='expense').reduce((s,f)=>s+Number(f.amount),0)}</div></div>
-              </div>
-              <div className="card">
-                <div className="chart-container"><canvas id="financeChart"></canvas></div>
-              </div>
-            </div>
+            <FinanceView finances={finances} api={API} />
           )}
 
           {activePage === 'habits' && (
-             <div className="card">
-               <div className="card-header">Habits</div>
-               {habits.map((h, i) => <div key={i} className="task-item">{h.icon} {h.name}</div>)}
-               <button className="btn" onClick={() => setActiveModal('newHabit')}>+ New Habit</button>
-             </div>
+            <HabitsView habits={habits} api={API} />
           )}
           
-           {activePage === 'calendar' && (
-            <div className="calendar-container">
-              {/* Unified Timeline View */}
-              <div className="card" style={{marginBottom:'20px'}}>
-                <div className="card-header">
-                  <span className="card-title">Unified Timeline</span>
-                  <span style={{fontSize:'0.75rem', color:'var(--grey-500)'}}>Content Calendar + Scheduled Streams</span>
-                </div>
+          {activePage === 'calendar' && (
+            <CalendarView events={calendar?.events || []} api={API} googleConnected={googleCalendarConnected} />
+          )}
 
-                {/* Streams Timeline */}
-                {streams.filter(s => s.status === 'planned').length > 0 && (
-                  <div className="timeline-section" style={{padding:'0 20px 20px'}}>
-                    <div className="timeline-header" style={{fontSize:'0.7rem', letterSpacing:'2px', textTransform:'uppercase', color:'var(--accent)', marginBottom:'12px', fontWeight:'600'}}>
-                      📡 Scheduled Streams
-                    </div>
-                    <div className="timeline-streams" style={{display:'flex', flexDirection:'column', gap:'10px'}}>
-                      {streams
-                        .filter(s => s.status === 'planned')
-                        .sort((a, b) => new Date(a.scheduledDate) - new Date(b.scheduledDate))
-                        .map((stream, i) => (
-                        <div key={i} className="timeline-item stream-timeline-item" style={{
-                          display:'flex',
-                          alignItems:'center',
-                          gap:'15px',
-                          padding:'12px 16px',
-                          border:'var(--border-thin)',
-                          borderLeft:'3px solid var(--accent)',
-                          background:'var(--white)'
-                        }}>
-                          <div className="timeline-date" style={{
-                            fontFamily:'var(--font-mono)',
-                            fontSize:'0.7rem',
-                            minWidth:'90px',
-                            color:'var(--grey-500)'
-                          }}>
-                            {new Date(stream.scheduledDate).toLocaleDateString('en-US', {month:'short', day:'numeric'})}
-                            <br/>
-                            <span style={{color:'var(--accent)'}}>{stream.scheduledTime || 'TBD'}</span>
-                          </div>
-                          <div className="timeline-content" style={{flex:1}}>
-                            <div style={{fontWeight:'600', fontSize:'0.9rem'}}>{stream.title}</div>
-                            <div style={{fontSize:'0.75rem', color:'var(--grey-500)', marginTop:'2px'}}>
-                              {stream.platform} {stream.guests && `• With: ${stream.guests}`}
-                            </div>
-                          </div>
-                          <div className="timeline-badge" style={{
-                            fontSize:'0.6rem',
-                            padding:'4px 10px',
-                            border:'var(--border-thin)',
-                            textTransform:'uppercase',
-                            letterSpacing:'1px'
-                          }}>
-                            LIVE
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                {/* Content Calendar */}
-                {calendar ? (
-                  <div style={{padding:'0 20px 20px'}}>
-                    <div className="timeline-header" style={{fontSize:'0.7rem', letterSpacing:'2px', textTransform:'uppercase', color:'var(--ink)', marginBottom:'12px', fontWeight:'600', marginTop:'20px'}}>
-                      📝 Content Calendar: {calendar.title}
-                    </div>
-                    {calendar.weeks.map((week, w) => (
-                      <div key={w} style={{marginBottom:'20px'}}>
-                        <div style={{fontSize:'0.75rem', color:'var(--grey-500)', marginBottom:'8px', fontFamily:'var(--font-mono)'}}>
-                          Week {week.number} • {week.dateRange}
-                        </div>
-                        <div className="week-grid" style={{display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(200px, 1fr))', gap:'10px'}}>
-                          {week.days.map((day, d) => {
-                            // Check if there's a stream on this day
-                            const dayDate = new Date(day.date + ', 2026'); // Adjust year as needed
-                            const dayStreams = streams.filter(s => {
-                              const streamDate = new Date(s.scheduledDate);
-                              return streamDate.toDateString() === dayDate.toDateString() && s.status === 'planned';
-                            });
-                            return (
-                              <div key={d} className={`calendar-day ${dayStreams.length > 0 ? 'has-stream' : ''}`} style={{
-                                padding:'12px',
-                                border:'var(--border-thin)',
-                                background:'var(--white)',
-                                minHeight:'100px'
-                              }}>
-                                <div className="day-header" style={{fontSize:'0.7rem', fontWeight:'600', marginBottom:'6px', color:'var(--grey-500)'}}>
-                                  {day.dayOfWeek} {day.date}
-                                </div>
-                                <div className="day-content" style={{fontSize:'0.8rem'}}>
-                                  <div style={{fontWeight:'600'}}>{day.content.Theme}</div>
-                                  <div style={{fontSize:'0.75em', opacity:0.7, marginTop:'4px'}}>{day.content.Platform}</div>
-                                </div>
-                                {dayStreams.length > 0 && (
-                                  <div className="stream-indicator" style={{
-                                    marginTop:'8px',
-                                    paddingTop:'6px',
-                                    borderTop:'1px dashed var(--grey-200)',
-                                    fontSize:'0.65rem',
-                                    color:'var(--accent)'
-                                  }}>
-                                    📡 {dayStreams.length} Stream{dayStreams.length > 1 ? 's' : ''}
-                                  </div>
-                                )}
-                              </div>
-                            );
-                          })}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <div style={{padding:'20px', textAlign:'center', opacity:0.6}}>Loading Content Calendar...</div>
-                )}
-              </div>
-            </div>
+          {activePage === 'inventory' && (
+            <InventoryView inventory={(inventory.items || []).filter(i => i.name && i.name !== ':---' && i.name !== '---')} api={API} />
           )}
 
           {activePage === 'streams' && (
@@ -797,15 +814,15 @@ function App() {
           )}
 
           {activePage === 'notes' && (
-             <div className="grid-2">
-               {notes.map((n, i) => (
-                 <div key={i} className="card">
-                   <div className="card-header">{n.title}</div>
-                   <div className="card-body">{n.content}</div>
-                 </div>
-               ))}
-               <button className="btn" style={{gridColumn:'1/-1'}} onClick={() => setActiveModal('newNote')}>+ New Note</button>
-             </div>
+            <NotesView notes={notes} api={API} />
+          )}
+
+          {activePage === 'content' && (
+            <ContentSchedulerView api={API} />
+          )}
+
+          {activePage === 'blog' && (
+            <BlogVoiceView api={API} />
           )}
 
           {activePage === 'inventory' && (
@@ -816,7 +833,7 @@ function App() {
                   <span className="card-icon">📦</span>
                 </div>
                 
-                {inventory.items && inventory.items.length > 0 ? (
+                {inventory.items && inventory.items.filter(i => i.name && i.name !== ':---').length > 0 ? (
                   <div className="inventory-table" style={{padding:'0 20px 20px'}}>
                     <table style={{width:'100%', borderCollapse:'collapse', fontSize:'0.85rem'}}>
                       <thead>
@@ -830,7 +847,7 @@ function App() {
                         </tr>
                       </thead>
                       <tbody>
-                        {inventory.items.map((item, i) => (
+                        {inventory.items.filter(i => i.name && i.name !== ':---').map((item, i) => (
                           <tr key={i} style={{borderBottom:'1px solid var(--grey-300)'}}>
                             <td style={{padding:'10px', fontWeight:'600'}}>{item.name}</td>
                             <td style={{padding:'10px'}}>{item.variant}</td>
@@ -904,6 +921,8 @@ function App() {
               )}
             </div>
           )}
+
+          {activePage === 'cortex' && <CortexView />}
 
         </section>
       </main>

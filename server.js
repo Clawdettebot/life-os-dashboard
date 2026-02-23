@@ -16,10 +16,112 @@ const io = socketIo(server, {
 });
 
 const PORT = process.env.PORT || 3000;
+const AUTH_PASSWORD = 'Scamboy1176$';
+
+const authMiddleware = (req, res, next) => {
+  const authHeader = req.headers.authorization;
+  if (!authHeader) {
+    res.setHeader('WWW-Authenticate', 'Basic realm="Life OS"');
+    return res.status(401).send('Authentication required');
+  }
+  const auth = new Buffer.from(authHeader.split(' ')[1], 'base64').toString().split(':');
+  const pass = auth[1];
+  if (pass !== AUTH_PASSWORD) {
+    res.setHeader('WWW-Authenticate', 'Basic realm="Life OS"');
+    return res.status(401).send('Authentication required');
+  }
+  next();
+};
 
 // Middleware
 app.use(cors());
 app.use(express.json());
+
+// Auth all API routes
+// app.use('/api', authMiddleware); // Disabled for now
+
+// Public status (no auth)
+app.get('/api/status', (req, res) => {
+  res.json({ status: 'ok', timestamp: Date.now() });
+});
+
+// Blog Posts API
+app.get('/api/blog/posts', async (req, res) => {
+  try {
+    const posts = JSON.parse(await fs.readFile(path.join(DATA_DIR, 'blog-posts.json'), 'utf-8'));
+    res.json({ posts: posts.posts });
+  } catch (e) {
+    res.json({ posts: [], error: e.message });
+  }
+});
+
+app.post('/api/blog/voice-drop', async (req, res) => {
+  try {
+    const { transcript, title, tags = [] } = req.body;
+    const blogData = JSON.parse(await fs.readFile(path.join(DATA_DIR, 'blog-posts.json'), 'utf-8'));
+    
+    const newPost = {
+      id: 'post_' + Date.now(),
+      title: title || 'Voice Drop ' + new Date().toLocaleDateString(),
+      content: transcript,
+      tags,
+      source: 'voice-drop',
+      status: 'draft',
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
+    };
+    
+    blogData.posts.push(newPost);
+    blogData.voice_drops.push(newPost);
+    blogData.sync_status.last_voice_drop_processed = new Date().toISOString();
+    
+    await fs.writeFile(path.join(DATA_DIR, 'blog-posts.json'), JSON.stringify(blogData, null, 2));
+    
+    res.json({ success: true, post: newPost });
+  } catch (e) {
+    res.json({ success: false, error: e.message });
+  }
+});
+
+app.post('/api/blog/publish', async (req, res) => {
+  try {
+    const { post_id } = req.body;
+    const blogData = JSON.parse(await fs.readFile(path.join(DATA_DIR, 'blog-posts.json'), 'utf-8'));
+    
+    const postIndex = blogData.posts.findIndex(p => p.id === post_id);
+    if (postIndex < 0) {
+      return res.json({ success: false, error: 'Post not found' });
+    }
+    
+    blogData.posts[postIndex].status = 'published';
+    blogData.posts[postIndex].published_at = new Date().toISOString();
+    
+    await fs.writeFile(path.join(DATA_DIR, 'blog-posts.json'), JSON.stringify(blogData, null, 2));
+    
+    res.json({ success: true, post: blogData.posts[postIndex] });
+  } catch (e) {
+    res.json({ success: false, error: e.message });
+  }
+});
+
+app.get('/api/blog/suggestions', async (req, res) => {
+  try {
+    const blogData = JSON.parse(await fs.readFile(path.join(DATA_DIR, 'blog-posts.json'), 'utf-8'));
+    res.json({ suggestions: blogData.blog_suggestions || [] });
+  } catch (e) {
+    res.json({ suggestions: [], error: e.message });
+  }
+});
+
+app.get('/api/releases/upcoming', async (req, res) => {
+  try {
+    const calendarData = JSON.parse(await fs.readFile(path.join(DATA_DIR, 'content-calendar.json'), 'utf-8'));
+    res.json({ releases: [] });
+  } catch (e) {
+    res.json({ releases: [], error: e.message });
+  }
+});
+
 app.use(express.static(path.join(__dirname, 'client/build')));
 
 // OpenClaw command wrapper
