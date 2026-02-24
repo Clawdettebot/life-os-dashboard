@@ -1,34 +1,62 @@
 import React, { useState } from 'react';
 import { Shield, Clock, Crown } from 'lucide-react';
 
-// SVG Shrimp soldiers for agents
-const ShrimpAvatar = ({ agent, size = 60 }) => {
-  const colors = {
-    clawdette: '#f97316',
-    'knowledge-knaight': '#8b5cf6',
-    'affairs-knaight': '#06b6d4',
-    'clawthchilds': '#eab308',
-    'sound-knaight': '#22c55e',
-    'kitchen-knaight': '#ef4444',
-    soldier: '#1e293b'
-  };
+// Agent avatars from assets/avatars
+const agentAvatars = {
+  clawdette: '/avatars/99f2a89b-8c51-4078-af63-10046a333434.png',
+  'knowledge-knaight': '/avatars/8cd7f326-500b-4757-bca1-132886fc8c76.png',
+  'affairs-knaight': '/avatars/2c45e97d-c391-4d77-9778-821e2dee82d6.png',
+  'clawthchilds': '/avatars/a3010206-b78c-4da9-8971-f83294efe9a6.png',
+  'claudnelius': '/avatars/6f9d0fbf-6011-471b-8740-397b7eeb708f.png',
+  'labrina': '/avatars/c44a0f21-6530-4e4b-8eb7-a27c8674299b.png',
+  'sound-knaight': '/avatars/269bd57c-88ba-4d02-9b70-40511a27d1bc.png',
+  soldier: null
+};
+
+const AgentAvatar = ({ agentId, size = 64 }) => {
+  const avatarSrc = agentAvatars[agentId];
   
-  const color = colors[agent?.id] || colors.soldier;
+  if (!avatarSrc) {
+    // Fallback to SVG shrimp
+    const colors = {
+      clawdette: '#f97316',
+      'knowledge-knaight': '#8b5cf6',
+      'affairs-knaight': '#06b6d4',
+      'clawthchilds': '#eab308',
+      'sound-knaight': '#22c55e',
+      'kitchen-knaight': '#ef4444',
+      soldier: '#1e293b'
+    };
+    const color = colors[agentId] || colors.soldier;
+    return (
+      <svg width={size} height={size} viewBox="0 0 100 100" style={{ borderRadius: '50%' }}>
+        <ellipse cx="50" cy="55" rx="30" ry="18" fill={color} />
+        <circle cx="80" cy="50" r="15" fill={color} />
+        <circle cx="85" cy="45" r="3" fill="white" />
+        <circle cx="85" cy="45" r="1.5" fill="black" />
+        <path d="M90 40 Q95 25 85 20" stroke={color} strokeWidth="2" fill="none" />
+        <path d="M88 42 Q92 30 82 25" stroke={color} strokeWidth="2" fill="none" />
+        <path d="M20 55 Q10 50 15 60 Q5 55 10 65" fill={color} />
+        <path d="M35 65 L30 75 M45 65 L42 75 M55 65 L55 75 M65 65 L68 75" stroke={color} strokeWidth="2" />
+        <rect x="40" y="48" width="8" height="4" rx="1" fill={color} opacity="0.7" />
+        <rect x="55" y="50" width="8" height="4" rx="1" fill={color} opacity="0.7" />
+        <ellipse cx="80" cy="48" rx="12" ry="8" fill={color} opacity="0.3" />
+      </svg>
+    );
+  }
   
   return (
-    <svg width={size} height={size} viewBox="0 0 100 100" style={{ borderRadius: '50%' }}>
-      <ellipse cx="50" cy="55" rx="30" ry="18" fill={color} />
-      <circle cx="80" cy="50" r="15" fill={color} />
-      <circle cx="85" cy="45" r="3" fill="white" />
-      <circle cx="85" cy="45" r="1.5" fill="black" />
-      <path d="M90 40 Q95 25 85 20" stroke={color} strokeWidth="2" fill="none" />
-      <path d="M88 42 Q92 30 82 25" stroke={color} strokeWidth="2" fill="none" />
-      <path d="M20 55 Q10 50 15 60 Q5 55 10 65" fill={color} />
-      <path d="M35 65 L30 75 M45 65 L42 75 M55 65 L55 75 M65 65 L68 75" stroke={color} strokeWidth="2" />
-      <rect x="40" y="48" width="8" height="4" rx="1" fill={color} opacity="0.7" />
-      <rect x="55" y="50" width="8" height="4" rx="1" fill={color} opacity="0.7" />
-      <ellipse cx="80" cy="48" rx="12" ry="8" fill={color} opacity="0.3" />
-    </svg>
+    <img 
+      src={avatarSrc} 
+      alt="Agent avatar"
+      width={size}
+      height={size}
+      style={{ 
+        borderRadius: '50%', 
+        objectFit: 'cover',
+        border: '2px solid #e2e8f0'
+      }}
+    />
   );
 };
 
@@ -71,9 +99,17 @@ export default function RoundTableView() {
       id: 'claudnelius',
       name: 'Claudnelius',
       role: 'Code Magician',
-      status: 'coming_soon',
-      lastActivity: null,
+      status: 'active',
+      lastActivity: new Date(Date.now() - 1000 * 60 * 30).toISOString(),
       specialty: 'Building tools, editing code, UI design'
+    },
+    {
+      id: 'labrina',
+      name: 'Labrina',
+      role: 'Social Maven',
+      status: 'active',
+      lastActivity: new Date(Date.now() - 1000 * 60 * 45).toISOString(),
+      specialty: 'Social media scheduling, content automation'
     },
     {
       id: 'sound-knaight',
@@ -146,7 +182,7 @@ export default function RoundTableView() {
               }}
             >
               <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '16px' }}>
-                <ShrimpAvatar agent={agent} size={64} />
+                <AgentAvatar agentId={agent.id} size={64} />
                 <div>
                   <h3 style={{ margin: 0, fontSize: '18px', fontWeight: 600 }}>{agent.name}</h3>
                   <p style={{ margin: '2px 0 0', color: '#64748b', fontSize: '13px' }}>{agent.role}</p>
