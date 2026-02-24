@@ -41,7 +41,7 @@ const SECTIONS = {
     label: 'The All Spark',
     icon: Flame,
     color: '#FFD700',
-    categories: ['film', 'skit', 'joke', 'rant', 'blog', 'music', 'character', 'idea', 'comedy', 'art', 'movie', 'manga', 'game', 'app', 'merch']
+    categories: ['ideas', 'rants', 'comedy', 'art', 'movies', 'manga', 'merch_concepts', 'film', 'skit', 'joke', 'blog', 'music', 'character', 'idea', 'game', 'app']
   },
   howls_kitchen: {
     label: "Howl's Kitchen",
@@ -280,12 +280,11 @@ function EntryModal({ entry, section, color, onClose }) {
   return (
     <div className="modal-overlay active" onClick={onClose} style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 9999, background: 'rgba(0,0,0,0.8)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
       <div className="modal entry-modal" onClick={e => e.stopPropagation()} style={{ borderTopColor: color, maxWidth: '600px', maxHeight: '80vh', overflow: 'auto', background: '#1a1a2e', padding: '20px', color: '#fff', borderRadius: '8px' }}>
-        <button onClick={onClose} style={{ float: 'right', background: 'red', color: 'white', border: 'none', padding: '5px 10px', cursor: 'pointer' }}>X</button>
-        <h2 style={{ color: 'white' }}>{entry.title}</h2>
-        <p style={{ color: 'white' }}>Section: {section}</p>
-        <div className="modal-header">
-          <h2>{entry.title}</h2>
-          <button className="btn btn-sm" onClick={onClose}>×</button>
+        <button onClick={onClose} style={{ float: 'right', background: 'transparent', color: '#fff', border: 'none', padding: '5px 10px', cursor: 'pointer', fontSize: '20px' }}>×</button>
+        
+        <div className="modal-header" style={{ marginBottom: '15px' }}>
+          <h2 style={{ color: 'white', margin: 0 }}>{entry.title}</h2>
+          <span style={{ color: '#888', fontSize: '14px' }}>{section.replace('_', ' ')}</span>
         </div>
         
         <div className="modal-body">
@@ -293,6 +292,13 @@ function EntryModal({ entry, section, color, onClose }) {
           {section === 'hitchhiker_guide' && <HitchhikerDetails parsedContent={parsedContent} />}
           {section === 'emerald_tablets' && <EmeraldDetails parsedContent={parsedContent} />}
           {section === 'all_spark' && <AllSparkDetails parsedContent={parsedContent} />}
+          
+          {/* Show raw content if no structured data */}
+          {(!parsedContent?.ingredients && !parsedContent?.logline && !parsedContent?.core_idea && entry.content) && (
+            <div className="entry-content" style={{ marginTop: '15px', padding: '15px', background: '#252540', borderRadius: '8px', whiteSpace: 'pre-wrap', lineHeight: '1.6' }}>
+              {entry.content}
+            </div>
+          )}
           
           {entry.source_url && (
             <div className="entry-source">
@@ -372,7 +378,7 @@ function EmeraldDetails({ parsedContent }) {
 
 function AllSparkDetails({ parsedContent }) {
   const type = parsedContent?.content_type || 'idea';
-  const typeEmoji = { film: '🎬', skit: '🎭', joke: '😂', rant: '🔥', blog: '✍️', music: '🎵', character: '👤', idea: '💡' };
+  const typeEmoji = { film: '🎬', skit: '🎭', joke: '😂', rant: '🔥', blog: '✍️', music: '🎵', character: '👤', idea: '💡', voice_note: '🎙️' };
   return (
     <div className="entry-details">
       <div className="detail-meta">
@@ -388,6 +394,8 @@ function AllSparkDetails({ parsedContent }) {
       {parsedContent?.mood_keywords?.length > 0 && <div className="detail-section"><h4>💭 Mood</h4><div className="mood-tags">{parsedContent?.mood_keywords.map((m, i) => <span key={i}>{renderItem(m)}</span>)}</div></div>}
       {parsedContent?.inspiration && <p><strong>✨ Inspiration:</strong> {parsedContent?.inspiration}</p>}
       {parsedContent?.core_idea && <p className="entry-summary">{parsedContent?.core_idea}</p>}
+      {/* Show voice note transcript if available */}
+      {parsedContent?.transcript && <div className="detail-section"><h4>🎙️ Transcript</h4><p style={{ whiteSpace: 'pre-wrap' }}>{parsedContent?.transcript}</p></div>}
     </div>
   );
 }

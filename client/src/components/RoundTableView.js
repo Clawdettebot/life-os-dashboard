@@ -3,14 +3,13 @@ import { Shield, Clock, Crown } from 'lucide-react';
 
 // Agent avatars from assets/avatars
 const agentAvatars = {
-  clawdette: '/avatars/99f2a89b-8c51-4078-af63-10046a333434.png',
-  'knowledge-knaight': '/avatars/8cd7f326-500b-4757-bca1-132886fc8c76.png',
-  'affairs-knaight': '/avatars/2c45e97d-c391-4d77-9778-821e2dee82d6.png',
-  'clawthchilds': '/avatars/a3010206-b78c-4da9-8971-f83294efe9a6.png',
-  'claudnelius': '/avatars/6f9d0fbf-6011-471b-8740-397b7eeb708f.png',
-  'labrina': '/avatars/c44a0f21-6530-4e4b-8eb7-a27c8674299b.png',
-  'sound-knaight': '/avatars/269bd57c-88ba-4d02-9b70-40511a27d1bc.png',
-  soldier: null
+  clawdette: '/avatars/269bd57c-88ba-4d02-9b70-40511a27d1bc.png',
+  'knowledge-knaight': '/avatars/2c45e97d-c391-4d77-9778-821e2dee82d6.png',
+  'affairs-knaight': '/avatars/8cd7f326-500b-4757-bca1-132886fc8c76.png',
+  'clawthchilds': '/avatars/99f2a89b-8c51-4078-af63-10046a333434.png',  // Sir Clawtheus - dark
+  'claudnelius': '/avatars/c44a0f21-6530-4e4b-8eb7-a27c8674299b.png',  // shrimp icon (orange)
+  'labrina': '/avatars/6f9d0fbf-6011-471b-8740-397b7eeb708f.png',  // green
+  soldier: '/avatars/a3010206-b78c-4da9-8971-f83294efe9a6.png'  // yellow
 };
 
 const AgentAvatar = ({ agentId, size = 64 }) => {
@@ -23,7 +22,7 @@ const AgentAvatar = ({ agentId, size = 64 }) => {
       'knowledge-knaight': '#8b5cf6',
       'affairs-knaight': '#06b6d4',
       'clawthchilds': '#eab308',
-      'sound-knaight': '#22c55e',
+      
       'kitchen-knaight': '#ef4444',
       soldier: '#1e293b'
     };
@@ -110,14 +109,6 @@ export default function RoundTableView() {
       status: 'active',
       lastActivity: new Date(Date.now() - 1000 * 60 * 45).toISOString(),
       specialty: 'Social media scheduling, content automation'
-    },
-    {
-      id: 'sound-knaight',
-      name: 'Sound Knaight',
-      role: 'Audio Engineer',
-      status: 'coming_soon',
-      lastActivity: null,
-      specialty: 'Audio processing, music workflow'
     }
   ]);
   
@@ -223,7 +214,7 @@ export default function RoundTableView() {
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '12px', marginBottom: '20px' }}>
           {shrimpSoldiers.map(soldier => (
             <div key={soldier.id} style={{ background: 'white', border: '1px solid #e2e8f0', borderRadius: '8px', padding: '16px', textAlign: 'center' }}>
-              <ShrimpAvatar agent={{ id: 'soldier', status: soldier.status }} size={48} />
+              <AgentAvatar agentId="soldier" size={48} />
               <div style={{ marginTop: '8px', fontWeight: 500 }}>{soldier.name}</div>
               <div style={{ fontSize: '12px', color: '#64748b' }}>{soldier.task}</div>
               <button style={{ marginTop: '8px', padding: '4px 12px', fontSize: '12px', background: '#f0fdf4', border: '1px solid #22c55e', borderRadius: '4px', color: '#166534', cursor: 'pointer' }}>
@@ -266,7 +257,7 @@ export default function RoundTableView() {
         }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '20px' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-              <ShrimpAvatar agent={selectedAgent} size={80} />
+              <AgentAvatar agentId={selectedAgent.id} size={80} />
               <div>
                 <h2 style={{ margin: 0, fontSize: '22px' }}>{selectedAgent.name}</h2>
                 <p style={{ margin: '4px 0 0', color: '#64748b' }}>{selectedAgent.role}</p>
