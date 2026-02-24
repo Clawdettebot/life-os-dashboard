@@ -5,6 +5,7 @@ const cors = require('cors');
 const { exec } = require('child_process');
 const path = require('path');
 const fs = require('fs').promises;
+require('dotenv').config();
 
 const app = express();
 const server = http.createServer(app);
@@ -45,13 +46,25 @@ app.get('/api/status', (req, res) => {
   res.json({ status: 'ok', timestamp: Date.now() });
 });
 
-// Blog Posts API
+// Blog Posts API - now from Supabase
 app.get('/api/blog/posts', async (req, res) => {
   try {
-    const posts = JSON.parse(await fs.readFile(path.join(DATA_DIR, 'blog-posts.json'), 'utf-8'));
-    res.json({ posts: posts.posts });
+    const { data: posts, error } = await supabase
+      .from('blog_post')
+      .select('*')
+      .order('created_at', { ascending: false });
+    
+    if (error) throw error;
+    
+    res.json({ posts: posts || [] });
   } catch (e) {
-    res.json({ posts: [], error: e.message });
+    // Fallback to local file
+    try {
+      const data = JSON.parse(await fs.readFile(path.join(DATA_DIR, 'blog-posts.json'), 'utf-8'));
+      res.json({ posts: data.posts || [] });
+    } catch (err) {
+      res.json({ posts: [], error: err.message });
+    }
   }
 });
 
@@ -249,40 +262,44 @@ app.get('/api/tables/:table', async (req, res) => {
 // Inventory System
 app.get('/api/inventory', async (req, res) => {
   try {
-    const inventoryPath = path.join(WORKSPACE_DIR, 'INVENTORY.md');
-    const content = await fs.readFile(inventoryPath, 'utf8');
+    // Fetch from Supabase shop
+    const { data: items, error } = await supabase
+      .from('shop_item')
+      .select('*')
+      .order('created_at', { ascending: false });
     
-    const items = [];
-    const lines = content.split('\n');
-    let parsingTable = false;
+    if (error) throw error;
     
-    for (const line of lines) {
-      if (line.includes('| Item Name |')) {
-        parsingTable = true;
-        continue;
-      }
-      if (parsingTable && line.startsWith('| ---')) continue;
-      
-      if (parsingTable && line.startsWith('|')) {
-        const parts = line.split('|').map(p => p.trim()).filter(p => p);
-        if (parts.length >= 6) {
-          items.push({
-            name: parts[0].replace(/\*\*/g, ''),
-            variant: parts[1],
-            stock: parts[2],
-            price: parts[3],
-            status: parts[4],
-            notes: parts[5]
-          });
-        }
-      } else if (parsingTable && line.trim() === '') {
-        parsingTable = false;
-      }
-    }
+    const formattedItems = (items || []).map(item => ({
+      name: item.name,
+      variant: item.category || '',
+      stock: item.inventory_count?.toString() || '0',
+      price: item.price || '0',
+      status: item.available ? 'Available' : 'Unavailable',
+      notes: item.description || ''
+    }));
     
-    res.json({ items, raw: content });
+    res.json({ items: formattedItems });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    // Fallback to local file
+    try {
+      const inventoryPath = path.join(WORKSPACE_DIR, 'INVENTORY.md');
+      const content = await fs.readFile(inventoryPath, 'utf8');
+      const items = [];
+      const lines = content.split('\n');
+      let parsingTable = false;
+      for (const line of lines) {
+        if (line.includes('| Item Name |')) { parsingTable = true; continue; }
+        if (parsingTable && line.startsWith('| ---')) continue;
+        if (parsingTable && line.startsWith('|')) {
+          const parts = line.split('|').map(p => p.trim()).filter(p => p);
+          if (parts.length >= 6) {
+            items.push({ name: parts[0].replace(/\*\*/g, ''), variant: parts[1], stock: parts[2], price: parts[3], status: parts[4], notes: parts[5] });
+          }
+        } else if (parsingTable && line.trim() === '') { parsingTable = false; }
+      }
+      res.json({ items, raw: content });
+    } catch (e) { res.json({ items: [], raw: '' }); }
   }
 });
 
@@ -621,7 +638,261 @@ io.on('connection', (socket) => {
   });
 });
 
-// Serve React
+// ─── ADDED ENDPOINTS (must be before catch-all) ───
+
+// Projects endpoint
+app.get('/api/projects', async (req, res) => {
+  try {
+    const projectsDir = path.join(WORKSPACE_DIR, 'projects');
+    const files = await fs.readdir(projectsDir);
+    const projects = [];
+    for (const file of files) {
+      if (file.endsWith('.md')) {
+        projects.push({ id: file.replace('.md', ''), title: file.replace('.md', '').replace(/-/g, ' '), status: 'active', lastModified: new Date().toISOString() });
+      }
+    }
+    res.json({ projects });
+  } catch (error) { res.json({ projects: [] }); }
+});
+
+// Google Calendar endpoints
+app.get('/api/google-calendar/status', async (req, res) => {
+  try {
+    const calendarClient = require('./google-calendar-client.js');
+    await new Promise(r => setTimeout(r, 1500));
+    const isAuth = calendarClient.googleCalendar.isAuthenticated();
+    if (isAuth) {
+      const events = await calendarClient.getUpcomingEvents('primary', 7);
+      res.json({ connected: true, events: events.events || [] });
+    } else { res.json({ connected: false }); }
+  } catch (error) { res.json({ connected: false, error: error.message }); }
+});
+
+app.get('/api/google-calendar/upcoming', async (req, res) => {
+  try {
+    const calendarClient = require('./google-calendar-client.js');
+    await new Promise(r => setTimeout(r, 1500));
+    const isAuth = calendarClient.googleCalendar.isAuthenticated();
+    if (isAuth) {
+      const days = parseInt(req.query.days) || 7;
+      const events = await calendarClient.getUpcomingEvents('primary', days);
+      res.json({ events: events.events || [] });
+    } else { res.json({ events: [] }); }
+  } catch (error) { res.json({ events: [], error: error.message }); }
+});
+
+app.get('/api/google-calendar/calendars', async (req, res) => {
+  try {
+    const calendarClient = require('./google-calendar-client.js');
+    await new Promise(r => setTimeout(r, 1500));
+    const isAuth = calendarClient.googleCalendar.isAuthenticated();
+    if (isAuth) {
+      const calendars = await calendarClient.getCalendarList();
+      res.json({ calendars: calendars.calendars || [] });
+    } else { res.json({ calendars: [] }); }
+  } catch (error) { res.json({ calendars: [], error: error.message }); }
+});
+
+// Cortex endpoints
+app.get('/api/cortex', async (req, res) => {
+  const { section, limit = 50 } = req.query;
+  try {
+    const dbPath = path.join(DATA_DIR, 'cortex.db');
+    const SQLite = require('better-sqlite3');
+    const db = new SQLite(dbPath);
+    let query = 'SELECT * FROM cortex_entries';
+    if (section && section !== 'all_spark') { query += ' WHERE section = ?'; }
+    query += ' ORDER BY created_at DESC LIMIT ?';
+    const entries = db.prepare(query).all(section && section !== 'all_spark' ? [section, parseInt(limit)] : [parseInt(limit)]);
+    db.close();
+    res.json(entries);
+  } catch (error) { res.json([]); }
+});
+
+app.get('/api/cortex/stats', async (req, res) => {
+  try {
+    const dbPath = path.join(DATA_DIR, 'cortex.db');
+    const SQLite = require('better-sqlite3');
+    const db = new SQLite(dbPath);
+    const total = db.prepare('SELECT COUNT(*) as count FROM cortex_entries').get().count;
+    const bySection = db.prepare('SELECT section, COUNT(*) as count FROM cortex_entries GROUP BY section').all();
+    db.close();
+    res.json({ total, bySection });
+  } catch (error) { res.json({ total: 0, bySection: [] }); }
+});
+
+// Calendar merged
+app.get('/api/calendar/merged', async (req, res) => {
+  const { start, end } = req.query;
+  const events = [];
+  try {
+    const calendarClient = require('./google-calendar-client.js');
+    await new Promise(r => setTimeout(r, 500));
+    const isAuth = calendarClient.googleCalendar.isAuthenticated();
+    if (isAuth && start && end) {
+      const googleEvents = await calendarClient.getEvents('primary', parseInt(start), parseInt(end));
+      if (googleEvents.success && googleEvents.events) {
+        googleEvents.events.forEach(e => events.push({ id: e.id, title: e.summary, start: e.start?.dateTime || e.start?.date, end: e.end?.dateTime || e.end?.date, source: 'google' }));
+      }
+    }
+    res.json({ events });
+  } catch (error) { res.json({ events: [] }); }
+});
+
+// Finance endpoints
+app.get('/api/finances/recurring', (req, res) => { res.json({ recurring: [] }); });
+app.get('/api/finances/email-detected', (req, res) => { res.json({ expenses: [] }); });
+app.get('/api/opportunities', (req, res) => { res.json({ opportunities: [] }); });
+
+// Content endpoints
+app.get('/api/content/calendar/all', (req, res) => { res.json({ events: [] }); });
+app.get('/api/content/automation', (req, res) => { res.json({ automations: [] }); });
+
+// Inventory
+app.get('/api/inventory/all', async (req, res) => {
+  try {
+    // Fetch shop items from Supabase
+    const { data: shopItems } = await supabase
+      .from('shop_item')
+      .select('*')
+      .order('created_at', { ascending: false });
+    
+    // Fetch giveaway inventory
+    let giveawayItems = [];
+    let grouped = {};
+    try {
+      const giveawayData = await fs.readFile(path.join(DATA_DIR, 'giveaway_inventory.json'), 'utf8');
+      giveawayItems = JSON.parse(giveawayData);
+      grouped = {
+        mysteryPack: giveawayItems.filter(i => i.notes?.includes('Mystery pack')),
+        streamRewards: giveawayItems.filter(i => i.notes?.includes('Stream reward')),
+        special: giveawayItems.filter(i => i.notes?.includes('Special')),
+        available: giveawayItems.filter(i => i.status === 'available'),
+        all: giveawayItems
+      };
+    } catch (e) { giveawayItems = []; }
+    
+    const shopFormatted = (shopItems || []).map(item => ({
+      id: item.id, name: item.name, sku: item.stripe_product_id, qty: item.inventory_count,
+      price: item.price, category: item.category, type: 'shop'
+    }));
+    
+    const giveawayFormatted = giveawayItems.map(item => ({
+      id: item.id, name: item.name, sku: item.sku, qty: item.qty,
+      size: item.size, notes: item.notes, type: 'giveaway'
+    }));
+    
+    const stats = { shop: shopFormatted.length, giveaway: giveawayFormatted.length, personal: 0, bundles: 0 };
+    res.json({ items: [...shopFormatted, ...giveawayFormatted], stats, grouped });
+  } catch (error) { res.json({ items: [], stats: { shop: 0, giveaway: 0, personal: 0, bundles: 0 }, grouped: {} }); }
+});
+
+// Favicon
+app.get('/favicon.ico', (req, res) => { res.status(204).end(); });
+
+// Giveaway Inventory endpoint
+app.get('/api/giveaway/inventory', async (req, res) => {
+  try {
+    const data = await fs.readFile(path.join(DATA_DIR, 'giveaway_inventory.json'), 'utf8');
+    const items = JSON.parse(data);
+    
+    // Group by status/notes
+    const grouped = {
+      mysteryPack: items.filter(i => i.notes?.includes('Mystery pack')),
+      streamRewards: items.filter(i => i.notes?.includes('Stream reward')),
+      special: items.filter(i => i.notes?.includes('Special')),
+      available: items.filter(i => i.status === 'available'),
+      all: items
+    };
+    
+    res.json({ items, grouped });
+  } catch (error) {
+    res.json({ items: [], grouped: {}, error: error.message });
+  }
+});
+
+// Supabase shop endpoint
+const { createClient } = require('@supabase/supabase-js');
+const supabase = createClient(
+  process.env.SUPABASE_URL || 'https://yyoxpcsspmjvolteknsn.supabase.co',
+  process.env.SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inl5b3hwY3NzcG1qdm9sdGVrbnNuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTY3MTM5MzAsImV4cCI6MjA3MjI4OTkzMH0.HFFOlmMjiiyQiKAODnz9RAmF3IR7n4KrvGhWp-K_dHM'
+);
+
+app.get('/api/shop/items', async (req, res) => {
+  try {
+    const { data: items, error } = await supabase
+      .from('shop_item')
+      .select('*')
+      .eq('available', true)
+      .order('created_at', { ascending: false });
+    
+    if (error) throw error;
+    res.json({ items: items || [] });
+  } catch (error) {
+    res.json({ items: [], error: error.message });
+  }
+});
+
+// Stripe/Shop endpoint - lazy load
+app.get('/api/shop/products', async (req, res) => {
+  try {
+    const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
+    const products = await stripe.products.list({ active: true, expand: ['data.default_price'] });
+    const items = products.data.map(p => ({
+      id: p.id,
+      name: p.name,
+      description: p.description,
+      image: p.images?.[0] || '',
+      price: p.default_price?.unit_amount ? p.default_price.unit_amount / 100 : 0,
+      currency: p.default_price?.currency || 'usd'
+    }));
+    res.json({ items });
+  } catch (error) {
+    res.json({ items: [], error: error.message });
+  }
+});
+
+app.get('/api/shop/orders', async (req, res) => {
+  try {
+    const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
+    const orders = await stripe.orders.list({ limit: 10 });
+    res.json({ orders: orders.data });
+  } catch (error) {
+    res.json({ orders: [], error: error.message });
+  }
+});
+
+// Moods endpoint
+const moodsData = {
+  moods: {
+    ready: { label: 'Ready', gif: '/moods/ready.gif' },
+    focused: { label: 'Focused', gif: '/moods/focused.gif' },
+    working: { label: 'Working', gif: '/moods/working.gif' },
+    resting: { label: 'Resting', gif: '/moods/resting.gif' },
+    thinking: { label: 'Thinking', gif: '/moods/thinking.gif' },
+    excited: { label: 'Excited', gif: '/moods/excited.gif' },
+    creative: { label: 'Creative', gif: '/moods/creative.gif' }
+  },
+  agents: {
+    clawdette: { name: 'Clawdette', currentMood: 'ready' },
+    'knowledge-knaight': { name: 'Knowledge Knaight', currentMood: 'ready' }
+  }
+};
+
+app.get('/api/moods', (req, res) => {
+  res.json(moodsData);
+});
+
+app.post('/api/moods/:agent', async (req, res) => {
+  const { agent } = req.params;
+  const { mood } = req.body;
+  if (moodsData.agents[agent]) {
+    moodsData.agents[agent].currentMood = mood;
+  }
+  res.json({ success: true });
+});
+
+// Serve React (MUST BE LAST)
 app.get('*', (req, res) => {
   res.sendFile(path.join(__dirname, 'client/build', 'index.html'));
 });

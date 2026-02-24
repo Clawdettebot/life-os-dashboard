@@ -4,8 +4,17 @@
  */
 
 const { Client, GatewayIntentBits, Events } = require('discord.js');
-require('dotenv').config();
+require('dotenv').config({ path: __dirname + '/.env.knaight' });
 const axios = require('axios');
+
+// Load Knaight of Affairs and Sir Clawthchilds
+let KnaightOfAffairs, SirClawthchilds;
+try {
+  KnaightOfAffairs = require('./knaight-of-affairs/index.js');
+  SirClawthchilds = require('./sir-clawthchilds/index.js');
+} catch (e) {
+  console.log('Additional agents not loaded:', e.message);
+}
 
 class KnowledgeKnaightBot {
   constructor(config) {
@@ -21,8 +30,15 @@ class KnowledgeKnaightBot {
     this.config = {
       apiUrl: config.apiUrl || 'http://localhost:3000',
       allowedChannels: config.allowedChannels || [],
+      roundTableChannel: config.roundTableChannel,
       ...config
     };
+    
+    // Initialize Knaight of Affairs
+    this.affairs = KnaightOfAffairs ? new KnaightOfAffairs(this) : null;
+    
+    // Initialize Sir Clawthchilds
+    this.clawthchilds = SirClawthchilds ? new SirClawthchilds(this) : null;
     
     this.setupEventHandlers();
   }
@@ -53,6 +69,30 @@ class KnowledgeKnaightBot {
     });
   }
 
+  // Report to Round Table (where Clawdette manages)
+  async reportToRoundTable(summary) {
+    try {
+      const channel = await this.client.channels.fetch(this.config.roundTableChannel);
+      if (!channel) return;
+      
+      const embed = {
+        color: 0x8b5cf6,
+        title: '🧠 Knowledge Processed',
+        fields: [
+          { name: 'Title', value: summary.title || 'Untitled', inline: true },
+          { name: 'Section', value: summary.section || 'Uncategorized', inline: true },
+          { name: 'Preview', value: (summary.preview || '').substring(0, 100) + '...' }
+        ],
+        footer: { text: `Source: ${summary.source || 'Discord'}` },
+        timestamp: new Date().toISOString()
+      };
+      
+      await channel.send({ embeds: [embed] });
+    } catch (e) {
+      console.log('Round table report failed:', e.message);
+    }
+  }
+
   async handleCommand(message) {
     const args = message.content.slice(1).trim().split(/ +/);
     const command = args.shift().toLowerCase();
@@ -73,6 +113,10 @@ class KnowledgeKnaightBot {
             return;
           }
           await this.handleSearch(message, args);
+          break;
+
+        case 'rescan':
+          await this.handleRescan(message);
           break;
 
         case 'stats':
@@ -176,6 +220,51 @@ class KnowledgeKnaightBot {
     }
   }
 
+  async handleRescan(message) {
+    await message.reply('🔄 Scanning channel for links to process...');
+    
+    const urlRegex = /(https?:\/\/[^\s]+)/g;
+    let processed = 0;
+    let failed = 0;
+    
+    try {
+      // Fetch last 100 messages
+      const messages = await message.channel.messages.fetch({ limit: 100 });
+      
+      for (const [id, msg] of messages) {
+        if (msg.author.bot) continue; // Skip bot messages
+        
+        const urls = msg.content.match(urlRegex);
+        if (urls && urls.length > 0) {
+          try {
+            await axios.post(`${this.config.apiUrl}/api/discord/webhook`, {
+              content: msg.content,
+              author: {
+                id: msg.author.id,
+                username: msg.author.username
+              },
+              channel_id: msg.channelId,
+              attachments: Array.from(msg.attachments.values()).map(a => ({
+                filename: a.name,
+                url: a.url,
+                content_type: a.contentType
+              }))
+            });
+            processed++;
+          } catch (e) {
+            failed++;
+          }
+        }
+      }
+      
+      await message.reply(`✅ Processed ${processed} messages with links. ${failed > 0 ? `❌ ${failed} failed.` : ''}`);
+      
+    } catch (e) {
+      console.error('Rescan error:', e);
+      await message.reply('❌ Rescan failed: ' + e.message);
+    }
+  }
+
   async handleStats(message) {
     try {
       const response = await axios.post(`${this.config.apiUrl}/api/discord/command`, {
@@ -217,6 +306,7 @@ class KnowledgeKnaightBot {
 
 \`!ingest <url> [section]\` - Add URL to your knowledge base
 \`!cortex <query>\` - Search your knowledge base
+\`!rescan\` - Reprocess recent links in channel
 \`!stats\` - View Cortex statistics
 \`!help\` - Show this help message
 
@@ -293,19 +383,40 @@ module.exports = KnowledgeKnaightBot;
 
 // Run standalone if called directly
 if (require.main === module) {
+  // Round table channel where agents report to Clawdette
+  const ROUND_TABLE_CHANNEL = '1475656727188869180';
+  
   const bot = new KnowledgeKnaightBot({
     apiUrl: process.env.API_URL || 'http://localhost:3000',
-    allowedChannels: process.env.ALLOWED_CHANNELS?.split(',') || []
+    allowedChannels: [
+      '1473933220050374792', // #cortex
+      '1475656727188869180'  // #round-table
+    ],
+    roundTableChannel: ROUND_TABLE_CHANNEL
   });
 
-  // Bot invite URL with proper permissions
   console.log('🤖 Knowledge Knaight starting...');
+  console.log('Listening on: #cortex, #round-table');
+  console.log('Reporting to: #round-table');
   console.log('Invite bot with:');
   console.log(`https://discord.com/api/oauth2/authorize?client_id=${process.env.DISCORD_APP_ID || '1473691851201712189'}&permissions=8&scope=bot%20applications.commands`);
   
-  bot.login(process.env.DISCORD_TOKEN).catch(err => {
+  bot.login(process.env.DISCORD_TOKEN).then(() => {
+    console.log('✅ Bot logged in successfully');
+    
+    // Start Knaight of Affairs
+    if (bot.affairs) {
+      bot.affairs.start();
+      console.log('📅 Knaight of Affairs initialized');
+    }
+    
+    // Start Sir Clawthchilds
+    if (bot.clawthchilds) {
+      bot.clawthchilds.start();
+      console.log('👑 Sir Clawthchilds initialized');
+    }
+  }).catch(err => {
     console.error('❌ Failed to login:', err.message);
-    console.log('Make sure DISCORD_TOKEN is set in your .env file');
     process.exit(1);
   });
 }

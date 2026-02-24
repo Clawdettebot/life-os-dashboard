@@ -1,3 +1,4 @@
+// Life OS Dashboard - Fixed API error handling
 import React, { useState, useEffect, useRef } from 'react';
 import io from 'socket.io-client';
 import Chart from 'chart.js/auto';
@@ -18,6 +19,7 @@ import NotesView from './components/NotesView';
 import ContentSchedulerView from './components/ContentSchedulerView';
 import BlogVoiceView from './components/BlogVoiceView';
 import ProjectsView from './components/ProjectsView';
+import RoundTableView from './components/RoundTableView';
 
 // ── CONSTANTS & CONFIG ──
 const QUOTES = [
@@ -103,6 +105,10 @@ function App() {
   const fetchMoods = async () => {
     try {
       const res = await fetch('/api/moods');
+      if (!res.ok) {
+        console.error('Moods fetch failed:', res.status, await res.text());
+        return;
+      }
       const data = await res.json();
       setMoodsData(data);
     } catch (e) { console.error('Failed to fetch moods:', e); }
@@ -131,20 +137,20 @@ function App() {
         calendarData, analyticsData, streamsData, inventoryData, journalData,
         googleCalendarStatus
       ] = await Promise.all([
-        fetch('/api/tasks').then(r => r.json()),
-        fetch('/api/projects').then(r => r.json()),
-        fetch('/api/tables/finances').then(r => r.json().then(j => j.data || [])),
-        fetch('/api/tables/habits').then(r => r.json().then(j => j.data || [])),
-        fetch('/api/tables/notes').then(r => r.json().then(j => j.data || [])),
-        fetch('/api/tables/health').then(r => r.json().then(j => j.data || [])),
-        fetch('/api/tables/goals').then(r => r.json().then(j => j.data || [])),
-        fetch('/api/tables/schedule').then(r => r.json().then(j => j.data || [])),
-        fetch('/api/content/calendar').then(r => r.json()),
-        fetch('/api/analytics').then(r => r.json()),
-        fetch('/api/streams').then(r => r.json()),
-        fetch('/api/inventory').then(r => r.json()),
-        fetch('/api/journal').then(r => r.json()),
-        fetch('/api/google-calendar/status').then(r => r.json()).catch(() => ({ connected: false }))
+        fetch('/api/tasks').then(r => { if (!r.ok) throw new Error(r.status); return r.json(); }),
+        fetch('/api/projects').then(r => { if (!r.ok) throw new Error(r.status); return r.json(); }),
+        fetch('/api/tables/finances').then(r => { if (!r.ok) throw new Error(r.status); return r.json().then(j => j.data || []); }),
+        fetch('/api/tables/habits').then(r => { if (!r.ok) throw new Error(r.status); return r.json().then(j => j.data || []); }),
+        fetch('/api/tables/notes').then(r => { if (!r.ok) throw new Error(r.status); return r.json().then(j => j.data || []); }),
+        fetch('/api/tables/health').then(r => { if (!r.ok) throw new Error(r.status); return r.json().then(j => j.data || []); }),
+        fetch('/api/tables/goals').then(r => { if (!r.ok) throw new Error(r.status); return r.json().then(j => j.data || []); }),
+        fetch('/api/tables/schedule').then(r => { if (!r.ok) throw new Error(r.status); return r.json().then(j => j.data || []); }),
+        fetch('/api/content/calendar').then(r => { if (!r.ok) throw new Error(r.status); return r.json(); }),
+        fetch('/api/analytics').then(r => { if (!r.ok) throw new Error(r.status); return r.json(); }),
+        fetch('/api/streams').then(r => { if (!r.ok) throw new Error(r.status); return r.json(); }),
+        fetch('/api/inventory').then(r => { if (!r.ok) throw new Error(r.status); return r.json(); }),
+        fetch('/api/journal').then(r => { if (!r.ok) throw new Error(r.status); return r.json(); }),
+        fetch('/api/google-calendar/status').then(r => { if (!r.ok) throw new Error(r.status); return r.json(); }).catch(() => ({ connected: false }))
       ]);
 
       setTasks({
@@ -542,7 +548,7 @@ function App() {
                 <span style={{textTransform:'capitalize'}}>{p}</span>
               </div>
             ))}
-            <div className={`nav-item ${activePage === 'subagents' ? 'active' : ''}`} onClick={() => navigateTo('subagents')}>Subagents</div>
+            <div className={`nav-item ${activePage === 'subagents' ? 'active' : ''}`} onClick={() => navigateTo('subagents')}>The Round Table</div>
           </div>
           <div className="nav-section">
             <div className="nav-section-label">Work</div>
@@ -786,21 +792,8 @@ function App() {
           )}
 
           {activePage === 'subagents' && (
-            <div className="card">
-              <div className="card-header">Active Subagents</div>
-              <div style={{whiteSpace:'pre-wrap', fontFamily:'monospace', background:'#111', padding:'10px', borderRadius:'4px'}}>
-                {typeof subagents === 'string' ? subagents : JSON.stringify(subagents, null, 2)}
-              </div>
-              <div style={{marginTop:'20px'}}>
-                <div className="card-title">Spawn New Agent</div>
-                <div className="grid-2">
-                  <input id="agentTask" className="form-input" placeholder="Task description..." />
-                  <button className="btn btn-primary" onClick={() => {
-                    const task = document.getElementById('agentTask').value;
-                    if(task) API.spawnSubagent(task);
-                  }}>Spawn Agent</button>
-                </div>
-              </div>
+            <div>
+              <RoundTableView />
             </div>
           )}
 
@@ -923,6 +916,7 @@ function App() {
           )}
 
           {activePage === 'cortex' && <CortexView />}
+          {activePage === 'subagents' && <RoundTableView />}
 
         </section>
       </main>

@@ -4159,3 +4159,15 @@ body::before {
   margin: 16px 0;
   color: #666;
 }
+
+/* Blog Dark Mode Fixes */
+[data-theme="dark"] .blog-content,
+[data-theme="dark"] .post-content,
+[data-theme="dark"] [style*="background-color: rgba"] {
+  background-color: #1e293b !important;
+  color: #e2e8f0 !important;
+}
+[data-theme="dark"] .blog-content p,
+[data-theme="dark"] .post-content p {
+  color: #e2e8f0 !important;
+}

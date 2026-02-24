@@ -104,7 +104,7 @@ async function exchangeCode(code) {
 function isAuthenticated() {
   if (!oauth2Client) return false;
   const creds = oauth2Client.credentials;
-  return creds && creds.access_token;
+  return !!(creds && creds.access_token);
 }
 
 // Get calendar list

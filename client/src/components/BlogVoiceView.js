@@ -8,6 +8,21 @@ export default function BlogVoiceView({ api }) {
   const [suggestions, setSuggestions] = useState([]);
   const [releases, setReleases] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [darkMode, setDarkMode] = useState(false);
+
+  useEffect(() => {
+    // Detect dark mode
+    const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+    setDarkMode(isDark);
+    
+    // Listen for theme changes
+    const observer = new MutationObserver(() => {
+      setDarkMode(document.documentElement.getAttribute('data-theme') === 'dark');
+    });
+    observer.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
+    
+    return () => observer.disconnect();
+  }, []);
   const [showNewPost, setShowNewPost] = useState(false);
   const [newPostTitle, setNewPostTitle] = useState('');
   const [newPostContent, setNewPostContent] = useState('');
@@ -103,8 +118,21 @@ export default function BlogVoiceView({ api }) {
   const publishedPosts = posts.filter(p => p.status === 'published');
   const pendingSuggestions = suggestions.filter(s => s.status === 'pending');
 
+  const styles = {
+    container: { padding: '20px', maxWidth: '1400px', margin: '0 auto' },
+    card: { background: darkMode ? '#1e293b' : 'white', borderRadius: '16px', padding: '20px', boxShadow: '0 1px 3px rgba(0,0,0,0.1)' },
+    cardBg: darkMode ? '#1e293b' : 'white',
+    altBg: darkMode ? '#0f172a' : '#f8fafc',
+    greenBg: darkMode ? '#14532d' : '#f0fdf4',
+    yellowBg: darkMode ? '#78350f' : '#fef3c7',
+    text: darkMode ? '#e2e8f0' : '#1e293b',
+    muted: darkMode ? '#94a3b8' : '#64748b',
+    border: darkMode ? '#334155' : '#e2e8f0',
+    inputBg: darkMode ? '#0f172a' : 'white',
+  };
+
   return (
-    <div style={{ padding: '20px', maxWidth: '1400px', margin: '0 auto' }}>
+    <div style={styles.container}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '24px' }}>
         <div>
           <h1 style={{ fontSize: '28px', fontWeight: 700, margin: 0 }}>
