@@ -68,6 +68,14 @@ export default function RoundTableView() {
       specialty: 'Email scanning, recurring payments, financial reports'
     },
     {
+      id: 'claudnelius',
+      name: 'Claudnelius',
+      role: 'Code Magician',
+      status: 'coming_soon',
+      lastActivity: null,
+      specialty: 'Building tools, editing code, UI design'
+    },
+    {
       id: 'sound-knaight',
       name: 'Sound Knaight',
       role: 'Audio Engineer',

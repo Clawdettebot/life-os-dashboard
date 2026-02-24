@@ -40,13 +40,31 @@ Each agent should have:
   - `/dashboard/knowledge-knaight/DOJO.md`
 
 ### Knaight of Affairs
-- **Status:** Coming Soon
+- **Status:** Active
 - **Channels:** #round-table (reporting)
 - **Specialty:** Calendar monitoring, reminders, schedule optimization
 - **Monitors:** Google Calendar, Content Calendar, Stream Schedule, Tasks
 - **Files:**
   - `/dashboard/knaight-of-affairs/SOUL.md`
   - `/dashboard/knaight-of-affairs/DOJO.md`
+
+### Sir Clawthchilds
+- **Status:** Active
+- **Channels:** #round-table, DMs
+- **Specialty:** Financial scanning, email parsing, recurring payments
+- **Monitors:** Twitch, Stripe, Chase, Cash App, etc.
+- **Files:**
+  - `/dashboard/sir-clawthchilds/SOUL.md`
+  - `/dashboard/sir-clawthchilds/DOJO.md`
+
+### Claudnelius
+- **Status:** Coming Soon
+- **Channels:** #round-table
+- **Specialty:** Code generation, UI design, building tools
+- **Uses:** Gemini API
+- **Files:**
+  - `/dashboard/claudnelius/SOUL.md`
+  - `/dashboard/claudnelius/DOJO.md`
 
 ## Adding New Agents
 
