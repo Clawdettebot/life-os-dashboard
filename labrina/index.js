@@ -1,6 +1,6 @@
 /**
  * Labrina - Social Media Maven
- * Pulls social stats, schedules posts, monitors content
+ * Posts content, tracks stats, updates Life OS
  */
 
 const { Events } = require('discord.js');
@@ -13,34 +13,37 @@ class Labrina {
     this.role = 'Social Media Maven';
     this.active = true;
     
-    // Social platforms
-    this.platforms = ['twitter', 'instagram', 'youtube'];
-    
-    // Daily stats check at 10 AM Pacific
+    // Daily social stats - 10 AM Pacific
     this.dailyStatsCron = new CronJob('0 18 * * *', () => this.dailyStats());
     
-    // Content check at noon Pacific
-    this.contentCheckCron = new CronJob('0 17 * * *', () => this.checkContent());
+    // Content schedule check - noon Pacific
+    this.scheduleCheckCron = new CronJob('0 17 * * *', () => this.checkSchedule());
   }
   
   start() {
     this.dailyStatsCron.start();
-    this.contentCheckCron.start();
-    console.log('📱 Labrina started - Stats: 6PM UTC, Content: 5PM UTC');
+    this.scheduleCheckCron.start();
+    console.log('📱 Labrina started - Stats: 6PM UTC, Schedule: 5PM UTC');
   }
   
   stop() {
     this.dailyStatsCron.stop();
-    this.contentCheckCron.stop();
+    this.scheduleCheckCron.stop();
     console.log('📱 Labrina stopped');
   }
   
-  // Daily social stats report
+  // Daily stats report
   async dailyStats() {
     try {
-      const stats = await this.fetchSocialStats();
-      const report = this.formatStatsReport(stats);
+      // Use Supabase to get stats history
+      const axios = require('axios');
+      const stats = await this.getSocialStats();
       
+      // Update Life OS dashboard
+      await this.updateLifeOSStats(stats);
+      
+      // Report to round table
+      const report = this.formatStatsReport(stats);
       await this.sendToRoundTable(report);
       await this.sendDM(report);
     } catch (e) {
@@ -48,119 +51,101 @@ class Labrina {
     }
   }
   
-  // Check Google Drive for new content
-  async checkContent() {
+  // Check content schedule
+  async checkSchedule() {
     try {
-      const content = await this.checkDriveContent();
-      if (content.length > 0) {
-        const report = this.formatContentReport(content);
+      // Read content calendar from Life OS
+      const axios = require('axios');
+      const response = await axios.get(`${this.bot.config.apiUrl}/api/content/calendar`);
+      const calendar = response.data;
+      
+      // Find content for today/tomorrow
+      const upcoming = this.findUpcomingContent(calendar);
+      
+      if (upcoming.length > 0) {
+        const report = `📅 **Upcoming Content**\n${upcoming.map(c => `- ${c.title}`).join('\n')}`;
         await this.sendToRoundTable(report);
       }
     } catch (e) {
-      console.log('Content check failed:', e.message);
+      console.log('Schedule check failed:', e.message);
     }
   }
   
-  // Fetch social stats from PostBridge
-  async fetchSocialStats() {
-    const stats = {};
-    
-    // Check for PostBridge credentials
-    if (!process.env.POSTBRIDGE_API_KEY) {
-      console.log('Labrina: PostBridge API key not configured');
-      return null;
-    }
-    
+  // Get social stats (from Supabase or API)
+  async getSocialStats() {
+    // TODO: Connect to social APIs when credentials provided
+    // For now, return mock or stored data
+    return {
+      twitter: { followers: 0, engagement: 0 },
+      instagram: { followers: 0, engagement: 0 },
+      youtube: { subscribers: 0, views: 0 }
+    };
+  }
+  
+  // Update Life OS with stats
+  async updateLifeOSStats(stats) {
     try {
       const axios = require('axios');
       
-      // Twitter stats
-      try {
-        const twitter = await axios.get('https://api.postbridge.io/v1/twitter/me', {
-          headers: { 'Authorization': `Bearer ${process.env.POSTBRIDGE_API_KEY}` }
-        });
-        stats.twitter = twitter.data;
-      } catch (e) {
-        stats.twitter = { error: e.message };
-      }
-      
-      // Instagram stats
-      try {
-        const instagram = await axios.get('https://api.postbridge.io/v1/instagram/me', {
-          headers: { 'Authorization': `Bearer ${process.env.POSTBRIDGE_API_KEY}` }
-        });
-        stats.instagram = instagram.data;
-      } catch (e) {
-        stats.instagram = { error: e.message };
-      }
-      
-      // YouTube stats
-      try {
-        const youtube = await axios.get('https://api.postbridge.io/v1/youtube/me', {
-          headers: { 'Authorization': `Bearer ${process.env.POSTBRIDGE_API_KEY}` }
-        });
-        stats.youtube = youtube.data;
-      } catch (e) {
-        stats.youtube = { error: e.message };
-      }
-      
+      // Store in Supabase
+      await axios.post(`${this.bot.config.apiUrl}/api/social/stats`, {
+        date: new Date().toISOString(),
+        stats: stats
+      });
     } catch (e) {
-      console.log('PostBridge fetch error:', e.message);
+      console.log('Update Life OS failed:', e.message);
     }
-    
-    return stats;
   }
   
-  // Check Google Drive for new content
-  async checkDriveContent() {
-    const content = [];
+  // Find upcoming content
+  findUpcomingContent(calendar) {
+    if (!calendar || !calendar.weeks) return [];
     
-    if (!process.env.GOOGLE_CLIENT_ID) {
-      console.log('Labrina: Google Drive not configured');
-      return content;
+    const now = new Date();
+    const upcoming = [];
+    
+    for (const week of calendar.weeks || []) {
+      for (const day of week.days || []) {
+        const dayDate = new Date(2025, 1, day.date); // Feb 2025
+        const diffDays = Math.ceil((dayDate - now) / (1000 * 60 * 60 * 24));
+        
+        if (diffDays >= 0 && diffDays <= 2 && day.content?.release) {
+          upcoming.push({
+            title: day.content.release || 'Release',
+            date: day.date,
+            platform: day.content.platform || 'All'
+          });
+        }
+      }
     }
     
-    // This would use Google Drive API in production
-    // For now, returns empty - needs credentials
-    
-    return content;
+    return upcoming;
   }
   
+  // Format stats report
   formatStatsReport(stats) {
-    if (!stats) {
-      return `📊 **Social Stats**
-━━━━━━━━━━━━━━━━━━━━
-⚠️ PostBridge API not configured.
-Reply with API keys to enable.`;
-    }
-    
     let msg = `📊 **Social Stats** - ${new Date().toLocaleDateString()}\n`;
     msg += `━━━━━━━━━━━━━━━━━━━━\n\n`;
     
-    if (stats.twitter && !stats.twitter.error) {
-      msg += `🐦 **Twitter:** ${stats.twitter.followers || 'N/A'} followers\n`;
+    if (stats.twitter?.followers) {
+      msg += `🐦 Twitter: ${stats.twitter.followers.toLocaleString()} followers\n`;
     }
-    if (stats.instagram && !stats.instagram.error) {
-      msg += `📸 **Instagram:** ${stats.instagram.followers || 'N/A'} followers\n`;
+    if (stats.instagram?.followers) {
+      msg += `📸 Instagram: ${stats.instagram.followers.toLocaleString()} followers\n`;
     }
-    if (stats.youtube && !stats.youtube.error) {
-      msg += `📺 **YouTube:** ${stats.youtube.subscribers || 'N/A'} subscribers\n`;
+    if (stats.youtube?.subscribers) {
+      msg += `📺 YouTube: ${stats.youtube.subscribers.toLocaleString()} subs\n`;
+    }
+    
+    if (!stats.twitter?.followers && !stats.instagram?.followers) {
+      msg += `⚠️ Social APIs not configured yet.\n`;
+      msg += `Add credentials to enable tracking.`;
     }
     
     return msg;
   }
   
-  formatContentReport(content) {
-    let msg = `📁 **New Content Found**\n`;
-    msg += `━━━━━━━━━━━━━━━━━━━━\n\n`;
-    
-    for (const item of content) {
-      msg += `- ${item.name} (${item.type})\n`;
-    }
-    
-    return msg;
-  }
-  
+  // Send to round table
   async sendToRoundTable(message) {
     try {
       const channel = await this.bot.client.channels.fetch(this.bot.config.roundTableChannel);
@@ -170,12 +155,27 @@ Reply with API keys to enable.`;
     }
   }
   
+  // Send DM
   async sendDM(message) {
     try {
       const user = await this.bot.client.users.fetch(process.env.OWNER_ID);
       if (user) await user.send(message);
     } catch (e) {
       console.log('DM send failed:', e.message);
+    }
+  }
+  
+  // Post content (called by me or schedule)
+  async postContent(platform, message, options = {}) {
+    try {
+      // Use Discord message to post (or integrate with social APIs)
+      const channel = await this.bot.client.channels.fetch(options.channelId || this.bot.config.roundTableChannel);
+      if (channel) {
+        await channel.send(`[CROSS-POST] ${message}`);
+      }
+      return { success: true };
+    } catch (e) {
+      return { success: false, error: e.message };
     }
   }
 }
