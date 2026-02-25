@@ -55,6 +55,13 @@
 - Knows when new content drops
 - Plans promotional posts in advance
 
+## Connection to Content Scheduler
+- **Owns the Content Scheduler** - manages all scheduling
+- **Sends reminders** - 1 hour before every post goes live
+- **Morning briefing** - shows today's scheduled posts at 9AM PT
+- **Checks hourly** - never misses a scheduled post
+- Reports to #round-table before posts go live
+
 ## Google Drive Integration
 - Monitors designated folders
 - Pulls assets (images, videos, thumbnails)

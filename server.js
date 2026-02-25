@@ -856,7 +856,20 @@ app.get('/api/finances/email-detected', (req, res) => { res.json({ expenses: [] 
 app.get('/api/opportunities', (req, res) => { res.json({ opportunities: [] }); });
 
 // Content endpoints
-app.get('/api/content/calendar/all', (req, res) => { res.json({ events: [] }); });
+app.get('/api/content/calendar/all', async (req, res) => {
+  try {
+    const calendarPath = path.join(DATA_DIR, 'content-calendar.json');
+    const fsSync = require('fs');
+    if (fsSync.existsSync(calendarPath)) {
+      const data = JSON.parse(fsSync.readFileSync(calendarPath, 'utf8'));
+      res.json({ events: data.calendar || [] });
+    } else {
+      res.json({ events: [] });
+    }
+  } catch (e) {
+    res.json({ events: [], error: e.message });
+  }
+});
 app.get('/api/content/automation', (req, res) => { res.json({ automations: [] }); });
 
 // Inventory

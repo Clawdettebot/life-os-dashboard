@@ -1,6 +1,7 @@
 /**
  * Labrina - Social Media Maven
  * Posts content, tracks stats, updates Life OS
+ * Manages Content Scheduler & sends post reminders
  */
 
 const { Events } = require('discord.js');
@@ -13,17 +14,21 @@ class Labrina {
     this.role = 'Social Media Maven';
     this.active = true;
     
-    // Daily social stats - 10 AM Pacific
+    // Daily social stats - 10 AM Pacific (6PM UTC)
     this.dailyStatsCron = new CronJob('0 18 * * *', () => this.dailyStats());
     
-    // Content schedule check - noon Pacific
+    // Content schedule check - every hour to send reminders
+    this.reminderCheckCron = new CronJob('0 * * * *', () => this.checkReminders());
+    
+    // Morning schedule preview - 9 AM Pacific (5PM UTC)
     this.scheduleCheckCron = new CronJob('0 17 * * *', () => this.checkSchedule());
   }
   
   start() {
     this.dailyStatsCron.start();
+    this.reminderCheckCron.start();
     this.scheduleCheckCron.start();
-    console.log('📱 Labrina started - Stats: 6PM UTC, Schedule: 5PM UTC');
+    console.log('📱 Labrina started - Stats: 6PM UTC, Reminders: Hourly, Schedule: 5PM UTC');
   }
   
   stop() {
@@ -51,19 +56,89 @@ class Labrina {
     }
   }
   
+  // Check for upcoming posts and send reminders
+  async checkReminders() {
+    try {
+      const axios = require('axios');
+      
+      // Get scheduled posts from Content Scheduler
+      const response = await axios.get(`${this.bot.config.apiUrl}/api/content/calendar/all`);
+      const { events = [] } = response.data;
+      
+      const now = new Date();
+      const oneHourFromNow = new Date(now.getTime() + 60 * 60 * 1000);
+      
+      // Find posts going live in the next hour
+      const upcoming = events.filter(post => {
+        if (post.status !== 'pending') return false;
+        const postDate = new Date(post.date);
+        return postDate > now && postDate <= oneHourFromNow;
+      });
+      
+      for (const post of upcoming) {
+        const timeStr = new Date(post.date).toLocaleTimeString('en-US', { 
+          hour: 'numeric', minute: '2-digit', timeZone: 'America/Los_Angeles'
+        });
+        
+        const emoji = this.getPlatformEmoji(post.platform);
+        const reminder = `⏰ **Post Reminder** ${emoji}\n`
+          + `**${post.title}**\n`
+          + `Platform: ${post.platform}\n`
+          + `Time: ${timeStr} PT\n`
+          + `Type: ${post.content_type}`;
+        
+        await this.sendToRoundTable(reminder);
+        await this.sendDM(reminder);
+        
+        console.log(`📱 Reminder sent: ${post.title} at ${post.date}`);
+      }
+    } catch (e) {
+      console.log('Reminder check failed:', e.message);
+    }
+  }
+  
+  // Get platform emoji
+  getPlatformEmoji(platform) {
+    const emojis = {
+      instagram: '📸',
+      tiktok: '🎵',
+      twitter: '🐦',
+      threads: '🧵',
+      youtube: '📺'
+    };
+    return emojis[platform] || '📱';
+  }
+
   // Check content schedule
   async checkSchedule() {
     try {
       // Read content calendar from Life OS
       const axios = require('axios');
-      const response = await axios.get(`${this.bot.config.apiUrl}/api/content/calendar`);
-      const calendar = response.data;
+      const response = await axios.get(`${this.bot.config.apiUrl}/api/content/calendar/all`);
+      const { events = [] } = response.data;
       
-      // Find content for today/tomorrow
-      const upcoming = this.findUpcomingContent(calendar);
+      // Find pending posts for today/tomorrow
+      const now = new Date();
+      const tomorrow = new Date(now.getTime() + 24 * 60 * 60 * 1000);
+      
+      const upcoming = events.filter(post => {
+        if (post.status !== 'pending') return false;
+        const postDate = new Date(post.date);
+        return postDate >= now && postDate <= tomorrow;
+      });
       
       if (upcoming.length > 0) {
-        const report = `📅 **Upcoming Content**\n${upcoming.map(c => `- ${c.title}`).join('\n')}`;
+        let report = `📅 **Today's Content Schedule**\n━━━━━━━━━━━━━━━━━━━━\n\n`;
+        
+        for (const post of upcoming) {
+          const time = new Date(post.date).toLocaleTimeString('en-US', {
+            hour: 'numeric', minute: '2-digit', timeZone: 'America/Los_Angeles'
+          });
+          const emoji = this.getPlatformEmoji(post.platform);
+          report += `${emoji} **${time} PT** - ${post.title}\n`;
+          report += `   📂 ${post.content_type}\n\n`;
+        }
+        
         await this.sendToRoundTable(report);
       }
     } catch (e) {
