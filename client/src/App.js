@@ -19,6 +19,7 @@ import NotesView from './components/NotesView';
 import ContentSchedulerView from './components/ContentSchedulerView';
 import BlogVoiceView from './components/BlogVoiceView';
 import ProjectsView from './components/ProjectsView';
+import ContactsView from './components/ContactsView';
 import RoundTableView from './components/RoundTableView';
 
 // ── CONSTANTS & CONFIG ──
@@ -585,6 +586,9 @@ function App() {
             <div className={`nav-item ${activePage === 'cortex' ? 'active' : ''}`} onClick={() => navigateTo('cortex')}>
               <span>🧠 Cortex</span>
             </div>
+            <div className={`nav-item ${activePage === 'contacts' ? 'active' : ''}`} onClick={() => navigateTo('contacts')}>
+              <span>👥 Contacts</span>
+            </div>
           </div>
           <div className="nav-section tools-grid-section">
             <div className="nav-section-label">Tools</div>
@@ -700,6 +704,10 @@ function App() {
 
           {activePage === 'projects' && (
             <ProjectsView api={API} />
+          )}
+
+          {activePage === 'contacts' && (
+            <ContactsView />
           )}
 
           {activePage === 'pomodoro' && (

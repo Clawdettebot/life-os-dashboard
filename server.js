@@ -721,6 +721,117 @@ app.get('/api/cortex/stats', async (req, res) => {
   } catch (error) { res.json({ total: 0, bySection: [] }); }
 });
 
+// Contacts CRM
+app.get('/api/contacts', async (req, res) => {
+  try {
+    const dbPath = path.join(DATA_DIR, 'contacts.db');
+    const SQLite = require('better-sqlite3');
+    const db = new SQLite(dbPath);
+    const { limit = 50, status, sort = 'interaction_count' } = req.query;
+    
+    let query = 'SELECT * FROM contacts';
+    const params = [];
+    
+    if (status) {
+      query += ' WHERE status = ?';
+      params.push(status);
+    }
+    
+    query += ` ORDER BY ${sort} DESC LIMIT ?`;
+    params.push(parseInt(limit));
+    
+    const contacts = db.prepare(query).all(...params);
+    const stats = {
+      total: db.prepare('SELECT COUNT(*) as count FROM contacts').get().count,
+      active: db.prepare("SELECT COUNT(*) as count FROM contacts WHERE status = 'active'").get().count,
+      new: db.prepare("SELECT COUNT(*) as count FROM contacts WHERE status = 'new'").get().count,
+      ignored: db.prepare("SELECT COUNT(*) as count FROM contacts WHERE status = 'ignored'").get().count
+    };
+    db.close();
+    res.json({ contacts, stats });
+  } catch (error) { res.json({ contacts: [], stats: { total: 0 }, error: error.message }); }
+});
+
+app.post('/api/contacts/:id/decide', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { decision, reason } = req.body;
+    const dbPath = path.join(DATA_DIR, 'contacts.db');
+    const SQLite = require('better-sqlite3');
+    const db = new SQLite(dbPath);
+    
+    // Update contact status
+    db.prepare('UPDATE contacts SET status = ?, updated_at = strftime(\'%s\', \'now\') WHERE id = ?').run(decision, id);
+    
+    // Record decision
+    db.prepare('INSERT INTO decisions (contact_id, decision, reason) VALUES (?, ?, ?)').run(id, decision, reason);
+    
+    db.close();
+    res.json({ success: true });
+  } catch (error) { res.json({ success: false, error: error.message }); }
+});
+
+app.get('/api/contacts/nudges', async (req, res) => {
+  try {
+    const dbPath = path.join(DATA_DIR, 'contacts.db');
+    const SQLite = require('better-sqlite3');
+    const db = new SQLite(dbPath);
+    
+    // Get contacts needing attention (active status, low scores)
+    const nudges = db.prepare(`
+      SELECT id, email, name, relationship_score, last_contacted, interaction_count
+      FROM contacts 
+      WHERE status = 'active' 
+      ORDER BY relationship_score ASC, last_contacted ASC 
+      LIMIT 10
+    `).all();
+    
+    // Add reason for each nudge
+    const results = nudges.map(c => {
+      let reason = '';
+      const now = Date.now();
+      const last = c.last_contacted ? c.last_contacted * 1000 : 0;
+      const daysSince = last ? Math.floor((now - last) / (1000 * 60 * 60 * 24)) : 999;
+      
+      if (daysSince > 60) reason = "Haven't been in touch in 2+ months";
+      else if (daysSince > 30) reason = "Haven't been in touch in 30+ days";
+      else if (c.interaction_count < 3) reason = "Low interaction count";
+      else reason = "Relationship score needs a boost";
+      
+      return { ...c, reason, daysSince };
+    });
+    
+    db.close();
+    res.json({ nudges: results });
+  } catch (error) { res.json({ nudges: [], error: error.message }); }
+});
+
+app.post('/api/contacts/:id/score', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { priority } = req.body;
+    const dbPath = path.join(DATA_DIR, 'contacts.db');
+    const SQLite = require('better-sqlite3');
+    const db = new SQLite(dbPath);
+    
+    if (priority !== undefined) {
+      db.prepare('UPDATE contacts SET priority = ? WHERE id = ?').run(priority, id);
+    }
+    
+    // Recalculate score
+    const contact = db.prepare('SELECT * FROM contacts WHERE id = ?').get(id);
+    const recencyScore = contact.last_contacted ? Math.max(0, 40 - Math.floor((Date.now() / 1000 - contact.last_contacted) / 86400)) : 0;
+    const frequencyScore = Math.min(30, (contact.interaction_count || 0) * 5);
+    const priorityScore = (4 - (contact.priority || 3)) * 10;
+    const newScore = Math.min(100, recencyScore + frequencyScore + priorityScore);
+    
+    db.prepare('UPDATE contacts SET relationship_score = ? WHERE id = ?').run(newScore, id);
+    
+    db.close();
+    res.json({ success: true, score: newScore });
+  } catch (error) { res.json({ success: false, error: error.message }); }
+});
+
 // Calendar merged
 app.get('/api/calendar/merged', async (req, res) => {
   const { start, end } = req.query;
