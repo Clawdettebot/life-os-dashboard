@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { 
-  FileText, Send, Plus, RefreshCw, Check, Globe, Mail, Edit2, Lightbulb, AlertTriangle
+import {
+  FileText, Send, Plus, RefreshCw, Check, Globe, Mail, Edit2, Lightbulb, AlertTriangle, CheckCircle, XCircle
 } from 'lucide-react';
+import AnimatedIcon from './AnimatedIcon';
 
 export default function BlogVoiceView({ api }) {
   const [posts, setPosts] = useState([]);
@@ -14,13 +15,13 @@ export default function BlogVoiceView({ api }) {
     // Detect dark mode
     const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
     setDarkMode(isDark);
-    
+
     // Listen for theme changes
     const observer = new MutationObserver(() => {
       setDarkMode(document.documentElement.getAttribute('data-theme') === 'dark');
     });
     observer.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
-    
+
     return () => observer.disconnect();
   }, []);
   const [showNewPost, setShowNewPost] = useState(false);
@@ -43,7 +44,7 @@ export default function BlogVoiceView({ api }) {
       const postsData = await postsRes.json();
       const sugData = await sugRes.json();
       const relData = await relRes.json();
-      
+
       setPosts(postsData.posts || []);
       setSuggestions(sugData.suggestions || []);
       setReleases(relData.releases || []);
@@ -154,10 +155,10 @@ export default function BlogVoiceView({ api }) {
           <div style={{ flex: 1 }}>
             <strong>Release coming up: {releases[0].name}</strong>
             <div style={{ fontSize: '14px', color: '#92400e' }}>
-              {releases[0].days_until} days away • 
-              Cover art: {releases[0].assets.cover_art ? '✅' : '❌'} • 
-              Visualizer: {releases[0].assets.visualizer ? '✅' : '❌'} • 
-              Clips: {releases[0].assets.clips ? '✅' : '❌'}
+              {releases[0].days_until} days away •
+              Cover art: {releases[0].assets.cover_art ? <AnimatedIcon Icon={CheckCircle} size={14} className="inline text-green-600" /> : <AnimatedIcon Icon={XCircle} size={14} className="inline text-red-600" />} •
+              Visualizer: {releases[0].assets.visualizer ? <AnimatedIcon Icon={CheckCircle} size={14} className="inline text-green-600" /> : <AnimatedIcon Icon={XCircle} size={14} className="inline text-red-600" />} •
+              Clips: {releases[0].assets.clips ? <AnimatedIcon Icon={CheckCircle} size={14} className="inline text-green-600" /> : <AnimatedIcon Icon={XCircle} size={14} className="inline text-red-600" />}
             </div>
           </div>
         </div>
@@ -191,7 +192,7 @@ export default function BlogVoiceView({ api }) {
             {draftPosts.map(post => (
               <div key={post.id} style={{ padding: '16px', background: '#f8fafc', borderRadius: '12px', marginBottom: '12px' }}>
                 <div style={{ fontWeight: 600 }}>{post.title}</div>
-                <button className="btn btn-sm" onClick={() => {}} style={{ marginTop: '8px' }}>
+                <button className="btn btn-sm" onClick={() => { }} style={{ marginTop: '8px' }}>
                   <Send size={12} style={{ marginRight: '4px' }} /> Publish
                 </button>
               </div>

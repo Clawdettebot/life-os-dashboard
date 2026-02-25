@@ -1,11 +1,13 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import Chart from 'chart.js/auto';
-import { 
-  TrendingUp, TrendingDown, Wallet, Calendar, Repeat, 
-  ShoppingBag, Coffee, Home, Car, Zap, Heart, 
+import {
+  TrendingUp, TrendingDown, Wallet, Calendar, Repeat,
+  ShoppingBag, Coffee, Home, Car, Zap, Heart,
   Briefcase, Gift, DollarSign, Edit2, Check, X, Plus,
-  Mail, RefreshCw, Filter, AlertTriangle, Clock, Bell
+  Mail, RefreshCw, Filter, AlertTriangle, Clock, Bell,
+  Coins, Banknote, AlertCircle, FileText, Lightbulb
 } from 'lucide-react';
+import AnimatedIcon from './AnimatedIcon';
 
 const categoryIcons = {
   food: Coffee,
@@ -35,13 +37,12 @@ const categoryColors = {
   other: '#dfe6e9'
 };
 
-// Opportunity type config
 const TYPE_CONFIG = {
-  refund: { label: 'Refund', color: '#4caf50', icon: '💰' },
-  payment_received: { label: 'Payment', color: '#2196f3', icon: '💵' },
-  bonus: { label: 'Bonus', color: '#ff9800', icon: '🎁' },
-  urgent: { label: 'Urgent', color: '#f44336', icon: '⚠️' },
-  follow_up: { label: 'Follow Up', color: '#9c27b0', icon: '📝' }
+  refund: { label: 'Refund', color: '#4caf50', icon: <AnimatedIcon Icon={Coins} size={16} /> },
+  payment_received: { label: 'Payment', color: '#2196f3', icon: <AnimatedIcon Icon={Banknote} size={16} /> },
+  bonus: { label: 'Bonus', color: '#ff9800', icon: <AnimatedIcon Icon={Gift} size={16} /> },
+  urgent: { label: 'Urgent', color: '#f44336', icon: <AnimatedIcon Icon={AlertCircle} size={16} /> },
+  follow_up: { label: 'Follow Up', color: '#9c27b0', icon: <AnimatedIcon Icon={FileText} size={16} /> }
 };
 
 const getCategoryIcon = (category) => {
@@ -63,15 +64,15 @@ export default function FinanceView({ finances = [], api }) {
     date: new Date().toISOString().split('T')[0],
     recurring: false
   });
-  
+
   // Email expenses state
   const [emailExpenses, setEmailExpenses] = useState([]);
   const [recurringData, setRecurringData] = useState(null);
   const [scanning, setScanning] = useState(false);
-  
+
   // Opportunities state
   const [opportunities, setOpportunities] = useState([]);
-  
+
   const lineChartRef = useRef(null);
   const doughnutChartRef = useRef(null);
   const lineCanvasRef = useRef(null);
@@ -85,11 +86,11 @@ export default function FinanceView({ finances = [], api }) {
         fetch('/api/finances/recurring'),
         fetch('/api/opportunities')
       ]);
-      
+
       const emailData = await emailRes.json();
       const recurringData = await recurringRes.json();
       const oppsData = await oppsRes.json();
-      
+
       setEmailExpenses(emailData.expenses || []);
       setRecurringData(recurringData);
       setOpportunities(oppsData.opportunities || []);
@@ -128,13 +129,13 @@ export default function FinanceView({ finances = [], api }) {
   const filteredFinances = useMemo(() => {
     const now = new Date();
     const cutoff = new Date();
-    
+
     if (viewMode === 'weekly') {
       cutoff.setDate(now.getDate() - 7);
     } else {
       cutoff.setMonth(now.getMonth() - 1);
     }
-    
+
     return finances.filter(f => {
       const date = new Date(f.date || f.created_at);
       return date >= cutoff;
@@ -159,7 +160,7 @@ export default function FinanceView({ finances = [], api }) {
     const expensesByCategory = {};
     const incomeByDate = {};
     const expenseByDate = {};
-    
+
     filteredFinances.forEach(f => {
       if (f.type === 'expense') {
         expensesByCategory[f.category] = (expensesByCategory[f.category] || 0) + Number(f.amount);
@@ -170,7 +171,7 @@ export default function FinanceView({ finances = [], api }) {
         incomeByDate[date] = (incomeByDate[date] || 0) + Number(f.amount);
       }
     });
-    
+
     return { expensesByCategory, incomeByDate, expenseByDate };
   }, [filteredFinances]);
 
@@ -181,7 +182,7 @@ export default function FinanceView({ finances = [], api }) {
     if (doughnutChartRef.current) doughnutChartRef.current.destroy();
 
     const allDates = [...new Set([...Object.keys(chartData.incomeByDate), ...Object.keys(chartData.expenseByDate)])].sort();
-    
+
     lineChartRef.current = new Chart(lineCanvasRef.current, {
       type: 'line',
       data: {
@@ -197,7 +198,7 @@ export default function FinanceView({ finances = [], api }) {
     const categories = Object.keys(chartData.expensesByCategory);
     const amounts = Object.values(chartData.expensesByCategory);
     const colors = categories.map(cat => categoryColors[cat] || categoryColors.other);
-    
+
     doughnutChartRef.current = new Chart(doughnutCanvasRef.current, {
       type: 'doughnut',
       data: { labels: categories.map(c => c.charAt(0).toUpperCase() + c.slice(1)), datasets: [{ data: amounts, backgroundColor: colors, borderWidth: 2, borderColor: '#fff' }] },
@@ -241,13 +242,13 @@ export default function FinanceView({ finances = [], api }) {
       {/* Tab Navigation */}
       <div className="finance-tabs">
         <button className={`tab-btn ${activeTab === 'transactions' ? 'active' : ''}`} onClick={() => setActiveTab('transactions')}>
-          💰 Transactions
+          <AnimatedIcon Icon={Coins} size={16} style={{ display: 'inline', marginRight: '4px' }} /> Transactions
         </button>
         <button className={`tab-btn ${activeTab === 'expenses' ? 'active' : ''}`} onClick={() => setActiveTab('expenses')}>
-          📧 Email Expenses
+          <AnimatedIcon Icon={Mail} size={16} style={{ display: 'inline', marginRight: '4px' }} /> Email Expenses
         </button>
         <button className={`tab-btn ${activeTab === 'opportunities' ? 'active' : ''}`} onClick={() => setActiveTab('opportunities')}>
-          💡 Opportunities
+          <AnimatedIcon Icon={Lightbulb} size={16} style={{ display: 'inline', marginRight: '4px' }} /> Opportunities
         </button>
       </div>
 
@@ -292,32 +293,32 @@ export default function FinanceView({ finances = [], api }) {
               <span className="card-title">Transactions</span>
               <button className="btn btn-sm" onClick={() => setShowAddForm(!showAddForm)}><Plus size={14} /> Add</button>
             </div>
-            
+
             {showAddForm && (
               <div className="transaction-form" style={{ padding: '15px', background: 'var(--grey-100)', borderRadius: '8px', marginBottom: '15px' }}>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '10px' }}>
-                  <input className="form-input" placeholder="Description" value={newTransaction.title} onChange={e => setNewTransaction({...newTransaction, title: e.target.value})} />
-                  <input className="form-input" type="number" placeholder="Amount" value={newTransaction.amount} onChange={e => setNewTransaction({...newTransaction, amount: e.target.value})} />
-                  <select className="form-select" value={newTransaction.type} onChange={e => setNewTransaction({...newTransaction, type: e.target.value})}>
+                  <input className="form-input" placeholder="Description" value={newTransaction.title} onChange={e => setNewTransaction({ ...newTransaction, title: e.target.value })} />
+                  <input className="form-input" type="number" placeholder="Amount" value={newTransaction.amount} onChange={e => setNewTransaction({ ...newTransaction, amount: e.target.value })} />
+                  <select className="form-select" value={newTransaction.type} onChange={e => setNewTransaction({ ...newTransaction, type: e.target.value })}>
                     <option value="expense">Expense</option>
                     <option value="income">Income</option>
                   </select>
-                  <select className="form-select" value={newTransaction.category} onChange={e => setNewTransaction({...newTransaction, category: e.target.value})}>
+                  <select className="form-select" value={newTransaction.category} onChange={e => setNewTransaction({ ...newTransaction, category: e.target.value })}>
                     {Object.keys(categoryIcons).map(cat => (<option key={cat} value={cat}>{cat}</option>))}
                   </select>
                   <button className="btn btn-primary" onClick={handleAdd}>Add</button>
                 </div>
               </div>
             )}
-            
+
             <div className="transaction-list">
               {filteredFinances.sort((a, b) => new Date(b.date || b.created_at) - new Date(a.date || a.created_at)).map(transaction => (
                 <div key={transaction.id} className="transaction-item" style={{ display: 'flex', alignItems: 'center', padding: '12px', borderBottom: '1px solid var(--grey-200)', gap: '15px' }}>
                   {editingId === transaction.id ? (
                     <>
-                      <input className="form-input" style={{ flex: 2 }} value={editForm.title || editForm.description || ''} onChange={e => setEditForm({...editForm, title: e.target.value})} />
-                      <input className="form-input" type="number" style={{ flex: 1 }} value={editForm.amount} onChange={e => setEditForm({...editForm, amount: e.target.value})} />
-                      <select className="form-select" style={{ flex: 1 }} value={editForm.category} onChange={e => setEditForm({...editForm, category: e.target.value})}>
+                      <input className="form-input" style={{ flex: 2 }} value={editForm.title || editForm.description || ''} onChange={e => setEditForm({ ...editForm, title: e.target.value })} />
+                      <input className="form-input" type="number" style={{ flex: 1 }} value={editForm.amount} onChange={e => setEditForm({ ...editForm, amount: e.target.value })} />
+                      <select className="form-select" style={{ flex: 1 }} value={editForm.category} onChange={e => setEditForm({ ...editForm, category: e.target.value })}>
                         {Object.keys(categoryIcons).map(cat => (<option key={cat} value={cat}>{cat}</option>))}
                       </select>
                       <button className="btn btn-sm btn-primary" onClick={() => handleSave(transaction.id)}><Check size={14} /></button>
