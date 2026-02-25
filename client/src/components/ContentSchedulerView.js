@@ -23,26 +23,15 @@ import { WidgetCard } from './ui/WidgetCard';
 import { GlassPill } from './ui/GlassPill';
 
 // ==========================================
-// POST BRIDGE API
+// POST BRIDGE API (Proxied through server to avoid CORS)
 // ==========================================
-const POST_BRIDGE_BASE_URL = "https://api.post-bridge.com/v1";
-
-const fetchAPI = async (endpoint, options = {}, apiKey) => {
-  const response = await fetch(`${POST_BRIDGE_BASE_URL}${endpoint}`, {
-    ...options,
-    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}`, ...options.headers },
-  });
-  if (!response.ok) throw new Error(`API Error: ${response.status}`);
-  return response.json();
-};
-
 const PostBridgeAPI = (apiKey) => ({
-  getSocialAccounts: () => fetchAPI('/social-accounts', {}, apiKey),
-  getPosts: () => fetchAPI('/posts?limit=50', {}, apiKey),
-  createPost: (payload) => fetchAPI('/posts', { method: 'POST', body: JSON.stringify(payload) }, apiKey),
-  updatePost: (id, payload) => fetchAPI(`/posts/${id}`, { method: 'PATCH', body: JSON.stringify(payload) }, apiKey),
-  deletePost: (id) => fetchAPI(`/posts/${id}`, { method: 'DELETE' }, apiKey),
-  getAnalytics: () => fetchAPI('/analytics?timeframe=7d', {}, apiKey),
+  getSocialAccounts: () => fetch('/api/postbridge/accounts').then(r => r.json()),
+  getPosts: () => fetch('/api/postbridge/posts').then(r => r.json()),
+  createPost: (payload) => fetch('/api/postbridge/posts', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) }).then(r => r.json()),
+  updatePost: (id, payload) => fetch(`/api/postbridge/posts/${id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) }).then(r => r.json()),
+  deletePost: (id) => fetch(`/api/postbridge/posts/${id}`, { method: 'DELETE' }).then(r => r.json()),
+  getAnalytics: () => fetch('/api/postbridge/analytics').then(r => r.json()),
 });
 
 const LobsterIcon = ({ className }) => (
