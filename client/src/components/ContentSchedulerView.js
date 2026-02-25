@@ -553,26 +553,37 @@ export default function ContentSchedulerView({ api, postbridgeKey }) {
                 </h3>
                 <div className="flex gap-2">
                   {[
-                    { id: 'instagram', icon: Instagram, color: 'text-pink-500', shadow: 'shadow-pink-500/20' },
-                    { id: 'tiktok', icon: Music, color: 'text-white', shadow: 'shadow-white/20' },
-                    { id: 'twitter', icon: Twitter, color: 'text-blue-400', shadow: 'shadow-blue-400/20' },
-                    { id: 'youtube', icon: Youtube, color: 'text-red-500', shadow: 'shadow-red-500/20' },
+                    { id: 'instagram', icon: Instagram, color: 'text-pink-500', shadow: 'shadow-pink-500/20', label: 'IG' },
+                    { id: 'tiktok', icon: Music, color: 'text-white', shadow: 'shadow-white/20', label: 'TT' },
+                    { id: 'twitter', icon: Twitter, color: 'text-blue-400', shadow: 'shadow-blue-400/20', label: 'X' },
+                    { id: 'youtube', icon: Youtube, color: 'text-red-500', shadow: 'shadow-red-500/20', label: 'YT' },
                   ].map(platform => {
-                    const isActive = activePlatform === platform.id;
+                    const isSelected = formData.platforms.includes(platform.id);
                     return (
                       <button
                         key={platform.id}
-                        onClick={() => setActivePlatform(platform.id)}
-                        className={`w-12 h-12 rounded-[14px] flex items-center justify-center transition-all duration-300 ${isActive
+                        onClick={() => setFormData(prev => ({
+                          ...prev,
+                          platforms: prev.platforms.includes(platform.id)
+                            ? prev.platforms.filter(p => p !== platform.id)
+                            : [...prev.platforms, platform.id]
+                        }))}
+                        className={`w-12 h-12 rounded-[14px] flex items-center justify-center transition-all duration-300 relative ${isSelected
                           ? `bg-white/10 border-2 border-white/30 shadow-[0_4px_16px_rgba(0,0,0,0.5)] ${platform.shadow} scale-105`
                           : 'bg-black/40 border border-white/5 hover:bg-white/5'
                           }`}
                       >
-                        <platform.icon className={`w-5 h-5 ${isActive ? platform.color : 'text-gray-600'}`} />
+                        <platform.icon className={`w-5 h-5 ${isSelected ? platform.color : 'text-gray-600'}`} />
+                        {isSelected && <div className="absolute -top-1 -right-1 w-3 h-3 bg-green-500 rounded-full border border-black" />}
                       </button>
                     );
                   })}
                 </div>
+                {formData.platforms.length > 0 && (
+                  <div className="mt-2 text-[9px] font-mono text-gray-500 tracking-wider">
+                    {formData.platforms.length} platform{formData.platforms.length > 1 ? 's' : ''} selected
+                  </div>
+                )}
               </div>
             </div>
 

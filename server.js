@@ -47,10 +47,10 @@ app.use((req, res, next) => {
 app.use(cors());
 
 // Stripe Webhook for Digital Fulfillment
-app.post('/api/stripe/webhook', express.raw({type: 'application/json'}), async (req, res) => {
+app.post('/api/stripe/webhook', express.raw({ type: 'application/json' }), async (req, res) => {
   const sig = req.headers['stripe-signature'];
   const endpointSecret = process.env.STRIPE_WEBHOOK_SECRET;
-  
+
   let event;
 
   try {
@@ -65,7 +65,7 @@ app.post('/api/stripe/webhook', express.raw({type: 'application/json'}), async (
   if (event.type === 'checkout.session.completed') {
     const session = event.data.object;
     console.log(`💰 Payment received! Session ID: ${session.id}`);
-    
+
     // Fulfill the order (Send Email)
     if (session.payment_status === 'paid') {
       try {
@@ -76,13 +76,13 @@ app.post('/api/stripe/webhook', express.raw({type: 'application/json'}), async (
     }
   }
 
-  res.json({received: true});
+  res.json({ received: true });
 });
 
 async function fulfillOrder(session) {
   const nodemailer = require('nodemailer');
   const customerEmail = session.customer_details?.email;
-  
+
   if (!customerEmail) {
     console.log('No email found for session');
     return;
@@ -147,9 +147,9 @@ app.get('/api/blog/posts', async (req, res) => {
       .from('blog_post')
       .select('*')
       .order('created_at', { ascending: false });
-    
+
     if (error) throw error;
-    
+
     res.json({ posts: posts || [] });
   } catch (e) {
     // Fallback to local file
@@ -166,7 +166,7 @@ app.post('/api/blog/voice-drop', async (req, res) => {
   try {
     const { transcript, title, tags = [] } = req.body;
     const blogData = JSON.parse(await fs.readFile(path.join(DATA_DIR, 'blog-posts.json'), 'utf-8'));
-    
+
     const newPost = {
       id: 'post_' + Date.now(),
       title: title || 'Voice Drop ' + new Date().toLocaleDateString(),
@@ -177,13 +177,13 @@ app.post('/api/blog/voice-drop', async (req, res) => {
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString()
     };
-    
+
     blogData.posts.push(newPost);
     blogData.voice_drops.push(newPost);
     blogData.sync_status.last_voice_drop_processed = new Date().toISOString();
-    
+
     await fs.writeFile(path.join(DATA_DIR, 'blog-posts.json'), JSON.stringify(blogData, null, 2));
-    
+
     res.json({ success: true, post: newPost });
   } catch (e) {
     res.json({ success: false, error: e.message });
@@ -194,17 +194,17 @@ app.post('/api/blog/publish', async (req, res) => {
   try {
     const { post_id } = req.body;
     const blogData = JSON.parse(await fs.readFile(path.join(DATA_DIR, 'blog-posts.json'), 'utf-8'));
-    
+
     const postIndex = blogData.posts.findIndex(p => p.id === post_id);
     if (postIndex < 0) {
       return res.json({ success: false, error: 'Post not found' });
     }
-    
+
     blogData.posts[postIndex].status = 'published';
     blogData.posts[postIndex].published_at = new Date().toISOString();
-    
+
     await fs.writeFile(path.join(DATA_DIR, 'blog-posts.json'), JSON.stringify(blogData, null, 2));
-    
+
     res.json({ success: true, post: blogData.posts[postIndex] });
   } catch (e) {
     res.json({ success: false, error: e.message });
@@ -251,7 +251,7 @@ const WORKSPACE_DIR = '/root/.openclaw/workspace';
 (async () => {
   try {
     await fs.mkdir(DATA_DIR, { recursive: true });
-  } catch (e) {}
+  } catch (e) { }
 })();
 
 const jsonDb = {
@@ -273,20 +273,20 @@ async function syncTasksToMarkdown(tasks) {
   try {
     const projectsPath = path.join(WORKSPACE_DIR, 'PROJECTS.md');
     let content = await fs.readFile(projectsPath, 'utf8');
-    
+
     // Simple regeneration of the "Next Actions" section
     const activeTasks = tasks.filter(t => t.status !== 'completed').map(t => `- [ ] ${t.description || t.title}`);
     const completedTasks = tasks.filter(t => t.status === 'completed').map(t => `- [x] ${t.description || t.title}`);
-    
+
     const taskSection = `\n## Next Actions (Synced from Dashboard)\n${activeTasks.join('\n')}\n\n### Recently Completed\n${completedTasks.slice(0, 5).join('\n')}\n`;
-    
+
     // Replace existing Next Actions section or append
     if (content.includes('## Next Actions')) {
       content = content.replace(/## Next Actions[\s\S]*?(?=##|$)/, taskSection);
     } else {
       content += taskSection;
     }
-    
+
     await fs.writeFile(projectsPath, content);
   } catch (err) {
     console.error('Error syncing to markdown:', err);
@@ -308,8 +308,8 @@ app.get('/api/subagents', (req, res) => {
     if (error) {
       // Gracefully handle auth failures - return empty list with warning
       if (error.message && error.message.includes('unauthorized')) {
-        return res.json({ 
-          subagents: [], 
+        return res.json({
+          subagents: [],
           warning: 'Gateway auth required. Run: openclaw doctor --fix',
           error: 'Device token mismatch'
         });
@@ -361,9 +361,9 @@ app.get('/api/inventory', async (req, res) => {
       .from('shop_item')
       .select('*')
       .order('created_at', { ascending: false });
-    
+
     if (error) throw error;
-    
+
     const formattedItems = (items || []).map(item => ({
       name: item.name,
       variant: item.category || '',
@@ -372,7 +372,7 @@ app.get('/api/inventory', async (req, res) => {
       status: item.available ? 'Available' : 'Unavailable',
       notes: item.description || ''
     }));
-    
+
     res.json({ items: formattedItems });
   } catch (error) {
     // Fallback to local file
@@ -401,11 +401,11 @@ app.get('/api/inventory', async (req, res) => {
 app.get('/api/journal', async (req, res) => {
   try {
     const journalDir = path.join(WORKSPACE_DIR, 'memory/journal');
-    try { await fs.mkdir(journalDir, { recursive: true }); } catch (e) {}
-    
+    try { await fs.mkdir(journalDir, { recursive: true }); } catch (e) { }
+
     const files = await fs.readdir(journalDir);
     const entries = [];
-    
+
     for (const file of files) {
       if (file.endsWith('.md')) {
         const content = await fs.readFile(path.join(journalDir, file), 'utf8');
@@ -518,7 +518,7 @@ app.get('/api/projects/detailed', async (req, res) => {
     const projectsDir = path.join(WORKSPACE_DIR, 'projects');
     const files = await fs.readdir(projectsDir);
     const projects = [];
-    
+
     for (const file of files) {
       if (file.endsWith('.md')) {
         const content = await fs.readFile(path.join(projectsDir, file), 'utf8');
@@ -529,7 +529,7 @@ app.get('/api/projects/detailed', async (req, res) => {
           category: 'Uncategorized',
           lastModified: (await fs.stat(path.join(projectsDir, file))).mtime
         };
-        
+
         content.split('\n').forEach(line => {
           if (line.startsWith('# ')) project.title = line.replace('# ', '').trim();
           if (line.includes('Status:')) project.status = line.split('Status:')[1].trim();
@@ -548,7 +548,7 @@ app.get('/api/memory/all', async (req, res) => {
     const content = await fs.readFile(path.join(WORKSPACE_DIR, 'MEMORY.md'), 'utf8');
     const sections = {};
     let currentSection = '';
-    
+
     content.split('\n').forEach(line => {
       if (line.startsWith('## ')) {
         currentSection = line.replace('## ', '').trim();
@@ -570,10 +570,10 @@ app.get('/api/assets/library', async (req, res) => {
   try {
     const assetsDir = path.join(WORKSPACE_DIR, 'assets');
     const categories = {};
-    
+
     const scanDirectory = async (dir, category = '') => {
       const items = await fs.readdir(dir, { withFileTypes: true });
-      
+
       for (const item of items) {
         if (item.isDirectory() && !item.name.startsWith('.') && item.name !== 'node_modules') {
           const newCategory = category ? `${category}/${item.name}` : item.name;
@@ -581,7 +581,7 @@ app.get('/api/assets/library', async (req, res) => {
         } else if (item.isFile() && !item.name.startsWith('.')) {
           const filePath = path.join(dir, item.name);
           const stat = await fs.stat(filePath);
-          
+
           if (!categories[category]) categories[category] = [];
           categories[category].push({
             name: item.name,
@@ -592,10 +592,10 @@ app.get('/api/assets/library', async (req, res) => {
         }
       }
     };
-    
+
     // Create assets dir if missing
-    try { await fs.mkdir(assetsDir, { recursive: true }); } catch (e) {}
-    
+    try { await fs.mkdir(assetsDir, { recursive: true }); } catch (e) { }
+
     await scanDirectory(assetsDir);
     res.json({ categories });
   } catch (error) {
@@ -615,33 +615,33 @@ app.get('/api/analytics', async (req, res) => {
       taskCount: (await jsonDb.read('tasks')).length,
       financeCount: (await jsonDb.read('finances')).length
     };
-    
+
     const scanWorkspace = async (dir) => {
       const items = await fs.readdir(dir, { withFileTypes: true });
-      
+
       for (const item of items) {
         if (item.isDirectory() && !item.name.startsWith('.') && item.name !== 'node_modules' && item.name !== 'dashboard') {
           await scanWorkspace(path.join(dir, item.name));
         } else if (item.isFile() && item.name.endsWith('.md')) {
           const filePath = path.join(dir, item.name);
           const stat = await fs.stat(filePath);
-          
+
           stats.totalFiles++;
           stats.totalSize += stat.size;
-          
+
           if (filePath.includes('projects/')) stats.projectCount++;
           if (filePath.includes('MEMORY.md')) {
             const content = await fs.readFile(filePath, 'utf8');
             stats.memoryEntries = content.split('\n').filter(line => line.trim()).length;
           }
-          
+
           if (!stats.lastActivity || stat.mtime > stats.lastActivity) {
             stats.lastActivity = stat.mtime;
           }
         }
       }
     };
-    
+
     await scanWorkspace(WORKSPACE_DIR);
     res.json(stats);
   } catch (error) {
@@ -654,17 +654,17 @@ app.get('/api/content/calendar', async (req, res) => {
   try {
     const calendarPath = path.join(WORKSPACE_DIR, 'content_calendar_a_few_things.md');
     const content = await fs.readFile(calendarPath, 'utf8');
-    
+
     // Parse content calendar
     const calendar = {
       title: 'A Few Things Release Campaign',
       releaseDate: 'February 25th, 2025',
       weeks: []
     };
-    
+
     const weekPattern = /## Week (\d+) \(([^)]+)\)/g;
     const dayPattern = /### February (\d+) \(([^)]+)\)/g;
-    
+
     let weekMatch;
     while ((weekMatch = weekPattern.exec(content)) !== null) {
       const week = {
@@ -672,7 +672,7 @@ app.get('/api/content/calendar', async (req, res) => {
         dateRange: weekMatch[2],
         days: []
       };
-      
+
       // Find days within this week
       let dayMatch;
       while ((dayMatch = dayPattern.exec(content)) !== null) {
@@ -683,7 +683,7 @@ app.get('/api/content/calendar', async (req, res) => {
             dayOfWeek: dayMatch[2],
             content: {}
           };
-          
+
           // Extract content details
           const lines = content.substring(dayIndex).split('\n');
           for (let i = 1; i < lines.length; i++) {
@@ -694,14 +694,14 @@ app.get('/api/content/calendar', async (req, res) => {
               day.content[key.trim()] = value ? value.trim() : '';
             }
           }
-          
+
           week.days.push(day);
         }
       }
-      
+
       calendar.weeks.push(week);
     }
-    
+
     res.json(calendar);
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -711,7 +711,7 @@ app.get('/api/content/calendar', async (req, res) => {
 // Socket.io
 io.on('connection', (socket) => {
   console.log('Dashboard client connected');
-  
+
   // Initial Sync
   socket.on('request_sync', async () => {
     const [tasks, finances] = await Promise.all([
@@ -822,18 +822,18 @@ app.get('/api/contacts', async (req, res) => {
     const SQLite = require('better-sqlite3');
     const db = new SQLite(dbPath);
     const { limit = 50, status, sort = 'interaction_count' } = req.query;
-    
+
     let query = 'SELECT * FROM contacts';
     const params = [];
-    
+
     if (status) {
       query += ' WHERE status = ?';
       params.push(status);
     }
-    
+
     query += ` ORDER BY ${sort} DESC LIMIT ?`;
     params.push(parseInt(limit));
-    
+
     const contacts = db.prepare(query).all(...params);
     const stats = {
       total: db.prepare('SELECT COUNT(*) as count FROM contacts').get().count,
@@ -853,13 +853,13 @@ app.post('/api/contacts/:id/decide', async (req, res) => {
     const dbPath = path.join(DATA_DIR, 'contacts.db');
     const SQLite = require('better-sqlite3');
     const db = new SQLite(dbPath);
-    
+
     // Update contact status
     db.prepare('UPDATE contacts SET status = ?, updated_at = strftime(\'%s\', \'now\') WHERE id = ?').run(decision, id);
-    
+
     // Record decision
     db.prepare('INSERT INTO decisions (contact_id, decision, reason) VALUES (?, ?, ?)').run(id, decision, reason);
-    
+
     db.close();
     res.json({ success: true });
   } catch (error) { res.json({ success: false, error: error.message }); }
@@ -870,7 +870,7 @@ app.get('/api/contacts/nudges', async (req, res) => {
     const dbPath = path.join(DATA_DIR, 'contacts.db');
     const SQLite = require('better-sqlite3');
     const db = new SQLite(dbPath);
-    
+
     // Get contacts needing attention (active status, low scores)
     const nudges = db.prepare(`
       SELECT id, email, name, relationship_score, last_contacted, interaction_count
@@ -879,22 +879,22 @@ app.get('/api/contacts/nudges', async (req, res) => {
       ORDER BY relationship_score ASC, last_contacted ASC 
       LIMIT 10
     `).all();
-    
+
     // Add reason for each nudge
     const results = nudges.map(c => {
       let reason = '';
       const now = Date.now();
       const last = c.last_contacted ? c.last_contacted * 1000 : 0;
       const daysSince = last ? Math.floor((now - last) / (1000 * 60 * 60 * 24)) : 999;
-      
+
       if (daysSince > 60) reason = "Haven't been in touch in 2+ months";
       else if (daysSince > 30) reason = "Haven't been in touch in 30+ days";
       else if (c.interaction_count < 3) reason = "Low interaction count";
       else reason = "Relationship score needs a boost";
-      
+
       return { ...c, reason, daysSince };
     });
-    
+
     db.close();
     res.json({ nudges: results });
   } catch (error) { res.json({ nudges: [], error: error.message }); }
@@ -907,20 +907,20 @@ app.post('/api/contacts/:id/score', async (req, res) => {
     const dbPath = path.join(DATA_DIR, 'contacts.db');
     const SQLite = require('better-sqlite3');
     const db = new SQLite(dbPath);
-    
+
     if (priority !== undefined) {
       db.prepare('UPDATE contacts SET priority = ? WHERE id = ?').run(priority, id);
     }
-    
+
     // Recalculate score
     const contact = db.prepare('SELECT * FROM contacts WHERE id = ?').get(id);
     const recencyScore = contact.last_contacted ? Math.max(0, 40 - Math.floor((Date.now() / 1000 - contact.last_contacted) / 86400)) : 0;
     const frequencyScore = Math.min(30, (contact.interaction_count || 0) * 5);
     const priorityScore = (4 - (contact.priority || 3)) * 10;
     const newScore = Math.min(100, recencyScore + frequencyScore + priorityScore);
-    
+
     db.prepare('UPDATE contacts SET relationship_score = ? WHERE id = ?').run(newScore, id);
-    
+
     db.close();
     res.json({ success: true, score: newScore });
   } catch (error) { res.json({ success: false, error: error.message }); }
@@ -974,7 +974,7 @@ app.get('/api/inventory/all', async (req, res) => {
       .from('shop_item')
       .select('*')
       .order('created_at', { ascending: false });
-    
+
     // Fetch giveaway inventory
     let giveawayItems = [];
     let grouped = {};
@@ -989,17 +989,17 @@ app.get('/api/inventory/all', async (req, res) => {
         all: giveawayItems
       };
     } catch (e) { giveawayItems = []; }
-    
+
     const shopFormatted = (shopItems || []).map(item => ({
       id: item.id, name: item.name, sku: item.stripe_product_id, qty: item.inventory_count,
       price: item.price, category: item.category, type: 'shop'
     }));
-    
+
     const giveawayFormatted = giveawayItems.map(item => ({
       id: item.id, name: item.name, sku: item.sku, qty: item.qty,
       size: item.size, notes: item.notes, type: 'giveaway'
     }));
-    
+
     const stats = { shop: shopFormatted.length, giveaway: giveawayFormatted.length, personal: 0, bundles: 0 };
     res.json({ items: [...shopFormatted, ...giveawayFormatted], stats, grouped });
   } catch (error) { res.json({ items: [], stats: { shop: 0, giveaway: 0, personal: 0, bundles: 0 }, grouped: {} }); }
@@ -1013,7 +1013,7 @@ app.get('/api/giveaway/inventory', async (req, res) => {
   try {
     const data = await fs.readFile(path.join(DATA_DIR, 'giveaway_inventory.json'), 'utf8');
     const items = JSON.parse(data);
-    
+
     // Group by status/notes
     const grouped = {
       mysteryPack: items.filter(i => i.notes?.includes('Mystery pack')),
@@ -1022,7 +1022,7 @@ app.get('/api/giveaway/inventory', async (req, res) => {
       available: items.filter(i => i.status === 'available'),
       all: items
     };
-    
+
     res.json({ items, grouped });
   } catch (error) {
     res.json({ items: [], grouped: {}, error: error.message });
@@ -1043,7 +1043,7 @@ app.get('/api/shop/items', async (req, res) => {
       .select('*')
       .eq('available', true)
       .order('created_at', { ascending: false });
-    
+
     if (error) throw error;
     res.json({ items: items || [] });
   } catch (error) {
@@ -1151,7 +1151,8 @@ app.get('/api/postbridge/accounts', async (req, res) => {
     });
     res.json(response.data);
   } catch (e) {
-    res.status(500).json({ error: e.message });
+    console.error('PostBridge accounts error:', e.message);
+    res.json({ data: [] });
   }
 });
 
@@ -1163,7 +1164,8 @@ app.get('/api/postbridge/posts', async (req, res) => {
     });
     res.json(response.data);
   } catch (e) {
-    res.status(500).json({ error: e.message });
+    console.error('PostBridge posts error:', e.message);
+    res.json({ data: [] });
   }
 });
 
@@ -1175,7 +1177,8 @@ app.get('/api/postbridge/analytics', async (req, res) => {
     });
     res.json(response.data);
   } catch (e) {
-    res.status(500).json({ error: e.message });
+    console.error('PostBridge analytics error:', e.message);
+    res.json({ data: [] });
   }
 });
 
@@ -1187,6 +1190,7 @@ app.post('/api/postbridge/posts', async (req, res) => {
     });
     res.json(response.data);
   } catch (e) {
+    console.error('PostBridge create post error:', e.message);
     res.status(500).json({ error: e.message });
   }
 });
@@ -1201,7 +1205,7 @@ app.get('/api/drive/status', async (req, res) => {
 app.get('/api/drive/files', async (req, res) => {
   const driveClient = require('./google-drive-client.js');
   driveClient.init();
-  
+
   const folderId = req.query.folderId || 'root';
   const result = await driveClient.listFiles(folderId);
   res.json(result);
@@ -1210,7 +1214,7 @@ app.get('/api/drive/files', async (req, res) => {
 app.get('/api/drive/guapdad', async (req, res) => {
   const driveClient = require('./google-drive-client.js');
   driveClient.init();
-  
+
   const result = await driveClient.listGuapDadFiles();
   res.json(result);
 });
