@@ -14,7 +14,9 @@ import {
   Smartphone,
   Radio,
   Target,
-  ChevronRight
+  ChevronRight,
+  Folder,
+  File
 } from 'lucide-react';
 
 import { WidgetCard } from './ui/WidgetCard';
@@ -131,14 +133,14 @@ const formatHour = (hour) => {
 
 export default function ContentSchedulerView({ api, postbridgeKey }) {
   const API_KEY = postbridgeKey || "pb_live_6TxeA2MXDdTeVaXrp8BwG8";
-  const pb = getPostBridgeAPI(API_KEY);
+  const pb = PostBridgeAPI(API_KEY);
 
   const [activePlatform, setActivePlatform] = useState('instagram');
   const [heatmapData, setHeatmapData] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [apiPosts, setApiPosts] = useState([]);
   const [analytics, setAnalytics] = useState(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isProcessingAction, setIsProcessingAction] = useState(false);
   const [selectedTimelineDay, setSelectedTimelineDay] = useState(new Date().toISOString().split('T')[0]);
   const [selectedSlot, setSelectedSlot] = useState(null);
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -147,6 +149,7 @@ export default function ContentSchedulerView({ api, postbridgeKey }) {
   const [driveLoading, setDriveLoading] = useState(false);
   const [currentDriveFolder, setCurrentDriveFolder] = useState(null);
   const [showDriveBrowser, setShowDriveBrowser] = useState(false);
+  const scrollContainerRef = useRef(null);
 
   // Load guap.dad folder on mount
   useEffect(() => {
@@ -178,7 +181,6 @@ export default function ContentSchedulerView({ api, postbridgeKey }) {
   };
 
   // Heatmap mock data (until we have real engagement data)
-  const [heatmapData, setHeatmapData] = useState(null);
   const generateHeatmap = () => {
     const DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
     const HOURS = Array.from({ length: 18 }, (_, i) => i + 6);
@@ -214,7 +216,7 @@ export default function ContentSchedulerView({ api, postbridgeKey }) {
       console.error("Failed to load initial data:", err);
       setIsLoading(false);
     });
-  }, []);
+  };
 
   const handleDaySelect = (dayId) => {
     setSelectedTimelineDay(dayId);
@@ -246,8 +248,6 @@ export default function ContentSchedulerView({ api, postbridgeKey }) {
         return;
       }
 
-      const mediaAuth = await pb.createUploadUrl({ name: 'drive_sync.mp4', mime_type: 'video/mp4', size_bytes: 10485760 });
-
       const timelineMatch = baseTimelineDates.find(d => d.dayLabel === selectedSlot.day);
       const isoDateStr = timelineMatch ? timelineMatch.id : new Date().toISOString().split('T')[0];
       const scheduledDate = new Date(`${isoDateStr}T${selectedSlot.hour.toString().padStart(2, '0')}:00:00Z`);
@@ -255,14 +255,12 @@ export default function ContentSchedulerView({ api, postbridgeKey }) {
       const newPost = await pb.createPost({
         caption: "Draft synced from Google Drive",
         scheduled_at: scheduledDate.toISOString(),
-        media: [mediaAuth.media_id],
         social_accounts: [accountIds[0]],
         is_draft: true,
-        processing_enabled: true
       });
 
       setApiPosts(prev => [...prev, mapPostToUI(newPost)]);
-      setSelectedSlot(null); // Auto-collapse draft tool on success
+      setSelectedSlot(null);
     } catch (error) {
       console.error("API Error during draft creation", error);
     } finally {
