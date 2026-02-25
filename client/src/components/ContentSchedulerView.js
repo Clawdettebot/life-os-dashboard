@@ -21,29 +21,25 @@ import { WidgetCard } from './ui/WidgetCard';
 import { GlassPill } from './ui/GlassPill';
 
 // ==========================================
-// 1. CONFIGURATION & CUSTOM SVGS
+// POST BRIDGE API
 // ==========================================
-
 const POST_BRIDGE_BASE_URL = "https://api.post-bridge.com/v1";
 
 const fetchAPI = async (endpoint, options = {}, apiKey) => {
   const response = await fetch(`${POST_BRIDGE_BASE_URL}${endpoint}`, {
     ...options,
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${apiKey}`,
-      ...options.headers,
-    },
+    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}`, ...options.headers },
   });
   if (!response.ok) throw new Error(`API Error: ${response.status}`);
   return response.json();
 };
 
-const getPostBridgeAPI = (apiKey) => ({
+const PostBridgeAPI = (apiKey) => ({
   getSocialAccounts: () => fetchAPI('/social-accounts', {}, apiKey),
-  createUploadUrl: (payload) => fetchAPI('/media/create-upload-url', { method: 'POST', body: JSON.stringify(payload) }, apiKey),
   getPosts: () => fetchAPI('/posts?limit=50', {}, apiKey),
   createPost: (payload) => fetchAPI('/posts', { method: 'POST', body: JSON.stringify(payload) }, apiKey),
+  updatePost: (id, payload) => fetchAPI(`/posts/${id}`, { method: 'PATCH', body: JSON.stringify(payload) }, apiKey),
+  deletePost: (id) => fetchAPI(`/posts/${id}`, { method: 'DELETE' }, apiKey),
   getAnalytics: () => fetchAPI('/analytics?timeframe=7d', {}, apiKey),
 });
 
@@ -142,30 +138,68 @@ export default function ContentSchedulerView({ api, postbridgeKey }) {
   const [isLoading, setIsLoading] = useState(true);
   const [apiPosts, setApiPosts] = useState([]);
   const [analytics, setAnalytics] = useState(null);
-  const [isProcessingAction, setIsProcessingAction] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [selectedTimelineDay, setSelectedTimelineDay] = useState(new Date().toISOString().split('T')[0]);
+  const [selectedSlot, setSelectedSlot] = useState(null);
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [formData, setFormData] = useState({ caption: '', scheduledDate: '', scheduledTime: '18:00', platforms: [], isDraft: false });
+  const [driveFiles, setDriveFiles] = useState([]);
+  const [driveLoading, setDriveLoading] = useState(false);
+  const [currentDriveFolder, setCurrentDriveFolder] = useState(null);
+  const [showDriveBrowser, setShowDriveBrowser] = useState(false);
 
-  // Sequence State
-  const [selectedTimelineDay, setSelectedTimelineDay] = useState(new Date().toISOString().split('T')[0]); // Step 1
-  const [selectedSlot, setSelectedSlot] = useState(null); // Step 2
-
-  const scrollContainerRef = useRef(null);
-
+  // Load guap.dad folder on mount
   useEffect(() => {
-    const container = scrollContainerRef.current;
-    if (!container) return;
-
-    const handleWheel = (e) => {
-      if (e.deltaY !== 0) {
-        e.preventDefault();
-        container.scrollLeft += e.deltaY;
-      }
-    };
-
-    container.addEventListener('wheel', handleWheel, { passive: false });
-    return () => container.removeEventListener('wheel', handleWheel);
+    loadDriveFiles();
   }, []);
 
-  useEffect(() => {
+  const loadDriveFiles = async (folderId = null) => {
+    setDriveLoading(true);
+    try {
+      const endpoint = folderId ? `/api/drive/files?folderId=${folderId}` : '/api/drive/guapdad';
+      const res = await fetch(endpoint);
+      const data = await res.json();
+      if (data.success) {
+        setDriveFiles(data.files || []);
+        setCurrentDriveFolder(data.folder || null);
+      } else {
+        setDriveFiles([]);
+      }
+    } catch (e) {
+      console.error('Drive load error:', e);
+    }
+    setDriveLoading(false);
+  };
+
+  const handleDriveFileClick = (file) => {
+    if (file.mimeType.includes('folder')) {
+      loadDriveFiles(file.id);
+    }
+  };
+
+  // Heatmap mock data (until we have real engagement data)
+  const [heatmapData, setHeatmapData] = useState(null);
+  const generateHeatmap = () => {
+    const DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+    const HOURS = Array.from({ length: 18 }, (_, i) => i + 6);
+    const peaks = activePlatform === 'instagram' ? [18, 19] : activePlatform === 'tiktok' ? [20, 22] : [9, 12, 17];
+    const data = {};
+    DAYS.forEach(day => {
+      data[day] = HOURS.map(hour => {
+        let score = Math.floor(Math.random() * 4);
+        peaks.forEach(peak => {
+          if (Math.abs(hour - peak) <= 2) score += Math.floor(Math.random() * 4) + 3;
+          if (hour === peak) score += 3;
+        });
+        return Math.min(10, score);
+      });
+    });
+    return data;
+  };
+
+  useEffect(() => { loadData(); setHeatmapData(generateHeatmap()); }, [activePlatform]);
+
+  const loadData = async () => {
     setIsLoading(true);
     Promise.all([
       MockHeatmapAPI.getHeatmapData(),
@@ -555,24 +589,47 @@ export default function ContentSchedulerView({ api, postbridgeKey }) {
               </div>
             </div>
 
-            <div className="w-full md:w-auto min-w-[300px] flex-shrink-0">
+            {/* Drive Browser Toggle */}
+            <div className="mb-4">
               <button
-                onClick={handleDraftFromDrive}
-                disabled={isProcessingAction}
-                className="w-full relative overflow-hidden group/btn bg-gradient-to-r from-white to-gray-200 text-black font-bold text-sm py-5 rounded-[20px] flex flex-col items-center justify-center gap-1 hover:scale-[1.02] active:scale-[0.98] transition-all shadow-[0_10px_30px_rgba(255,255,255,0.1)] border border-white disabled:opacity-50 disabled:cursor-not-allowed"
+                onClick={() => setShowDriveBrowser(!showDriveBrowser)}
+                className="flex items-center gap-2 text-sm text-orange-400 hover:text-orange-300"
               >
-                {isProcessingAction ? (
-                  <div className="w-6 h-6 border-2 border-black border-t-transparent rounded-full animate-spin"></div>
-                ) : (
-                  <>
-                    <div className="flex items-center gap-2">
-                      <HardDrive className="w-5 h-5" />
-                      <span className="text-base">Draft from Drive</span>
-                    </div>
-                    <span className="text-[10px] text-gray-600 font-mono tracking-widest uppercase mt-1">Execute Protocol</span>
-                  </>
-                )}
+                <HardDrive className="w-4 h-4" />
+                {showDriveBrowser ? 'Hide' : 'Show'} Google Drive Files
               </button>
+
+              {showDriveBrowser && (
+                <div className="mt-3 bg-black/40 border border-white/10 rounded-lg p-3 max-h-48 overflow-y-auto">
+                  {driveLoading ? (
+                    <div className="text-gray-400 text-sm">Loading...</div>
+                  ) : driveFiles.length === 0 ? (
+                    <div className="text-gray-500 text-sm">No files found</div>
+                  ) : (
+                    <div className="space-y-1">
+                      {currentDriveFolder && (
+                        <button
+                          onClick={() => loadDriveFiles(currentDriveFolder.parents?.[0] || null)}
+                          className="w-full text-left text-xs text-gray-400 hover:text-white flex items-center gap-1"
+                        >
+                          ← Back
+                        </button>
+                      )}
+                      {driveFiles.map(file => (
+                        <div
+                          key={file.id}
+                          onClick={() => handleDriveFileClick(file)}
+                          className={`flex items-center gap-2 p-2 rounded cursor-pointer text-sm ${file.mimeType.includes('folder') ? 'text-orange-400 hover:bg-white/5' : 'text-gray-300 hover:bg-white/5'
+                            }`}
+                        >
+                          {file.mimeType.includes('folder') ? <Folder className="w-4 h-4" /> : <File className="w-4 h-4" />}
+                          <span className="truncate">{file.name}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
 
           </WidgetCard>
