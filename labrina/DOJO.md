@@ -1,86 +1,36 @@
-# Labrina's DOJO
+# DOJO.md - Labrina's Lessons
 
-## Mistakes & Lessons Learned
+## Lessons Learned (February 25, 2026)
 
-### 1. Posting Without Checking Schedule
-**Mistake:** Posted at wrong time, conflicted with live stream
-**Lesson:** Always check Knaight of Affairs before scheduling
+### Memory Issue
+- **Problem:** I kept forgetting context between messages.
+- **Fix:** Updated to fetch last 50 messages and pass to Gemini.
+- **Result:** Now I remember what we were talking about!
 
-### 2. Rate Limit Ignorance
-**Mistake:** Tried to post too many times, got rate limited
-**Lesson:** Check platform limits before posting. Twitter: ~300/day, Instagram: ~50/hour
+### Brain Crash (API Errors)
+- **Problem:** Kept giving "API Error" responses.
+- **Cause:** MiniMax API key was invalid, then guessed wrong Gemini model names.
+- **Fix:** Switched to `gemini-2.5-flash`. Verified via curl that model exists.
+- **Result:** I now think clearly.
 
-### 3. Wrong Platform Format
-**Mistake:** Posted YouTube link on Instagram without proper format
-**Lesson:** Each platform needs different formatting. Always adapt.
+### Message Length (Discord Limits)
+- **Problem:** Sent too-long messages, Discord rejected them ("Invalid Form Body").
+- **Fix:** Added `safeReply()` to split messages over 1900 chars.
+- **Result:** I can send long responses now.
 
-### 4. Missing Alt Text
-**Mistake:** Posted images without alt text (accessibility)
-**Lesson:** Always add alt text for images
+### Emoji Issue
+- **Problem:** User said "no emojis" but I kept using them.
+- **Fix:** Added instruction to follow tone preferences strictly in SOUL.md.
+- **Result:** I try to listen better now.
 
-### 5. Hashtag Overload
-**Mistake:** Used 30+ hashtags, got flagged as spam
-**Lesson:** Use 3-5 relevant hashtags max per platform
+### Startup Crash
+- **Problem:** Code had duplicate blocks, crashed on startup ("Unexpected token '.'").
+- **Fix:** Cleaned up `labrina/index.js`.
+- **Result:** I load successfully every time now.
 
-## Social Stats Templates
+---
 
-### Twitter Growth
-```javascript
-{
-  followers: number,
-  following: number,
-  tweets: number,
-  impressions: number,
-  engagement: number
-}
-```
-
-### Instagram Growth
-```javascript
-{
-  followers: number,
-  following: number,
-  posts: number,
-  reels: number,
-  engagement: number
-}
-```
-
-## Scheduling Rules
-
-### Best Posting Times (Pacific)
-- Twitter: 9AM, 12PM, 6PM
-- Instagram: 11AM, 2PM, 7PM
-- YouTube: 3PM (for shares)
-
-### Buffer Times
-- Between posts: minimum 2 hours
-- After live stream: 1 hour
-- Before live stream: 30 min
-
-## Google Drive Folders to Monitor
-
-```javascript
-const driveFolders = {
-  images: '1abc123...',     // Post images
-  videos: '1def456...',     // Reels/videos
-  thumbnails: '1ghi789...', // YT thumbnails
-  releases: '1jkl012...',   // Release assets
-  drafts: '1mno345...'      // WIP content
-};
-```
-
-## Platform Character Limits
-- Twitter: 280 characters
-- Instagram: 2200 characters
-- YouTube: 1000 characters (description)
-
-## Emoji Best Practices
-- Use 1-2 emojis per post
-- Match platform vibe
-- Avoid overuse
-
-## API Rate Limits
-- Twitter API Free: 300 tweets/day
-- Instagram Basic: 200 requests/hour
-- YouTube Data API: 10,000 units/day
+## Pending / Things to Improve
+- [ ] Verify Postbridge connection works (test !post command).
+- [ ] Build Brand Identity profile from interviews.
+- [ ] Stop using emojis when explicitly asked "no emojis".

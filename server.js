@@ -35,8 +35,101 @@ const authMiddleware = (req, res, next) => {
 };
 
 // Middleware
+// Use JSON parser for everything EXCEPT Stripe webhooks (which need raw body)
+app.use((req, res, next) => {
+  if (req.originalUrl === '/api/stripe/webhook') {
+    next();
+  } else {
+    express.json()(req, res, next);
+  }
+});
 app.use(cors());
-app.use(express.json());
+
+// Stripe Webhook for Digital Fulfillment
+app.post('/api/stripe/webhook', express.raw({type: 'application/json'}), async (req, res) => {
+  const sig = req.headers['stripe-signature'];
+  const endpointSecret = process.env.STRIPE_WEBHOOK_SECRET;
+  
+  let event;
+
+  try {
+    const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
+    event = stripe.webhooks.constructEvent(req.body, sig, endpointSecret);
+  } catch (err) {
+    console.error(`⚠️  Webhook signature verification failed.`, err.message);
+    return res.status(400).send(`Webhook Error: ${err.message}`);
+  }
+
+  // Handle the event
+  if (event.type === 'checkout.session.completed') {
+    const session = event.data.object;
+    console.log(`💰 Payment received! Session ID: ${session.id}`);
+    
+    // Fulfill the order (Send Email)
+    if (session.payment_status === 'paid') {
+      try {
+        await fulfillOrder(session);
+      } catch (e) {
+        console.error('Fulfillment failed:', e);
+      }
+    }
+  }
+
+  res.json({received: true});
+});
+
+async function fulfillOrder(session) {
+  const nodemailer = require('nodemailer');
+  const customerEmail = session.customer_details?.email;
+  
+  if (!customerEmail) {
+    console.log('No email found for session');
+    return;
+  }
+
+  // Map Product IDs to Download URLs
+  const productLinks = {
+    'prod_U2gei9aH6saPPn': 'https://yyoxpcsspmjvolteknsn.supabase.co/storage/v1/object/public/akeems%20admin/music/Projects/Handsome/08%20A%20Few%20Things%20ft%20Jai%27len%20Josey.mp3', // A Few Things
+    'prod_U2hjNyqhkO9Ypf': 'https://yyoxpcsspmjvolteknsn.supabase.co/storage/v1/object/public/akeems%20admin/music/Projects/Handsome/03%20Guap_Daddy_MASTER%20V2.mp3', // Daddy
+    'prod_U2hj8wOvj69UGb': 'https://yyoxpcsspmjvolteknsn.supabase.co/storage/v1/object/public/akeems%20admin/music/Projects/Handsome/04%20Guap_Paysexual_MASTER%20V2.mp3', // Paysexual
+    'prod_U2hjgkFg1a5NUj': 'https://yyoxpcsspmjvolteknsn.supabase.co/storage/v1/object/public/akeems%20admin/music/Projects/Handsome/02%20Guap_Champagne%20Showers_MASTER%20V2.mp3' // Champagne Showers
+  };
+
+  const productId = session.line_items?.data[0]?.price?.product;
+  const downloadLink = productLinks[productId] || process.env.SONG_DOWNLOAD_URL || 'https://guap.dad'; // Fallback
+
+  // Setup Transporter
+  const transporter = nodemailer.createTransport({
+    host: process.env.SMTP_HOST || 'smtp.gmail.com',
+    port: 587,
+    secure: false,
+    auth: {
+      user: process.env.SMTP_USER,
+      pass: process.env.SMTP_PASS
+    }
+  });
+
+  const mailOptions = {
+    from: '"Handsome" <music@handsome.com>',
+    to: customerEmail,
+    subject: 'Thank You! Here is your download 🎵',
+    text: `Thanks for buying the new track!\n\nHere is your digital download link:\n${downloadLink}\n\nStay Hyphy,\nHandsome`,
+    html: `
+      <div style="font-family: sans-serif; text-align: center; padding: 20px;">
+        <h1>Thank You! 🙏</h1>
+        <p>Your support means the world to me.</p>
+        <p>Here is your digital download of the new track:</p>
+        <a href="${downloadLink}" style="background: #000; color: #fff; padding: 15px 30px; text-decoration: none; border-radius: 5px; font-weight: bold;">DOWNLOAD SONG</a>
+        <br><br>
+        <p>Enjoy the vibes.</p>
+        <p>- Handsome</p>
+      </div>
+    `
+  };
+
+  await transporter.sendMail(mailOptions);
+  console.log(`📧 Fulfillment email sent to ${customerEmail} for product ${productId}`);
+}
 
 // Auth all API routes
 // app.use('/api', authMiddleware); // Disabled for now
@@ -1014,6 +1107,62 @@ app.post('/api/moods/:agent', async (req, res) => {
     moodsData.agents[agent].currentMood = mood;
   }
   res.json({ success: true });
+});
+
+// Discord Webhook Endpoint
+app.post('/api/discord/webhook', async (req, res) => {
+  const { content, embed } = req.body;
+  const webhookUrl = process.env.DISCORD_WEBHOOK_URL; // Ensure this is set in .env
+
+  if (!webhookUrl) {
+    console.error('DISCORD_WEBHOOK_URL not set');
+    return res.status(500).json({ error: 'Webhook URL not configured' });
+  }
+
+  try {
+    const fetch = (await import('node-fetch')).default;
+    const response = await fetch(webhookUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        content,
+        embeds: embed ? [embed] : []
+      })
+    });
+
+    if (!response.ok) {
+      throw new Error(`Discord API error: ${response.statusText}`);
+    }
+
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Webhook error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Google Drive Endpoints
+app.get('/api/drive/status', async (req, res) => {
+  const driveClient = require('./google-drive-client.js');
+  driveClient.init();
+  res.json({ authenticated: driveClient.isAuthenticated() });
+});
+
+app.get('/api/drive/files', async (req, res) => {
+  const driveClient = require('./google-drive-client.js');
+  driveClient.init();
+  
+  const folderId = req.query.folderId || 'root';
+  const result = await driveClient.listFiles(folderId);
+  res.json(result);
+});
+
+app.get('/api/drive/guapdad', async (req, res) => {
+  const driveClient = require('./google-drive-client.js');
+  driveClient.init();
+  
+  const result = await driveClient.listGuapDadFiles();
+  res.json(result);
 });
 
 // Serve React (MUST BE LAST)

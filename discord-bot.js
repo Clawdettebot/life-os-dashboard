@@ -8,10 +8,11 @@ require('dotenv').config({ path: __dirname + '/.env.knaight' });
 const axios = require('axios');
 
 // Load Knaight of Affairs and Sir Clawthchilds
-let KnaightOfAffairs, SirClawthchilds;
+let KnaightOfAffairs, SirClawthchilds, Labrina;
 try {
   KnaightOfAffairs = require('./knaight-of-affairs/index.js');
   SirClawthchilds = require('./sir-clawthchilds/index.js');
+  Labrina = require('./labrina/index.js');
 } catch (e) {
   console.log('Additional agents not loaded:', e.message);
 }
@@ -31,6 +32,7 @@ class KnowledgeKnaightBot {
       apiUrl: config.apiUrl || 'http://localhost:3000',
       allowedChannels: config.allowedChannels || [],
       roundTableChannel: config.roundTableChannel,
+      labrinaChannel: process.env.LABRINA_CHANNEL_ID,
       ...config
     };
     
@@ -39,6 +41,9 @@ class KnowledgeKnaightBot {
     
     // Initialize Sir Clawthchilds
     this.clawthchilds = SirClawthchilds ? new SirClawthchilds(this) : null;
+
+    // Initialize Labrina
+    this.labrina = Labrina ? new Labrina(this) : null;
     
     this.setupEventHandlers();
   }
@@ -51,8 +56,14 @@ class KnowledgeKnaightBot {
     this.client.on(Events.MessageCreate, async (message) => {
       // Ignore bot messages
       if (message.author.bot) return;
+
+      // Handle Labrina Channel
+      if (this.labrina && this.config.labrinaChannel && message.channelId === this.config.labrinaChannel) {
+        await this.labrina.handleMessage(message);
+        return;
+      }
       
-      // Check if in allowed channel
+      // Check if in allowed channel (for Cortex bot)
       if (this.config.allowedChannels.length > 0 && 
           !this.config.allowedChannels.includes(message.channelId)) {
         return;
@@ -331,9 +342,27 @@ class KnowledgeKnaightBot {
     // React to show we're processing
     await message.react('🧠');
 
+    let contentToSend = message.content;
+
+    // Twitter/X Expansion
+    if (process.env.TWITTER_BEARER_TOKEN) {
+      for (const url of urls) {
+        if (url.includes('twitter.com') || url.includes('x.com')) {
+          const tweetId = url.split('/').pop().split('?')[0];
+          const tweetData = await this.fetchTweet(tweetId);
+          if (tweetData) {
+            contentToSend += `\n\n🐦 **Tweet Content:**\n${tweetData.text}`;
+            if (tweetData.media && tweetData.media.length > 0) {
+              contentToSend += `\n(Media: ${tweetData.media.join(', ')})`;
+            }
+          }
+        }
+      }
+    }
+
     try {
       const response = await axios.post(`${this.config.apiUrl}/api/discord/webhook`, {
-        content: message.content,
+        content: contentToSend,
         author: {
           id: message.author.id,
           username: message.author.username
@@ -373,6 +402,37 @@ class KnowledgeKnaightBot {
     }
   }
 
+  async fetchTweet(tweetId) {
+    try {
+      const response = await axios.get(`https://api.x.com/2/tweets/${tweetId}?tweet.fields=text,created_at,attachments&expansions=attachments.media_keys&media.fields=url,preview_image_url`, {
+        headers: {
+          'Authorization': `Bearer ${process.env.TWITTER_BEARER_TOKEN}`
+        }
+      });
+
+      const data = response.data.data;
+      const includes = response.data.includes;
+      
+      if (!data) return null;
+
+      const mediaUrls = [];
+      if (includes && includes.media) {
+        includes.media.forEach(m => {
+          if (m.url) mediaUrls.push(m.url);
+          if (m.preview_image_url) mediaUrls.push(m.preview_image_url);
+        });
+      }
+
+      return {
+        text: data.text,
+        media: mediaUrls
+      };
+    } catch (e) {
+      console.error('Twitter API Error:', e.response ? e.response.data : e.message);
+      return null;
+    }
+  }
+
   login(token) {
     return this.client.login(token);
   }
@@ -390,13 +450,14 @@ if (require.main === module) {
     apiUrl: process.env.API_URL || 'http://localhost:3000',
     allowedChannels: [
       '1473933220050374792', // #cortex
-      '1475656727188869180'  // #round-table
-    ],
+      '1475656727188869180',  // #round-table
+      process.env.LABRINA_CHANNEL_ID // #labrina-social (dynamic)
+    ].filter(Boolean),
     roundTableChannel: ROUND_TABLE_CHANNEL
   });
 
   console.log('🤖 Knowledge Knaight starting...');
-  console.log('Listening on: #cortex, #round-table');
+  console.log('Listening on: #cortex, #round-table, #labrina-social');
   console.log('Reporting to: #round-table');
   console.log('Invite bot with:');
   console.log(`https://discord.com/api/oauth2/authorize?client_id=${process.env.DISCORD_APP_ID || '1473691851201712189'}&permissions=8&scope=bot%20applications.commands`);
@@ -414,6 +475,12 @@ if (require.main === module) {
     if (bot.clawthchilds) {
       bot.clawthchilds.start();
       console.log('👑 Sir Clawthchilds initialized');
+    }
+
+    // Start Labrina
+    if (bot.labrina) {
+      bot.labrina.start();
+      console.log('📱 Labrina initialized');
     }
   }).catch(err => {
     console.error('❌ Failed to login:', err.message);

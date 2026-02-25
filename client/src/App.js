@@ -819,7 +819,7 @@ function App() {
           )}
 
           {activePage === 'content' && (
-            <ContentSchedulerView api={API} />
+            <ContentSchedulerView api={API} postbridgeKey="pb_live_6TxeA2MXDdTeVaXrp8BwG8" />
           )}
 
           {activePage === 'blog' && (
