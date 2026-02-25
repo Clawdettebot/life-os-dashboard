@@ -5,6 +5,7 @@ const cors = require('cors');
 const { exec } = require('child_process');
 const path = require('path');
 const fs = require('fs').promises;
+const axios = require('axios');
 require('dotenv').config();
 
 const app = express();
@@ -1138,6 +1139,55 @@ app.post('/api/discord/webhook', async (req, res) => {
   } catch (error) {
     console.error('Webhook error:', error);
     res.status(500).json({ error: error.message });
+  }
+});
+
+// Postbridge Proxy Endpoints (to avoid CORS)
+app.get('/api/postbridge/accounts', async (req, res) => {
+  const API_KEY = process.env.POSTBRIDGE_API_KEY || 'pb_live_6TxeA2MXDdTeVaXrp8BwG8';
+  try {
+    const response = await axios.get('https://api.post-bridge.com/v1/social-accounts', {
+      headers: { 'Authorization': `Bearer ${API_KEY}` }
+    });
+    res.json(response.data);
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+app.get('/api/postbridge/posts', async (req, res) => {
+  const API_KEY = process.env.POSTBRIDGE_API_KEY || 'pb_live_6TxeA2MXDdTeVaXrp8BwG8';
+  try {
+    const response = await axios.get('https://api.post-bridge.com/v1/posts?limit=50', {
+      headers: { 'Authorization': `Bearer ${API_KEY}` }
+    });
+    res.json(response.data);
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+app.get('/api/postbridge/analytics', async (req, res) => {
+  const API_KEY = process.env.POSTBRIDGE_API_KEY || 'pb_live_6TxeA2MXDdTeVaXrp8BwG8';
+  try {
+    const response = await axios.get('https://api.post-bridge.com/v1/analytics?timeframe=7d', {
+      headers: { 'Authorization': `Bearer ${API_KEY}` }
+    });
+    res.json(response.data);
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+app.post('/api/postbridge/posts', async (req, res) => {
+  const API_KEY = process.env.POSTBRIDGE_API_KEY || 'pb_live_6TxeA2MXDdTeVaXrp8BwG8';
+  try {
+    const response = await axios.post('https://api.post-bridge.com/v1/posts', req.body, {
+      headers: { 'Authorization': `Bearer ${API_KEY}`, 'Content-Type': 'application/json' }
+    });
+    res.json(response.data);
+  } catch (e) {
+    res.status(500).json({ error: e.message });
   }
 });
 

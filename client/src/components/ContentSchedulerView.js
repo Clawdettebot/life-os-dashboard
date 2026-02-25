@@ -2,26 +2,15 @@ import React, { useState, useEffect } from 'react';
 import { Instagram, Music, Twitter, Youtube, CalendarDays, Activity, Settings, Plus, HardDrive, Smartphone, Radio, Target, ChevronRight, X, Zap, Clock, Folder, File } from 'lucide-react';
 
 // ==========================================
-// POST BRIDGE API
+// POST BRIDGE API (Proxied through server to avoid CORS)
 // ==========================================
-const POST_BRIDGE_BASE_URL = "https://api.post-bridge.com/v1";
-
-const fetchAPI = async (endpoint, options = {}, apiKey) => {
-  const response = await fetch(`${POST_BRIDGE_BASE_URL}${endpoint}`, {
-    ...options,
-    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}`, ...options.headers },
-  });
-  if (!response.ok) throw new Error(`API Error: ${response.status}`);
-  return response.json();
-};
-
 const PostBridgeAPI = (apiKey) => ({
-  getSocialAccounts: () => fetchAPI('/social-accounts', {}, apiKey),
-  getPosts: () => fetchAPI('/posts?limit=50', {}, apiKey),
-  createPost: (payload) => fetchAPI('/posts', { method: 'POST', body: JSON.stringify(payload) }, apiKey),
-  updatePost: (id, payload) => fetchAPI(`/posts/${id}`, { method: 'PATCH', body: JSON.stringify(payload) }, apiKey),
-  deletePost: (id) => fetchAPI(`/posts/${id}`, { method: 'DELETE' }, apiKey),
-  getAnalytics: () => fetchAPI('/analytics?timeframe=7d', {}, apiKey),
+  getSocialAccounts: () => fetch('/api/postbridge/accounts').then(r => r.json()),
+  getPosts: () => fetch('/api/postbridge/posts').then(r => r.json()),
+  createPost: (payload) => fetch('/api/postbridge/posts', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(payload) }).then(r => r.json()),
+  updatePost: (id, payload) => fetch(`/api/postbridge/posts/${id}`, { method: 'PATCH', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(payload) }).then(r => r.json()),
+  deletePost: (id) => fetch(`/api/postbridge/posts/${id}`, { method: 'DELETE' }).then(r => r.json()),
+  getAnalytics: () => fetch('/api/postbridge/analytics').then(r => r.json()),
 });
 
 // ==========================================
@@ -79,11 +68,12 @@ export default function ContentSchedulerView({ api, postbridgeKey }) {
   const [selectedTimelineDay, setSelectedTimelineDay] = useState(new Date().toISOString().split('T')[0]);
   const [selectedSlot, setSelectedSlot] = useState(null);
   const [showCreateModal, setShowCreateModal] = useState(false);
-  const [formData, setFormData] = useState({ caption: '', scheduledDate: '', scheduledTime: '18:00', platforms: [], isDraft: false });
+  const [formData, setFormData] = useState({ caption: '', scheduledDate: '', scheduledTime: '18:00', platforms: [], isDraft: false, driveFile: null });
   const [driveFiles, setDriveFiles] = useState([]);
   const [driveLoading, setDriveLoading] = useState(false);
   const [currentDriveFolder, setCurrentDriveFolder] = useState(null);
   const [showDriveBrowser, setShowDriveBrowser] = useState(false);
+  const [selectedDriveFile, setSelectedDriveFile] = useState(null);
 
   // Load guap.dad folder on mount
   useEffect(() => {
@@ -111,6 +101,10 @@ export default function ContentSchedulerView({ api, postbridgeKey }) {
   const handleDriveFileClick = (file) => {
     if (file.mimeType.includes('folder')) {
       loadDriveFiles(file.id);
+    } else {
+      // Select the file
+      setSelectedDriveFile(file);
+      setFormData({ ...formData, driveFile: file });
     }
   };
 
@@ -357,28 +351,44 @@ export default function ContentSchedulerView({ api, postbridgeKey }) {
                     <div className="text-gray-500 text-sm">No files found</div>
                   ) : (
                     <div className="space-y-1">
-                      {currentDriveFolder && (
+                      {currentDriveFolder && currentDriveFolder.id !== '1H9oQlOXrSXcAgp_sdY4D2TnxKS8KoiiR' && (
                         <button 
-                          onClick={() => loadDriveFiles(currentDriveFolder.parents?.[0] || null)}
-                          className="w-full text-left text-xs text-gray-400 hover:text-white flex items-center gap-1"
+                          onClick={() => loadDriveFiles()}
+                          className="w-full text-left text-xs text-orange-400 hover:text-white flex items-center gap-1 mb-2"
                         >
-                          ← Back
+                          ← Back to guap.dad
                         </button>
                       )}
                       {driveFiles.map(file => (
                         <div 
                           key={file.id}
                           onClick={() => handleDriveFileClick(file)}
-                          className={`flex items-center gap-2 p-2 rounded cursor-pointer text-sm ${
-                            file.mimeType.includes('folder') ? 'text-orange-400 hover:bg-white/5' : 'text-gray-300 hover:bg-white/5'
+                          className={`flex items-center gap-2 p-2 rounded cursor-pointer text-sm transition-all ${
+                            selectedDriveFile?.id === file.id 
+                              ? 'bg-orange-500/30 border border-orange-500 text-white' 
+                              : file.mimeType.includes('folder') 
+                                ? 'text-orange-400 hover:bg-white/5' 
+                                : 'text-gray-300 hover:bg-white/5'
                           }`}
                         >
                           {file.mimeType.includes('folder') ? <Folder className="w-4 h-4" /> : <File className="w-4 h-4" />}
-                          <span className="truncate">{file.name}</span>
+                          <span className="truncate flex-1">{file.name}</span>
+                          {selectedDriveFile?.id === file.id && <span className="text-xs text-orange-400">✓</span>}
                         </div>
                       ))}
                     </div>
                   )}
+                </div>
+              )}
+
+              {/* Selected File Display */}
+              {selectedDriveFile && (
+                <div className="mb-4 p-3 bg-orange-500/10 border border-orange-500/30 rounded-lg flex items-center gap-2">
+                  <HardDrive className="w-4 h-4 text-orange-400" />
+                  <span className="text-sm text-white truncate flex-1">{selectedDriveFile.name}</span>
+                  <button onClick={() => { setSelectedDriveFile(null); setFormData({...formData, driveFile: null}); }} className="text-gray-400 hover:text-white">
+                    <X className="w-4 h-4" />
+                  </button>
                 </div>
               )}
             </div>
