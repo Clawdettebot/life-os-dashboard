@@ -124,7 +124,7 @@ export default function CortexView() {
       <SectionParticles section={activeSection} />
 
       {/* Header */}
-      <div className="cortex-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px', position: 'relative', zIndex: 10 }}>
+      <div className="cortex-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '32px', position: 'relative', zIndex: 10 }}>
         <div className="cortex-pill-tabs">
           {Object.entries(SECTIONS).map(([key, section]) => {
             const Icon = section.icon;
@@ -200,7 +200,7 @@ export default function CortexView() {
         </div>
 
         {/* Entries Grid - Now handled by dynamic layouts */}
-        <div className="cortex-dynamic-layout" style={{ position: 'relative', zIndex: 5 }}>
+        <div className="cortex-dynamic-layout" style={{ position: 'relative', zIndex: 5, paddingTop: '8px' }}>
           {activeSection === 'emerald_tablets' && <LayoutTimeline entries={entries} color={SECTIONS[activeSection].color} onSelectEntry={setSelectedEntry} />}
           {activeSection === 'hitchhiker_guide' && <LayoutWeekender entries={entries} color={SECTIONS[activeSection].color} onSelectEntry={setSelectedEntry} />}
           {activeSection === 'all_spark' && <LayoutSplitView entries={entries} color={SECTIONS[activeSection].color} />}

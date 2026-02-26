@@ -734,19 +734,145 @@ io.on('connection', (socket) => {
 
 // ─── ADDED ENDPOINTS (must be before catch-all) ───
 
-// Projects endpoint
-app.get('/api/projects', async (req, res) => {
+// Projects using jsonDb
+app.get('/api/projects/active', async (req, res) => {
   try {
-    const projectsDir = path.join(WORKSPACE_DIR, 'projects');
-    const files = await fs.readdir(projectsDir);
-    const projects = [];
-    for (const file of files) {
-      if (file.endsWith('.md')) {
-        projects.push({ id: file.replace('.md', ''), title: file.replace('.md', '').replace(/-/g, ' '), status: 'active', lastModified: new Date().toISOString() });
-      }
-    }
-    res.json({ projects });
+    const projects = await jsonDb.read('projects');
+    res.json({ projects: projects.filter(p => p.status !== 'archived') });
   } catch (error) { res.json({ projects: [] }); }
+});
+
+app.get('/api/projects/archived', async (req, res) => {
+  try {
+    const projects = await jsonDb.read('projects');
+    res.json({ projects: projects.filter(p => p.status === 'archived') });
+  } catch (error) { res.json({ projects: [] }); }
+});
+
+app.get('/api/projects/:id', async (req, res) => {
+  try {
+    const projects = await jsonDb.read('projects');
+    const project = projects.find(p => p.id === req.params.id);
+    res.json({ project });
+  } catch (error) { res.status(500).json({ error: error.message }); }
+});
+
+app.post('/api/projects', async (req, res) => {
+  try {
+    const projects = await jsonDb.read('projects');
+    const newProject = { id: Date.now().toString(), created_at: Date.now(), updated_at: Date.now(), ...req.body };
+    projects.push(newProject);
+    await jsonDb.write('projects', projects);
+    res.json({ project: newProject });
+  } catch (error) { res.status(500).json({ error: error.message }); }
+});
+
+app.patch('/api/projects/:id', async (req, res) => {
+  try {
+    const projects = await jsonDb.read('projects');
+    const index = projects.findIndex(p => p.id === req.params.id);
+    if (index !== -1) {
+      projects[index] = { ...projects[index], ...req.body, updated_at: Date.now() };
+      await jsonDb.write('projects', projects);
+      res.json({ project: projects[index] });
+    } else {
+      res.status(404).json({ error: 'Not found' });
+    }
+  } catch (error) { res.status(500).json({ error: error.message }); }
+});
+
+app.delete('/api/projects/:id', async (req, res) => {
+  try {
+    let projects = await jsonDb.read('projects');
+    projects = projects.filter(p => p.id !== req.params.id);
+    await jsonDb.write('projects', projects);
+    res.json({ success: true });
+  } catch (error) { res.status(500).json({ error: error.message }); }
+});
+
+app.post('/api/projects/:id/archive', async (req, res) => {
+  try {
+    const projects = await jsonDb.read('projects');
+    const index = projects.findIndex(p => p.id === req.params.id);
+    if (index !== -1) {
+      projects[index].status = 'archived';
+      projects[index].archived_at = Date.now();
+      projects[index].updated_at = Date.now();
+      await jsonDb.write('projects', projects);
+      res.json({ project: projects[index] });
+    } else {
+      res.status(404).json({ error: 'Not found' });
+    }
+  } catch (error) { res.status(500).json({ error: error.message }); }
+});
+
+app.post('/api/projects/:id/unarchive', async (req, res) => {
+  try {
+    const projects = await jsonDb.read('projects');
+    const index = projects.findIndex(p => p.id === req.params.id);
+    if (index !== -1) {
+      projects[index].status = 'active';
+      delete projects[index].archived_at;
+      projects[index].updated_at = Date.now();
+      await jsonDb.write('projects', projects);
+      res.json({ project: projects[index] });
+    } else {
+      res.status(404).json({ error: 'Not found' });
+    }
+  } catch (error) { res.status(500).json({ error: error.message }); }
+});
+
+app.post('/api/projects/:id/tasks', async (req, res) => {
+  try {
+    const projects = await jsonDb.read('projects');
+    const index = projects.findIndex(p => p.id === req.params.id);
+    if (index !== -1) {
+      if (!projects[index].tasks) projects[index].tasks = [];
+      projects[index].tasks.push({ id: Date.now().toString(), title: req.body.title, completed: false });
+      projects[index].updated_at = Date.now();
+      await jsonDb.write('projects', projects);
+      res.json({ project: projects[index] });
+    } else {
+      res.status(404).json({ error: 'Not found' });
+    }
+  } catch (error) { res.status(500).json({ error: error.message }); }
+});
+
+app.patch('/api/projects/:id/tasks/:taskId', async (req, res) => {
+  try {
+    const projects = await jsonDb.read('projects');
+    const index = projects.findIndex(p => p.id === req.params.id);
+    if (index !== -1 && projects[index].tasks) {
+      const task = projects[index].tasks.find(t => t.id === req.params.taskId);
+      if (task) {
+        task.completed = !task.completed;
+        projects[index].updated_at = Date.now();
+        await jsonDb.write('projects', projects);
+        res.json({ project: projects[index] });
+      } else {
+        res.status(404).json({ error: 'Task not found' });
+      }
+    } else {
+      res.status(404).json({ error: 'Project not found' });
+    }
+  } catch (error) { res.status(500).json({ error: error.message }); }
+});
+
+app.post('/api/projects/:id/notes', async (req, res) => {
+  try {
+    const projects = await jsonDb.read('projects');
+    const index = projects.findIndex(p => p.id === req.params.id);
+    if (index !== -1) {
+      const noteContent = req.body.content;
+      const currentNotes = projects[index].notes || '';
+      projects[index].notes = currentNotes ? currentNotes + '\n\n' + noteContent : noteContent;
+      projects[index].updated_at = Date.now();
+      await jsonDb.write('projects', projects);
+      res.json({ project: projects[index] });
+    } else {
+      res.status(404).json({ error: 'Not found' });
+    }
+  } catch (error) { res.status(500).json({ error: error.message }); }
 });
 
 // Google Calendar endpoints

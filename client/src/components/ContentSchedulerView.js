@@ -226,8 +226,11 @@ export default function ContentSchedulerView({ api, postbridgeKey }) {
     return days;
   })();
 
-  const handleDraftFromDrive = async () => {
-    if (!selectedSlot) return;
+  const handleDraftFromDrive = async (file, isDraft = true) => {
+    if (!selectedSlot) {
+      alert("Please select a time slot on the timeline first!");
+      return;
+    }
     setIsProcessingAction(true);
     try {
       const accounts = await pb.getSocialAccounts();
@@ -242,10 +245,11 @@ export default function ContentSchedulerView({ api, postbridgeKey }) {
       const scheduledDate = new Date(`${isoDateStr}T${selectedSlot.hour.toString().padStart(2, '0')}:00:00Z`);
 
       const newPost = await pb.createPost({
-        caption: "Draft synced from Google Drive",
+        caption: file ? file.name : "Draft synced from Google Drive",
         scheduled_at: scheduledDate.toISOString(),
         social_accounts: [accountIds[0]],
-        is_draft: true,
+        status: isDraft ? 'draft' : 'scheduled',
+        is_draft: isDraft,
       });
 
       setApiPosts(prev => [...prev, mapPostToUI(newPost)]);
@@ -616,12 +620,35 @@ export default function ContentSchedulerView({ api, postbridgeKey }) {
                       {driveFiles.map(file => (
                         <div
                           key={file.id}
-                          onClick={() => handleDriveFileClick(file)}
-                          className={`flex items-center gap-2 p-2 rounded cursor-pointer text-sm ${file.mimeType.includes('folder') ? 'text-orange-400 hover:bg-white/5' : 'text-gray-300 hover:bg-white/5'
+                          className={`flex items-center justify-between p-2 rounded text-sm group ${file.mimeType.includes('folder') ? 'text-orange-400 hover:bg-white/5' : 'text-gray-300 hover:bg-white/5'
                             }`}
                         >
-                          {file.mimeType.includes('folder') ? <Folder className="w-4 h-4" /> : <File className="w-4 h-4" />}
-                          <span className="truncate">{file.name}</span>
+                          <div
+                            className="flex items-center gap-2 cursor-pointer flex-1 min-w-0"
+                            onClick={() => handleDriveFileClick(file)}
+                          >
+                            {file.mimeType.includes('folder') ? <Folder className="w-4 h-4 min-w-[16px]" /> : <File className="w-4 h-4 min-w-[16px]" />}
+                            <span className="truncate">{file.name}</span>
+                          </div>
+
+                          {!file.mimeType.includes('folder') && (
+                            <div className="flex items-center gap-1 opacity-100 sm:opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0">
+                              <button
+                                onClick={(e) => { e.stopPropagation(); handleDraftFromDrive(file, true); }}
+                                className="text-[10px] font-bold tracking-wider text-orange-400 hover:text-orange-300 px-2 py-1 bg-white/5 hover:bg-white/10 rounded uppercase"
+                                disabled={isProcessingAction}
+                              >
+                                Draft
+                              </button>
+                              <button
+                                onClick={(e) => { e.stopPropagation(); handleDraftFromDrive(file, false); }}
+                                className="text-[10px] font-bold tracking-wider text-green-400 hover:text-green-300 px-2 py-1 bg-white/5 hover:bg-white/10 rounded uppercase flex items-center gap-1"
+                                disabled={isProcessingAction}
+                              >
+                                <Zap className="w-3 h-3" /> Send
+                              </button>
+                            </div>
+                          )}
                         </div>
                       ))}
                     </div>

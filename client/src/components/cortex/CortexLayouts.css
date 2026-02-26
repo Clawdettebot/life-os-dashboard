@@ -3,6 +3,7 @@
     display: flex;
     flex-direction: column;
     height: 100%;
+    gap: 24px;
 }
 
 .cortex-pill-tabs {
@@ -10,10 +11,10 @@
     gap: 12px;
     background: rgba(15, 15, 20, 0.65);
     backdrop-filter: blur(20px);
-    padding: 8px;
+    padding: 10px 14px;
     border-radius: 99px;
     border: 1px solid rgba(255, 255, 255, 0.05);
-    margin-bottom: 24px;
+    margin-bottom: 28px;
 }
 
 .cortex-pill {
@@ -47,7 +48,7 @@
     position: relative;
     max-width: 1000px;
     margin: 0 auto;
-    padding: 40px 0;
+    padding: 40px 20px;
 }
 
 .timeline-line {
@@ -63,7 +64,8 @@
 .timeline-node {
     position: relative;
     width: 50%;
-    padding: 20px 40px;
+    padding: 24px 44px;
+    margin-bottom: 8px;
     opacity: 0;
     animation: fadeUpIn 0.5s forwards;
 }
@@ -113,7 +115,7 @@
     backdrop-filter: blur(20px);
     border: 1px solid rgba(255, 255, 255, 0.05);
     border-radius: 12px;
-    padding: 20px;
+    padding: 24px;
     cursor: pointer;
     transition: transform 0.3s, box-shadow 0.3s;
 }
@@ -146,9 +148,9 @@
 /* 2. Hitchhiker's Guide: Weekender Cards */
 .weekender-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-    gap: 30px;
-    padding: 20px;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 32px;
+    padding: 24px;
     align-items: start;
 }
 
@@ -234,28 +236,33 @@
 /* 3. The All Spark: Split View (Misso style) */
 .splitview-container {
     display: flex;
-    height: calc(100vh - 200px);
+    height: calc(100vh - 220px);
+    min-height: 500px;
     /* Fill remaining space minus header */
-    gap: 20px;
+    gap: 28px;
     overflow: hidden;
 }
 
 .splitview-list {
     flex: 1;
     max-width: 450px;
+    min-width: 320px;
     display: flex;
     flex-direction: column;
     gap: 16px;
     overflow-y: auto;
-    padding-right: 10px;
+    padding-right: 12px;
+    padding-top: 4px;
+    padding-bottom: 4px;
 }
 
 .splitview-filters {
     display: flex;
     gap: 10px;
+    flex-wrap: wrap;
     margin-bottom: 16px;
     overflow-x: auto;
-    padding-bottom: 8px;
+    padding-bottom: 10px;
 }
 
 .misso-pill {
@@ -278,7 +285,7 @@
 .misso-card {
     background: rgba(255, 255, 255, 0.03);
     border-radius: 20px;
-    padding: 20px;
+    padding: 22px 24px;
     cursor: pointer;
     border: 1px solid rgba(255, 255, 255, 0.05);
     transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
@@ -307,19 +314,20 @@
     background: rgba(15, 15, 20, 0.8);
     border-radius: 30px;
     border: 1px solid rgba(255, 255, 255, 0.05);
-    padding: 40px;
+    padding: 44px;
     overflow-y: auto;
     position: relative;
     display: flex;
     flex-direction: column;
+    gap: 8px;
 }
 
 /* 4. Howl's Kitchen: Recipe Book */
 .recipe-grid {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
-    gap: 24px;
-    padding: 20px;
+    gap: 28px;
+    padding: 24px;
 }
 
 .recipe-card {
@@ -347,7 +355,7 @@
 }
 
 .recipe-content {
-    padding: 24px;
+    padding: 24px 26px;
 }
 
 .recipe-title {
