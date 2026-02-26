@@ -8,6 +8,7 @@ import {
   Coins, Banknote, AlertCircle, FileText, Lightbulb
 } from 'lucide-react';
 import AnimatedIcon from './AnimatedIcon';
+import ExpensesView from './ExpensesView';
 
 const categoryIcons = {
   food: Coffee,
@@ -355,73 +356,7 @@ export default function FinanceView({ finances = [], api }) {
 
       {/* EMAIL EXPENSES TAB */}
       {activeTab === 'expenses' && (
-        <>
-          <div className="section-header" style={{ marginBottom: '20px' }}>
-            <h1 className="section-title">Email Expenses</h1>
-            <button className={`btn btn-primary ${scanning ? 'loading' : ''}`} onClick={handleScan} disabled={scanning}>
-              <RefreshCw size={16} className={scanning ? 'spin' : ''} />
-              {scanning ? 'Scanning...' : 'Scan Emails'}
-            </button>
-          </div>
-
-          {/* Recurring Summary */}
-          {recurringData && (
-            <div className="grid-3" style={{ marginBottom: '20px' }}>
-              <div className="stat-card">
-                <div className="stat-label">Monthly Recurring</div>
-                <div className="stat-value">${recurringData.monthlyTotal?.toFixed(2) || '0.00'}</div>
-              </div>
-              <div className="stat-card">
-                <div className="stat-label">Yearly Recurring</div>
-                <div className="stat-value">${((recurringData.yearlyTotal || 0) * 12).toFixed(2)}</div>
-              </div>
-              <div className="stat-card">
-                <div className="stat-label">Subscriptions</div>
-                <div className="stat-value">{recurringData.expenses?.length || 0}</div>
-              </div>
-            </div>
-          )}
-
-          <div className="card">
-            <div className="card-header">
-              <span className="card-title">Detected from Email</span>
-              <Mail size={16} />
-            </div>
-            {emailExpenses.length === 0 ? (
-              <div className="empty-state" style={{ padding: '40px', textAlign: 'center' }}>
-                <Mail size={48} style={{ opacity: 0.5 }} />
-                <p>No email expenses found</p>
-                <button className="btn" onClick={handleScan}>Scan Now</button>
-              </div>
-            ) : (
-              <div className="table-container">
-                <table className="data-table">
-                  <thead>
-                    <tr><th>Vendor</th><th>Category</th><th>Amount</th><th>Type</th><th>Date</th></tr>
-                  </thead>
-                  <tbody>
-                    {emailExpenses.map(expense => (
-                      <tr key={expense.id}>
-                        <td>
-                          <div style={{ fontWeight: 600 }}>{expense.vendor || expense.title}</div>
-                          <div style={{ fontSize: '0.75rem', color: 'var(--grey-400)', maxWidth: '200px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                            {expense.emailSubject}
-                          </div>
-                        </td>
-                        <td><span className="category-badge" style={{ backgroundColor: categoryColors[expense.category] || categoryColors.other }}>{expense.category}</span></td>
-                        <td style={{ fontWeight: 600, color: expense.type === 'income' ? '#00b894' : '#ff6b6b' }}>
-                          {expense.type === 'income' ? '+' : '-'}${Number(expense.amount).toFixed(2)}
-                        </td>
-                        <td>{expense.type}</td>
-                        <td>{formatDate(expense.date)}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </div>
-        </>
+        <ExpensesView finances={finances} api={api} />
       )}
 
       {/* OPPORTUNITIES TAB */}
