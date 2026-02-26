@@ -137,7 +137,16 @@ export default function ContentSchedulerView({ api, postbridgeKey }) {
   const [driveFiles, setDriveFiles] = useState([]);
   const [driveLoading, setDriveLoading] = useState(false);
   const [currentDriveFolder, setCurrentDriveFolder] = useState(null);
-  const [showDriveBrowser, setShowDriveBrowser] = useState(false);
+  const [activeTab, setActiveTab] = useState('Timeline');
+  const [activeTimelineSlot, setActiveTimelineSlot] = useState(null);
+  const [selectedDriveFile, setSelectedDriveFile] = useState(null);
+  const [postedDriveFiles, setPostedDriveFiles] = useState(() => {
+    try {
+      return JSON.parse(localStorage.getItem('lifeos_posted_files') || '[]');
+    } catch {
+      return [];
+    }
+  });
   const scrollContainerRef = useRef(null);
 
   // Load guap.dad folder on mount
@@ -210,6 +219,8 @@ export default function ContentSchedulerView({ api, postbridgeKey }) {
   const handleDaySelect = (dayId) => {
     setSelectedTimelineDay(dayId);
     setSelectedSlot(null); // Reset sequence when picking a new day
+    setActiveTimelineSlot(null);
+    setSelectedDriveFile(null);
   };
 
   const baseTimelineDates = (() => {
@@ -253,7 +264,14 @@ export default function ContentSchedulerView({ api, postbridgeKey }) {
       });
 
       setApiPosts(prev => [...prev, mapPostToUI(newPost)]);
+
+      const updatedPostedFiles = [...postedDriveFiles, file.id];
+      setPostedDriveFiles(updatedPostedFiles);
+      localStorage.setItem('lifeos_posted_files', JSON.stringify(updatedPostedFiles));
+
       setSelectedSlot(null);
+      setActiveTimelineSlot(null); // Reset timeline selection
+      setSelectedDriveFile(null); // Reset local selection
     } catch (error) {
       console.error("API Error during draft creation", error);
     } finally {
@@ -290,14 +308,14 @@ export default function ContentSchedulerView({ api, postbridgeKey }) {
           </div>
 
           <div className="hidden md:flex items-center gap-1 bg-black/40 p-1 rounded-full border border-white/5">
-            <GlassPill active>Timeline</GlassPill>
-            <GlassPill>Drive Sync</GlassPill>
-            <GlassPill>Releases</GlassPill>
+            <GlassPill active={activeTab === 'Timeline'} onClick={() => setActiveTab('Timeline')}>Timeline</GlassPill>
+            <GlassPill active={activeTab === 'Drive Sync'} onClick={() => setActiveTab('Drive Sync')}>Drive Sync</GlassPill>
+            <GlassPill active={activeTab === 'Releases'} onClick={() => setActiveTab('Releases')}>Releases</GlassPill>
           </div>
 
           <div className="flex items-center gap-3 pr-2">
-            <GlassPill variant="dark" className="!px-4"><Settings className="w-4 h-4" /></GlassPill>
-            <GlassPill variant="primary" className="!px-6"><Plus className="w-4 h-4" /> Create</GlassPill>
+            <GlassPill variant="dark" className="!px-4" onClick={() => alert('Settings opens')}><Settings className="w-4 h-4" /></GlassPill>
+            <GlassPill variant="primary" className="!px-6" onClick={() => setShowCreateModal(true)}><Plus className="w-4 h-4" /> Create</GlassPill>
           </div>
         </div>
       </div>
@@ -425,10 +443,25 @@ export default function ContentSchedulerView({ api, postbridgeKey }) {
                           );
                         } else {
                           // Empty Drop Zone (Completes the 2x2)
+                          const isSlotActive = activeTimelineSlot && activeTimelineSlot.dayId === day.id && activeTimelineSlot.idx === idx;
                           return (
-                            <div key={`empty-${idx}`} className={`rounded-[16px] border border-dashed border-white/10 flex flex-col items-center justify-center h-[110px] transition-colors ${isActive ? 'bg-white/[0.01] hover:border-white/30' : 'bg-transparent'}`}>
-                              <Plus className="w-5 h-5 text-gray-600 mb-1 opacity-50" />
-                              <span className="text-[9px] font-bold tracking-widest text-gray-600 uppercase">Slot {idx + 1}</span>
+                            <div
+                              key={`empty-${idx}`}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleDaySelect(day.id);
+                                setActiveTimelineSlot({ dayId: day.id, idx });
+                                setTimeout(() => {
+                                  const heatmapObj = document.getElementById('heatmap-section');
+                                  if (heatmapObj) {
+                                    heatmapObj.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                                  }
+                                }, 100);
+                              }}
+                              className={`rounded-[16px] border border-dashed flex flex-col items-center justify-center h-[110px] transition-all cursor-pointer ${isActive ? 'bg-white/[0.01] hover:border-white/30' : 'bg-transparent'} ${isSlotActive ? 'border-orange-500 shadow-[0_0_15px_rgba(234,88,12,0.3)] bg-orange-500/10' : 'border-white/10'}`}
+                            >
+                              <Plus className={`w-5 h-5 mb-1 ${isSlotActive ? 'text-orange-400' : 'text-gray-600 opacity-50'}`} />
+                              <span className={`text-[9px] font-bold tracking-widest uppercase ${isSlotActive ? 'text-orange-400' : 'text-gray-600'}`}>Slot {idx + 1}</span>
                             </div>
                           );
                         }
@@ -445,7 +478,7 @@ export default function ContentSchedulerView({ api, postbridgeKey }) {
         {/* STEP 2: HEATMAP (Appears when a day is selected)          */}
         {/* ========================================================= */}
         {selectedTimelineDay && (
-          <WidgetCard className="p-8 relative overflow-hidden animate-in-fade-slide">
+          <WidgetCard id="heatmap-section" className="p-8 relative overflow-hidden animate-in-fade-slide">
             <div className="flex items-center justify-between mb-8 relative z-10">
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 rounded-full bg-orange-500/10 border border-orange-500/30 flex items-center justify-center shadow-[0_0_15px_rgba(249,115,22,0.15)]">
@@ -591,68 +624,101 @@ export default function ContentSchedulerView({ api, postbridgeKey }) {
               </div>
             </div>
 
-            {/* Drive Browser Toggle */}
-            <div className="mb-4">
-              <button
-                onClick={() => setShowDriveBrowser(!showDriveBrowser)}
-                className="flex items-center gap-2 text-sm text-orange-400 hover:text-orange-300"
-              >
-                <HardDrive className="w-4 h-4" />
-                {showDriveBrowser ? 'Hide' : 'Show'} Google Drive Files
-              </button>
+            {/* Drive Sync Workflow */}
+            <div className="md:w-[400px] flex-shrink-0 bg-black/40 border border-white/10 rounded-2xl p-4 flex flex-col items-center justify-start min-h-[300px] max-h-[350px]">
 
-              {showDriveBrowser && (
-                <div className="mt-3 bg-black/40 border border-white/10 rounded-lg p-3 max-h-48 overflow-y-auto">
-                  {driveLoading ? (
-                    <div className="text-gray-400 text-sm">Loading...</div>
-                  ) : driveFiles.length === 0 ? (
-                    <div className="text-gray-500 text-sm">No files found</div>
-                  ) : (
-                    <div className="space-y-1">
-                      {currentDriveFolder && (
-                        <button
-                          onClick={() => loadDriveFiles(currentDriveFolder.parents?.[0] || null)}
-                          className="w-full text-left text-xs text-gray-400 hover:text-white flex items-center gap-1"
-                        >
-                          ← Back
-                        </button>
-                      )}
-                      {driveFiles.map(file => (
-                        <div
-                          key={file.id}
-                          className={`flex items-center justify-between p-2 rounded text-sm group ${file.mimeType.includes('folder') ? 'text-orange-400 hover:bg-white/5' : 'text-gray-300 hover:bg-white/5'
-                            }`}
-                        >
-                          <div
-                            className="flex items-center gap-2 cursor-pointer flex-1 min-w-0"
-                            onClick={() => handleDriveFileClick(file)}
-                          >
-                            {file.mimeType.includes('folder') ? <Folder className="w-4 h-4 min-w-[16px]" /> : <File className="w-4 h-4 min-w-[16px]" />}
-                            <span className="truncate">{file.name}</span>
-                          </div>
-
-                          {!file.mimeType.includes('folder') && (
-                            <div className="flex items-center gap-1 opacity-100 sm:opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0">
-                              <button
-                                onClick={(e) => { e.stopPropagation(); handleDraftFromDrive(file, true); }}
-                                className="text-[10px] font-bold tracking-wider text-orange-400 hover:text-orange-300 px-2 py-1 bg-white/5 hover:bg-white/10 rounded uppercase"
-                                disabled={isProcessingAction}
-                              >
-                                Draft
-                              </button>
-                              <button
-                                onClick={(e) => { e.stopPropagation(); handleDraftFromDrive(file, false); }}
-                                className="text-[10px] font-bold tracking-wider text-green-400 hover:text-green-300 px-2 py-1 bg-white/5 hover:bg-white/10 rounded uppercase flex items-center gap-1"
-                                disabled={isProcessingAction}
-                              >
-                                <Zap className="w-3 h-3" /> Send
-                              </button>
-                            </div>
-                          )}
-                        </div>
-                      ))}
+              {selectedDriveFile ? (
+                <div className="w-full flex flex-col gap-6 animate-in-fade-slide">
+                  <div className="flex items-center gap-4 bg-white/5 p-4 rounded-xl border border-white/10 shadow-inner">
+                    <div className="w-12 h-12 rounded-full bg-orange-400/10 flex items-center justify-center border border-orange-400/20">
+                      <File className="w-6 h-6 text-orange-400" />
                     </div>
-                  )}
+                    <div className="flex-1 min-w-0">
+                      <h4 className="text-white font-medium truncate text-base leading-tight">{selectedDriveFile.name}</h4>
+                      <p className="text-[10px] text-gray-400 mt-1 uppercase tracking-widest font-bold">Ready for deployment</p>
+                    </div>
+                  </div>
+
+                  <div className="flex flex-col gap-3">
+                    <button
+                      onClick={() => handleDraftFromDrive(selectedDriveFile, false)}
+                      className="w-full py-4 px-4 bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-400 hover:to-red-400 text-white font-bold text-sm uppercase tracking-widest rounded-xl shadow-[0_4px_20px_rgba(234,88,12,0.3)] flex items-center justify-center gap-3 transition-all transform hover:scale-[1.02]"
+                      disabled={isProcessingAction}
+                    >
+                      <Zap className="w-5 h-5" /> Send As Post
+                    </button>
+                    <button
+                      onClick={() => handleDraftFromDrive(selectedDriveFile, true)}
+                      className="w-full py-3 px-4 bg-white/10 hover:bg-white/20 text-white font-bold text-sm uppercase tracking-widest rounded-xl border border-white/20 transition-all flex items-center justify-center gap-3 transform hover:scale-[1.02]"
+                      disabled={isProcessingAction}
+                    >
+                      <Folder className="w-4 h-4" /> Save as Draft
+                    </button>
+                  </div>
+
+                  <button
+                    onClick={() => setSelectedDriveFile(null)}
+                    className="text-[10px] text-gray-500 hover:text-white uppercase tracking-widest font-bold mt-2 py-2 transition-colors flex items-center justify-center gap-1"
+                    disabled={isProcessingAction}
+                  >
+                    <ChevronRight className="w-3 h-3 rotate-180" /> Back to selection
+                  </button>
+                </div>
+              ) : (
+                <div className="w-full flex flex-col h-full overflow-hidden">
+                  <h3 className="text-[10px] tracking-widest text-gray-500 uppercase font-bold mb-3 flex items-center gap-2 px-2">
+                    <HardDrive className="w-3 h-3 text-cyan-400" /> Source Media
+                  </h3>
+
+                  <div className="flex-1 overflow-y-auto w-full pr-1 space-y-1 glass-scroll pb-2">
+                    {driveLoading ? (
+                      <div className="text-gray-400 text-sm flex items-center justify-center h-full">Loading Drive...</div>
+                    ) : driveFiles.length === 0 ? (
+                      <div className="text-gray-500 text-sm flex items-center justify-center h-full">No files found</div>
+                    ) : (
+                      <div className="flex flex-col gap-1">
+                        {currentDriveFolder && (
+                          <div
+                            onClick={() => loadDriveFiles(currentDriveFolder.parents?.[0] || null)}
+                            className="w-full py-2 px-3 rounded-lg text-left text-[11px] font-bold tracking-widest uppercase text-gray-500 hover:text-white hover:bg-white/5 flex items-center gap-2 transition-colors cursor-pointer"
+                          >
+                            <ChevronRight className="w-3 h-3 rotate-180" /> Back
+                          </div>
+                        )}
+                        {driveFiles.map(file => {
+                          const isFolder = file.mimeType.includes('folder');
+                          const isPosted = postedDriveFiles.includes(file.id);
+
+                          return (
+                            <div
+                              key={file.id}
+                              onClick={() => {
+                                if (isFolder) handleDriveFileClick(file);
+                                else setSelectedDriveFile(file);
+                              }}
+                              className={`flex items-center justify-between p-3 rounded-xl cursor-pointer transition-all border ${isFolder
+                                  ? 'hover:bg-orange-500/10 border-transparent hover:border-orange-500/20 text-orange-400'
+                                  : isPosted
+                                    ? 'opacity-60 hover:opacity-100 bg-white/5 border-transparent text-gray-400'
+                                    : 'hover:bg-white/10 border-transparent hover:border-white/10 text-gray-200'
+                                }`}
+                            >
+                              <div className="flex items-center gap-3 min-w-0 flex-1">
+                                {isFolder ? <Folder className="w-5 h-5 flex-shrink-0" /> : <File className="w-5 h-5 flex-shrink-0" />}
+                                <span className="truncate text-sm font-medium">{file.name}</span>
+                              </div>
+
+                              {isPosted && !isFolder && (
+                                <span className="text-[8px] font-bold tracking-widest uppercase text-green-400 bg-green-400/10 px-2 py-0.5 rounded border border-green-400/20 flex-shrink-0 ml-2 shadow-[0_0_10px_rgba(74,222,128,0.1)]">
+                                  Used
+                                </span>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
                 </div>
               )}
             </div>
