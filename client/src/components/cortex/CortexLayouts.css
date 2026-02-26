@@ -145,6 +145,108 @@
     color: #fff;
 }
 
+/* Horizontal Timeline Layout */
+.timeline-horizontal-layout {
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+    width: 100%;
+}
+
+.timeline-horizontal-track {
+    display: flex;
+    overflow-x: auto;
+    padding: 40px 20px 20px;
+    position: relative;
+    gap: 24px;
+    scroll-behavior: smooth;
+    min-height: 200px;
+    align-items: flex-start;
+}
+
+.timeline-horizontal-line {
+    position: absolute;
+    top: 48px;
+    left: 0;
+    width: max(100%, 200vw);
+    height: 4px;
+    border-radius: 2px;
+    z-index: 0;
+    opacity: 0.3;
+}
+
+.timeline-node-horizontal {
+    position: relative;
+    min-width: 250px;
+    max-width: 320px;
+    z-index: 1;
+    cursor: pointer;
+    transition: transform 0.3s;
+    animation: fadeRightIn 0.5s forwards;
+    opacity: 0;
+    flex-shrink: 0;
+}
+
+.timeline-node-horizontal.active {
+    transform: translateY(-8px);
+}
+
+.timeline-node-horizontal:hover {
+    transform: translateY(-4px);
+}
+
+.timeline-dot-horizontal {
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    border: 4px solid;
+    margin: 0 auto 16px;
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
+    transition: all 0.3s;
+}
+
+.timeline-node-horizontal.active .timeline-dot-horizontal {
+    box-shadow: 0 0 20px currentColor;
+    transform: scale(1.2);
+}
+
+.timeline-card-horizontal {
+    padding: 16px;
+    border-radius: 12px;
+}
+
+.timeline-date-horizontal {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.8rem;
+    font-weight: 700;
+    margin-bottom: 8px;
+    display: flex;
+    align-items: center;
+}
+
+@keyframes fadeRightIn {
+    to {
+        opacity: 1;
+        transform: translateX(0);
+    }
+
+    from {
+        opacity: 0;
+        transform: translateX(20px);
+    }
+}
+
+.timeline-detail-below {
+    padding: 0 10px;
+    width: 100%;
+}
+
+.timeline-detail-box {
+    padding: 32px;
+    border-radius: 16px;
+    width: 100%;
+}
+
 /* 2. Hitchhiker's Guide: Weekender Cards */
 .weekender-grid {
     display: grid;

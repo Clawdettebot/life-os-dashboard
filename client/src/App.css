@@ -4130,7 +4130,8 @@ body::before {
   width: 100%;
 }
 
-.cortex-grid.view-mode-grid .cortex-section-header {
+.cortex-grid.view-mode-grid .cortex-section-header,
+.cortex-grid.view-mode-grid .cortex-dynamic-layout {
   grid-column: 1 / -1;
 }
 

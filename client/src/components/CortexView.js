@@ -201,7 +201,7 @@ export default function CortexView() {
 
         {/* Entries Grid - Now handled by dynamic layouts */}
         <div className="cortex-dynamic-layout" style={{ position: 'relative', zIndex: 5, paddingTop: '8px' }}>
-          {activeSection === 'emerald_tablets' && <LayoutTimeline entries={entries} color={SECTIONS[activeSection].color} onSelectEntry={setSelectedEntry} />}
+          {activeSection === 'emerald_tablets' && <LayoutTimeline entries={entries} color={SECTIONS[activeSection].color} onSelectEntry={setSelectedEntry} selectedEntry={selectedEntry} />}
           {activeSection === 'hitchhiker_guide' && <LayoutWeekender entries={entries} color={SECTIONS[activeSection].color} onSelectEntry={setSelectedEntry} />}
           {activeSection === 'all_spark' && <LayoutSplitView entries={entries} color={SECTIONS[activeSection].color} />}
           {activeSection === 'howls_kitchen' && <LayoutRecipeBook entries={entries} color={SECTIONS[activeSection].color} onSelectEntry={setSelectedEntry} />}
@@ -209,7 +209,7 @@ export default function CortexView() {
       </div>
 
       {/* Entry Detail Modal */}
-      {selectedEntry && activeSection !== 'all_spark' && (
+      {selectedEntry && activeSection !== 'all_spark' && activeSection !== 'emerald_tablets' && (
         <EntryModal
           entry={selectedEntry}
           section={activeSection}
