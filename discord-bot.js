@@ -8,11 +8,11 @@ require('dotenv').config({ path: __dirname + '/.env.knaight' });
 const axios = require('axios');
 
 // Load Knaight of Affairs and Sir Clawthchilds
-let KnaightOfAffairs, SirClawthchilds, Labrina;
+let KnaightOfAffairs, SirClawthchilds; // Labrina removed (standalone)
 try {
   KnaightOfAffairs = require('./knaight-of-affairs/index.js');
   SirClawthchilds = require('./sir-clawthchilds/index.js');
-  Labrina = require('./labrina/index.js');
+  // Labrina = require('./labrina/index.js'); // Moved to standalone
 } catch (e) {
   console.log('Additional agents not loaded:', e.message);
 }
@@ -32,7 +32,7 @@ class KnowledgeKnaightBot {
       apiUrl: config.apiUrl || 'http://localhost:3000',
       allowedChannels: config.allowedChannels || [],
       roundTableChannel: config.roundTableChannel,
-      labrinaChannel: process.env.LABRINA_CHANNEL_ID,
+      // labrinaChannel: process.env.LABRINA_CHANNEL_ID, // Removed
       ...config
     };
     
@@ -42,8 +42,8 @@ class KnowledgeKnaightBot {
     // Initialize Sir Clawthchilds
     this.clawthchilds = SirClawthchilds ? new SirClawthchilds(this) : null;
 
-    // Initialize Labrina
-    this.labrina = Labrina ? new Labrina(this) : null;
+    // Initialize Labrina - REMOVED (Standalone)
+    // this.labrina = Labrina ? new Labrina(this) : null;
     
     this.setupEventHandlers();
   }
@@ -57,11 +57,13 @@ class KnowledgeKnaightBot {
       // Ignore bot messages
       if (message.author.bot) return;
 
+      /* Labrina handled separately now
       // Handle Labrina Channel
       if (this.labrina && this.config.labrinaChannel && message.channelId === this.config.labrinaChannel) {
         await this.labrina.handleMessage(message);
         return;
       }
+      */
       
       // Check if in allowed channel (for Cortex bot)
       if (this.config.allowedChannels.length > 0 && 
@@ -451,7 +453,7 @@ if (require.main === module) {
     allowedChannels: [
       '1473933220050374792', // #cortex
       '1475656727188869180',  // #round-table
-      process.env.LABRINA_CHANNEL_ID // #labrina-social (dynamic)
+      // process.env.LABRINA_CHANNEL_ID // #labrina-social (dynamic) - REMOVED
     ].filter(Boolean),
     roundTableChannel: ROUND_TABLE_CHANNEL
   });
@@ -477,11 +479,13 @@ if (require.main === module) {
       console.log('👑 Sir Clawthchilds initialized');
     }
 
-    // Start Labrina
+    // Start Labrina - REMOVED (Standalone)
+    /*
     if (bot.labrina) {
       bot.labrina.start();
       console.log('📱 Labrina initialized');
     }
+    */
   }).catch(err => {
     console.error('❌ Failed to login:', err.message);
     process.exit(1);

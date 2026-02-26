@@ -201,8 +201,14 @@ class Labrina {
 
   async callGemini(prompt, chatHistory = "") {
     try {
-      const apiKey = process.env.GEMINI_API_KEY;
-      if (!apiKey) return "I need my API key to think! (Check .env.knaight)";
+      // Try ZAI first, fall back to Gemini
+      const zaiKey = process.env.ZAI_API_KEY;
+      const geminiKey = process.env.GEMINI_API_KEY;
+      
+      let apiKey = zaiKey || geminiKey;
+      let useZAI = !!zaiKey;
+      
+      if (!apiKey) return "I need my API key to think! (Add ZAI_API_KEY or GEMINI_API_KEY to .env)";
 
       // Load Identity, Lessons & Brand Context
       let identity = '';
@@ -242,22 +248,45 @@ IMPORTANT INSTRUCTIONS:
 
 User: ${prompt}`;
 
-      const response = await axios.post(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`, {
-        contents: [{
-          parts: [{ text: systemPrompt }]
-        }]
-      }, {
-        headers: { 'Content-Type': 'application/json' }
-      });
-
-      if (response.data.candidates && response.data.candidates.length > 0) {
-        return response.data.candidates[0].content.parts[0].text;
+      let response;
+      if (useZAI) {
+        // ZAI uses OpenAI-compatible API
+        response = await axios.post('https://api.z.ai/api/coding/paas/v4/chat/completions', {
+          model: 'glm-5',
+          messages: [{ role: 'user', content: systemPrompt }],
+          max_tokens: 4096
+        }, {
+          headers: { 
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${apiKey}`
+          }
+        });
+        
+        if (response.data.choices && response.data.choices.length > 0) {
+          return response.data.choices[0].message.content;
+        } else {
+          console.error('ZAI Unexpected Response:', JSON.stringify(response.data));
+          return "I'm thinking... but the thoughts aren't forming. (ZAI API Format Error)";
+        }
       } else {
-        console.error('Gemini Unexpected Response:', JSON.stringify(response.data));
-        return "I'm thinking... but the thoughts aren't forming. (API Format Error)";
+        // Fall back to Gemini
+        response = await axios.post(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`, {
+          contents: [{
+            parts: [{ text: systemPrompt }]
+          }]
+        }, {
+          headers: { 'Content-Type': 'application/json' }
+        });
+
+        if (response.data.candidates && response.data.candidates.length > 0) {
+          return response.data.candidates[0].content.parts[0].text;
+        } else {
+          console.error('Gemini Unexpected Response:', JSON.stringify(response.data));
+          return "I'm thinking... but the thoughts aren't forming. (API Format Error)";
+        }
       }
     } catch (e) {
-      console.error('Gemini API Error:', e.response ? JSON.stringify(e.response.data) : e.message);
+      console.error('API Error:', e.response ? JSON.stringify(e.response.data) : e.message);
       return `My brain is buffering... (${e.response ? e.response.status : 'Network'} Error)`;
     }
   }

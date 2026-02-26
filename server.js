@@ -9,6 +9,12 @@ const axios = require('axios');
 require('dotenv').config();
 
 const app = express();
+app.use((req, res, next) => {
+  res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0');
+  res.setHeader('Pragma', 'no-cache');
+  res.setHeader('Expires', '0');
+  next();
+});
 const server = http.createServer(app);
 const io = socketIo(server, {
   cors: {
@@ -513,6 +519,38 @@ app.get('/api/tasks', async (req, res) => {
   res.json({ active, completed, all: tasks });
 });
 
+// Move task (change status/column)
+app.post('/api/tasks/:id/move', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { column } = req.body; // column = 'backlog', 'todo', 'in_progress', 'review', 'done'
+    
+    const tasks = await jsonDb.read('tasks');
+    const taskIndex = tasks.findIndex(t => t.id === id);
+    
+    if (taskIndex === -1) {
+      return res.status(404).json({ error: 'Task not found' });
+    }
+    
+    // Map column to status
+    const columnToStatus = {
+      'backlog': 'pending',
+      'todo': 'pending',
+      'in_progress': 'in_progress',
+      'review': 'review',
+      'done': 'completed'
+    };
+    
+    tasks[taskIndex].status = columnToStatus[column] || column;
+    
+    await jsonDb.write('tasks', tasks);
+    res.json({ success: true, task: tasks[taskIndex] });
+  } catch (err) {
+    console.error('Error moving task:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 app.get('/api/projects/detailed', async (req, res) => {
   try {
     const projectsDir = path.join(WORKSPACE_DIR, 'projects');
@@ -735,6 +773,13 @@ io.on('connection', (socket) => {
 // ─── ADDED ENDPOINTS (must be before catch-all) ───
 
 // Projects using jsonDb
+app.get('/api/projects', async (req, res) => {
+  try {
+    const projects = await jsonDb.read('projects');
+    res.json({ projects: projects.filter(p => p.status !== 'archived') });
+  } catch (error) { res.json({ projects: [] }); }
+});
+
 app.get('/api/projects/active', async (req, res) => {
   try {
     const projects = await jsonDb.read('projects');
