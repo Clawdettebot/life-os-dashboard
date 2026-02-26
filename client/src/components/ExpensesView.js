@@ -1,20 +1,23 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { 
+import {
   Mail, Search, RefreshCw, Filter, ChevronDown,
-  DollarSign, Calendar, Repeat, Tag, AlertCircle, Check
+  DollarSign, Calendar, Repeat, Tag, AlertCircle, Check, X
 } from 'lucide-react';
+import { WidgetCard } from './ui/WidgetCard';
+import { GlassPill } from './ui/GlassPill';
+import AnimatedIcon from './AnimatedIcon';
 
 const CATEGORY_COLORS = {
-  streaming: '#e50914',
-  tech: '#6c5ce7',
-  utilities: '#00b894',
-  insurance: '#fdcb6e',
-  shopping: '#ff7675',
-  food: '#fab1a0',
-  finance: '#74b9ff',
-  fitness: '#a29bfe',
-  education: '#00cec9',
-  other: '#dfe6e9'
+  streaming: '#ef4444',
+  tech: '#8b5cf6',
+  utilities: '#10b981',
+  insurance: '#f59e0b',
+  shopping: '#f43f5e',
+  food: '#fb923c',
+  finance: '#3b82f6',
+  fitness: '#6366f1',
+  education: '#06b6d4',
+  other: '#94a3b8'
 };
 
 const CATEGORY_LABELS = {
@@ -37,7 +40,6 @@ export default function ExpensesView({ finances = [], api }) {
   const [filter, setFilter] = useState({ category: 'all', type: 'all', source: 'all' });
   const [loading, setLoading] = useState(true);
 
-  // Fetch email-detected and recurring expenses
   const fetchData = async () => {
     setLoading(true);
     try {
@@ -45,10 +47,10 @@ export default function ExpensesView({ finances = [], api }) {
         fetch('/api/finances/email-detected'),
         fetch('/api/finances/recurring')
       ]);
-      
+
       const emailData = await emailRes.json();
       const recurringData = await recurringRes.json();
-      
+
       setEmailExpenses(emailData.expenses || []);
       setRecurringExpenses(recurringData);
     } catch (e) {
@@ -61,16 +63,13 @@ export default function ExpensesView({ finances = [], api }) {
     fetchData();
   }, []);
 
-  // Scan emails for new expenses
   const handleScan = async () => {
     setScanning(true);
     try {
       const res = await fetch('/api/finances/scan', { method: 'POST' });
       const data = await res.json();
-      
       if (data.success) {
-        console.log(`Found ${data.found} new expenses`);
-        await fetchData(); // Refresh data
+        await fetchData();
       }
     } catch (e) {
       console.error('Scan error:', e);
@@ -78,7 +77,6 @@ export default function ExpensesView({ finances = [], api }) {
     setScanning(false);
   };
 
-  // Filter expenses
   const filteredExpenses = useMemo(() => {
     return emailExpenses.filter(exp => {
       if (filter.category !== 'all' && exp.category !== filter.category) return false;
@@ -88,7 +86,6 @@ export default function ExpensesView({ finances = [], api }) {
     });
   }, [emailExpenses, filter]);
 
-  // Stats
   const stats = useMemo(() => {
     const total = filteredExpenses.reduce((sum, e) => sum + Number(e.amount), 0);
     const byCategory = filteredExpenses.reduce((acc, e) => {
@@ -108,314 +105,216 @@ export default function ExpensesView({ finances = [], api }) {
 
   if (loading) {
     return (
-      <div className="expenses-view">
-        <div className="loading-state">Loading expenses...</div>
+      <div className="flex items-center justify-center p-20 animate-pulse">
+        <div className="text-gray-500 uppercase tracking-[0.3em] text-xs font-bold">Decrypting Ledgers...</div>
       </div>
     );
   }
 
   return (
-    <div className="expenses-view">
+    <div className="space-y-8 animate-in-fade-slide relative z-10">
       {/* Header */}
-      <div className="section-header">
-        <h1 className="section-title">Email Expenses</h1>
-        <button 
-          className={`btn btn-primary ${scanning ? 'loading' : ''}`}
+      <div className="flex justify-between items-center">
+        <div>
+          <h1 className="text-3xl font-black text-white font-premium tracking-tight mb-1">Fiscal Intelligence</h1>
+          <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">Email-detected transaction analysis</p>
+        </div>
+        <GlassPill
+          variant={scanning ? 'primary' : 'default'}
+          className="!px-6 !py-3"
           onClick={handleScan}
           disabled={scanning}
         >
-          <RefreshCw size={16} className={scanning ? 'spin' : ''} />
-          {scanning ? 'Scanning...' : 'Scan Emails'}
-        </button>
+          <RefreshCw size={16} className={scanning ? 'animate-spin' : ''} />
+          <span className="uppercase tracking-widest text-[10px] font-bold">{scanning ? 'Analyzing...' : 'Scan Matrix'}</span>
+        </GlassPill>
       </div>
 
-      {/* Recurring Summary Cards */}
+      {/* Stats Summary */}
       {recurringExpenses && (
-        <div className="recurring-summary">
-          <div className="stat-card">
-            <div className="stat-label">Monthly Recurring</div>
-            <div className="stat-value">${recurringExpenses.monthlyTotal?.toFixed(2) || '0.00'}</div>
-          </div>
-          <div className="stat-card">
-            <div className="stat-label">Yearly Recurring</div>
-            <div className="stat-value">${(recurringExpenses.yearlyTotal * 12)?.toFixed(2) || '0.00'}</div>
-          </div>
-          <div className="stat-card">
-            <div className="stat-label">Active Subscriptions</div>
-            <div className="stat-value">{recurringExpenses.expenses?.length || 0}</div>
-          </div>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <WidgetCard className="p-6 border-l-4 border-amber-500/50">
+            <span className="text-[9px] font-bold text-gray-500 uppercase tracking-widest mb-2 block">Monthly Burn Rate</span>
+            <div className="text-3xl font-black text-white font-premium">
+              <span className="text-amber-500/50 mr-1">$</span>
+              {recurringExpenses.monthlyTotal?.toFixed(2) || '0.00'}
+            </div>
+          </WidgetCard>
+
+          <WidgetCard className="p-6 border-l-4 border-red-500/50">
+            <span className="text-[9px] font-bold text-gray-500 uppercase tracking-widest mb-2 block">Projected Annual</span>
+            <div className="text-3xl font-black text-white font-premium">
+              <span className="text-red-500/50 mr-1">$</span>
+              {(recurringExpenses.monthlyTotal * 12)?.toFixed(2) || '0.00'}
+            </div>
+          </WidgetCard>
+
+          <WidgetCard className="p-6 border-l-4 border-blue-500/50">
+            <span className="text-[9px] font-bold text-gray-500 uppercase tracking-widest mb-2 block">Active Pipelines</span>
+            <div className="text-3xl font-black text-white font-premium">
+              {recurringExpenses.expenses?.length || 0}
+            </div>
+          </WidgetCard>
         </div>
       )}
 
-      {/* Filters */}
-      <div className="filters-bar">
-        <div className="filter-group">
-          <Filter size={16} />
-          <select 
-            value={filter.category}
-            onChange={(e) => setFilter({ ...filter, category: e.target.value })}
-          >
-            <option value="all">All Categories</option>
-            {categories.map(cat => (
-              <option key={cat} value={cat}>{CATEGORY_LABELS[cat] || cat}</option>
-            ))}
-          </select>
-        </div>
-        <div className="filter-stats">
-          Showing {stats.count} expenses • Total: ${stats.total.toFixed(2)}
-        </div>
-      </div>
+      {/* Main Content Area */}
+      <div className="grid grid-cols-1 xl:grid-cols-4 gap-6 items-start">
+        {/* Sidebar: Filters & Summary */}
+        <div className="xl:col-span-1 space-y-6">
+          <WidgetCard className="p-6">
+            <div className="flex items-center gap-3 mb-6">
+              <Filter size={16} className="text-amber-500" />
+              <h3 className="text-xs font-bold text-white uppercase tracking-widest">Data Filters</h3>
+            </div>
 
-      {/* Expenses Table */}
-      <div className="card">
-        <div className="card-header">
-          <span className="card-title">Detected Expenses</span>
-          <Mail size={16} className="card-icon" />
-        </div>
-        
-        {filteredExpenses.length === 0 ? (
-          <div className="empty-state">
-            <Mail size={48} />
-            <p>No email expenses found</p>
-            <button className="btn btn-sm" onClick={handleScan}>Scan Now</button>
-          </div>
-        ) : (
-          <div className="expenses-table">
-            <table>
-              <thead>
-                <tr>
-                  <th>Vendor</th>
-                  <th>Category</th>
-                  <th>Amount</th>
-                  <th>Date</th>
-                  <th>Recurring</th>
-                  <th>Source</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filteredExpenses.map((expense) => (
-                  <tr key={expense.id} className="expense-row">
-                    <td>
-                      <div className="expense-vendor">
-                        <strong>{expense.vendor || expense.title}</strong>
-                        {expense.emailSubject && (
-                          <span className="expense-subject">{expense.emailSubject}</span>
-                        )}
-                      </div>
-                    </td>
-                    <td>
-                      <span 
-                        className="category-badge"
-                        style={{ backgroundColor: CATEGORY_COLORS[expense.category] || CATEGORY_COLORS.other }}
-                      >
-                        {CATEGORY_LABELS[expense.category] || expense.category}
-                      </span>
-                    </td>
-                    <td className="amount-cell">
-                      ${Number(expense.amount).toFixed(2)}
-                    </td>
-                    <td>{formatDate(expense.date)}</td>
-                    <td>
-                      {expense.recurring?.is_recurring ? (
-                        <span className="recurring-badge">
-                          <Repeat size={12} />
-                          {expense.recurring.frequency}
-                        </span>
-                      ) : (
-                        <span className="one-time">One-time</span>
-                      )}
-                    </td>
-                    <td>
-                      <span className="source-badge">
-                        <Mail size={12} />
-                        Email
-                      </span>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </div>
-
-      {/* Category Breakdown */}
-      {Object.keys(stats.byCategory).length > 0 && (
-        <div className="card">
-          <div className="card-header">
-            <span className="card-title">By Category</span>
-            <Tag size={16} className="card-icon" />
-          </div>
-          <div className="category-breakdown">
-            {Object.entries(stats.byCategory).map(([cat, amount]) => (
-              <div key={cat} className="category-row">
-                <div className="category-info">
-                  <span 
-                    className="category-dot"
-                    style={{ backgroundColor: CATEGORY_COLORS[cat] || CATEGORY_COLORS.other }}
-                  />
-                  <span>{CATEGORY_LABELS[cat] || cat}</span>
-                </div>
-                <div className="category-amount">
-                  ${amount.toFixed(2)}
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <label className="text-[9px] font-bold text-gray-600 uppercase tracking-widest">Sector</label>
+                <div className="relative">
+                  <select
+                    className="w-full bg-black/40 border border-white/10 rounded-xl p-3 text-xs text-gray-300 outline-none appearance-none focus:border-amber-500/50 transition-colors"
+                    value={filter.category}
+                    onChange={(e) => setFilter({ ...filter, category: e.target.value })}
+                  >
+                    <option value="all">All Sectors</option>
+                    {categories.map(cat => (
+                      <option key={cat} value={cat}>{CATEGORY_LABELS[cat] || cat}</option>
+                    ))}
+                  </select>
+                  <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-600 pointer-events-none" />
                 </div>
               </div>
-            ))}
-          </div>
-        </div>
-      )}
 
-      <style>{`
-        .expenses-view {
-          padding: 20px;
-        }
-        .recurring-summary {
-          display: grid;
-          grid-template-columns: repeat(3, 1fr);
-          gap: 16px;
-          margin-bottom: 20px;
-        }
-        .filters-bar {
-          display: flex;
-          justify-content: space-between;
-          align-items: center;
-          margin-bottom: 20px;
-          padding: 12px 16px;
-          background: var(--white);
-          border-radius: 8px;
-          border: var(--border-thin);
-        }
-        .filter-group {
-          display: flex;
-          align-items: center;
-          gap: 8px;
-        }
-        .filter-group select {
-          padding: 6px 12px;
-          border-radius: 6px;
-          border: 1px solid #ddd;
-          background: white;
-          cursor: pointer;
-        }
-        .expenses-table {
-          overflow-x: auto;
-        }
-        .expenses-table table {
-          width: 100%;
-          border-collapse: collapse;
-        }
-        .expenses-table th,
-        .expenses-table td {
-          padding: 12px;
-          text-align: left;
-          border-bottom: 1px solid #eee;
-        }
-        .expenses-table th {
-          font-weight: 600;
-          color: var(--grey-500);
-          font-size: 0.85rem;
-          text-transform: uppercase;
-        }
-        .expense-row:hover {
-          background: rgba(0,0,0,0.02);
-        }
-        .expense-vendor {
-          display: flex;
-          flex-direction: column;
-        }
-        .expense-subject {
-          font-size: 0.75rem;
-          color: var(--grey-400);
-          max-width: 200px;
-          white-space: nowrap;
-          overflow: hidden;
-          text-overflow: ellipsis;
-        }
-        .amount-cell {
-          font-weight: 600;
-          color: #e74c3c;
-        }
-        .category-badge {
-          display: inline-block;
-          padding: 4px 10px;
-          border-radius: 12px;
-          font-size: 0.75rem;
-          color: white;
-          font-weight: 500;
-        }
-        .recurring-badge {
-          display: inline-flex;
-          align-items: center;
-          gap: 4px;
-          padding: 4px 8px;
-          background: #e8f5e9;
-          color: #2e7d32;
-          border-radius: 12px;
-          font-size: 0.75rem;
-          text-transform: capitalize;
-        }
-        .one-time {
-          color: var(--grey-400);
-          font-size: 0.8rem;
-        }
-        .source-badge {
-          display: inline-flex;
-          align-items: center;
-          gap: 4px;
-          padding: 4px 8px;
-          background: #e3f2fd;
-          color: #1565c0;
-          border-radius: 12px;
-          font-size: 0.75rem;
-        }
-        .category-breakdown {
-          padding: 8px 0;
-        }
-        .category-row {
-          display: flex;
-          justify-content: space-between;
-          align-items: center;
-          padding: 10px 0;
-          border-bottom: 1px solid #eee;
-        }
-        .category-row:last-child {
-          border-bottom: none;
-        }
-        .category-info {
-          display: flex;
-          align-items: center;
-          gap: 10px;
-        }
-        .category-dot {
-          width: 12px;
-          height: 12px;
-          border-radius: 50%;
-        }
-        .category-amount {
-          font-weight: 600;
-        }
-        .empty-state {
-          text-align: center;
-          padding: 60px 20px;
-          color: var(--grey-400);
-        }
-        .empty-state svg {
-          margin-bottom: 16px;
-          opacity: 0.5;
-        }
-        .spin {
-          animation: spin 1s linear infinite;
-        }
-        @keyframes spin {
-          from { transform: rotate(0deg); }
-          to { transform: rotate(360deg); }
-        }
-        .loading-state {
-          text-align: center;
-          padding: 40px;
-          color: var(--grey-400);
-        }
-      `}</style>
+              <div className="pt-4 border-t border-white/5 space-y-3">
+                <div className="flex justify-between text-[10px] font-medium">
+                  <span className="text-gray-500 uppercase tracking-widest">Selected Entries</span>
+                  <span className="text-white font-mono">{stats.count}</span>
+                </div>
+                <div className="flex justify-between text-[10px] font-medium">
+                  <span className="text-gray-500 uppercase tracking-widest">Aggregate Total</span>
+                  <span className="text-amber-500 font-mono font-bold">${stats.total.toFixed(2)}</span>
+                </div>
+              </div>
+            </div>
+          </WidgetCard>
+
+          {/* Category Breakdown */}
+          {Object.keys(stats.byCategory).length > 0 && (
+            <WidgetCard className="p-6">
+              <div className="flex items-center gap-3 mb-6">
+                <Tag size={16} className="text-blue-400" />
+                <h3 className="text-xs font-bold text-white uppercase tracking-widest">Allocation</h3>
+              </div>
+              <div className="space-y-4">
+                {Object.entries(stats.byCategory).map(([cat, amount]) => (
+                  <div key={cat} className="group">
+                    <div className="flex justify-between text-[10px] mb-1.5 font-bold uppercase tracking-tight">
+                      <div className="flex items-center gap-2 text-gray-400 group-hover:text-white transition-colors">
+                        <div className="w-1.5 h-1.5 rounded-full" style={{ background: CATEGORY_COLORS[cat] || CATEGORY_COLORS.other }}></div>
+                        {CATEGORY_LABELS[cat] || cat}
+                      </div>
+                      <span className="text-gray-500 group-hover:text-amber-500 transition-colors font-mono tracking-tighter">${amount.toFixed(2)}</span>
+                    </div>
+                    <div className="h-1 bg-white/[0.03] rounded-full overflow-hidden">
+                      <div
+                        className="h-full rounded-full opacity-60 group-hover:opacity-100 transition-all duration-700"
+                        style={{
+                          width: `${(amount / stats.total) * 100}%`,
+                          background: CATEGORY_COLORS[cat] || CATEGORY_COLORS.other,
+                          boxShadow: `0 0 10px ${CATEGORY_COLORS[cat] || CATEGORY_COLORS.other}40`
+                        }}
+                      ></div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </WidgetCard>
+          )}
+        </div>
+
+        {/* Table Area */}
+        <WidgetCard className="xl:col-span-3 overflow-hidden">
+          <div className="p-6 border-b border-white/5 flex justify-between items-center bg-white/[0.01]">
+            <div className="flex items-center gap-3">
+              <Mail size={16} className="text-amber-500" />
+              <h3 className="text-xs font-bold text-white uppercase tracking-widest">Transaction Ledger</h3>
+            </div>
+          </div>
+
+          <div className="overflow-x-auto glass-scroll">
+            {filteredExpenses.length === 0 ? (
+              <div className="p-20 flex flex-col items-center justify-center text-center">
+                <div className="w-16 h-16 rounded-full bg-white/5 border border-white/10 flex items-center justify-center mb-4">
+                  <Mail size={32} className="text-gray-700" />
+                </div>
+                <p className="text-xs font-bold text-gray-600 uppercase tracking-widest">No transaction signals detected</p>
+                <GlassPill className="mt-6" onClick={handleScan}>Re-initialize Scan</GlassPill>
+              </div>
+            ) : (
+              <table className="w-full text-left border-collapse">
+                <thead>
+                  <tr className="bg-white/[0.02]">
+                    <th className="px-6 py-4 text-[10px] font-bold text-gray-500 uppercase tracking-widest">Vendor / Agent</th>
+                    <th className="px-6 py-4 text-[10px] font-bold text-gray-500 uppercase tracking-widest">Sector</th>
+                    <th className="px-6 py-4 text-[10px] font-bold text-gray-500 uppercase tracking-widest">Debit</th>
+                    <th className="px-6 py-4 text-[10px] font-bold text-gray-500 uppercase tracking-widest">Timeline</th>
+                    <th className="px-6 py-4 text-[10px] font-bold text-gray-500 uppercase tracking-widest">Recursion</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-white/[0.03]">
+                  {filteredExpenses.map((expense) => (
+                    <tr key={expense.id} className="group hover:bg-white/[0.03] transition-colors">
+                      <td className="px-6 py-4">
+                        <div className="flex flex-col">
+                          <span className="text-sm font-bold text-white group-hover:text-amber-500 transition-colors">
+                            {expense.vendor || expense.title}
+                          </span>
+                          {expense.emailSubject && (
+                            <span className="text-[10px] text-gray-500 font-medium truncate max-w-[240px] mt-0.5">
+                              {expense.emailSubject}
+                            </span>
+                          )}
+                        </div>
+                      </td>
+                      <td className="px-6 py-4">
+                        <span
+                          className="px-2.5 py-1 rounded-full text-[9px] font-black uppercase tracking-tighter"
+                          style={{
+                            backgroundColor: `${CATEGORY_COLORS[expense.category] || CATEGORY_COLORS.other}15`,
+                            color: CATEGORY_COLORS[expense.category] || CATEGORY_COLORS.other,
+                            border: `1px solid ${CATEGORY_COLORS[expense.category] || CATEGORY_COLORS.other}30`
+                          }}
+                        >
+                          {CATEGORY_LABELS[expense.category] || expense.category}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4">
+                        <span className="text-sm font-mono font-bold text-red-400 group-hover:drop-shadow-[0_0_8px_rgba(248,113,113,0.4)] transition-all">
+                          -${Number(expense.amount).toFixed(2)}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 text-[10px] font-mono font-bold text-gray-500 uppercase tracking-widest whitespace-nowrap">
+                        {formatDate(expense.date)}
+                      </td>
+                      <td className="px-6 py-4">
+                        {expense.recurring?.is_recurring ? (
+                          <div className="flex items-center gap-1.5 text-blue-400 text-[10px] font-bold uppercase tracking-tight">
+                            <Repeat size={12} className="opacity-70" />
+                            {expense.recurring.frequency}
+                          </div>
+                        ) : (
+                          <span className="text-gray-700 text-[10px] font-bold uppercase tracking-widest">Singular</span>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+          </div>
+        </WidgetCard>
+      </div>
     </div>
   );
 }

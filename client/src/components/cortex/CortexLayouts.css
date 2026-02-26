@@ -360,10 +360,11 @@
 
 .splitview-filters {
     display: flex;
+    flex-shrink: 0;
     gap: 10px;
     flex-wrap: wrap;
     margin-bottom: 16px;
-    overflow-x: auto;
+    overflow-y: visible;
     padding-bottom: 10px;
 }
 

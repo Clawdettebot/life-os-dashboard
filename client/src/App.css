@@ -495,7 +495,7 @@ body::before {
 .page-section.active {
   display: block;
   overflow-y: auto;
-  height: 100vh;
+  height: calc(100vh - 20px);
 }
 
 @keyframes panelSlide {
@@ -2515,6 +2515,8 @@ body::before {
 .kanban-board {
   scrollbar-width: thin;
   scrollbar-color: var(--grey-300) transparent;
+  height: 100%;
+  display: flex;
 }
 
 .kanban-board::-webkit-scrollbar {

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { 
-  Package, Gift, ShoppingBag, Archive, Plus, Minus, 
+import {
+  Package, Gift, ShoppingBag, Archive, Plus, Minus,
   Search, Filter, Box, Tag, Truck, Users, Sparkles
 } from 'lucide-react';
 
@@ -36,7 +36,7 @@ export default function InventoryView({ inventory = [], api }) {
   const filteredItems = allItems.filter(item => {
     const matchesTab = item.category === activeTab;
     const matchesSearch = item.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                         item.sku?.toLowerCase().includes(searchQuery.toLowerCase());
+      item.sku?.toLowerCase().includes(searchQuery.toLowerCase());
     return matchesTab && matchesSearch;
   });
 
@@ -67,412 +67,227 @@ export default function InventoryView({ inventory = [], api }) {
   }
 
   return (
-    <div className="inventory-view" style={{ padding: '20px' }}>
+    <div className="space-y-8 min-h-[70vh] animate-in-fade-slide">
       {/* Header Stats */}
-      <div style={{ 
-        display: 'grid', 
-        gridTemplateColumns: 'repeat(4, 1fr)', 
-        gap: '16px', 
-        marginBottom: '24px' 
-      }}>
-        <div className="stat-card" style={{ 
-          background: 'rgba(255,255,255,0.3)', 
-          padding: '16px', 
-          borderRadius: '12px',
-          border: '1px solid rgba(255,255,255,0.3)'
-        }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
-            <ShoppingBag size={20} color="#3b82f6" />
-            <span style={{ fontSize: '0.8rem', opacity: 0.7 }}>Shop Items</span>
-          </div>
-          <div style={{ fontSize: '1.5rem', fontWeight: 'bold' }}>{displayStats.shop}</div>
-          <div style={{ fontSize: '0.7rem', opacity: 0.5 }}>units for sale</div>
-        </div>
-
-        <div className="stat-card" style={{ 
-          background: 'rgba(255,255,255,0.3)', 
-          padding: '16px', 
-          borderRadius: '12px',
-          border: '1px solid rgba(255,255,255,0.3)'
-        }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
-            <Gift size={20} color="#f59e0b" />
-            <span style={{ fontSize: '0.8rem', opacity: 0.7 }}>Giveaway</span>
-          </div>
-          <div style={{ fontSize: '1.5rem', fontWeight: 'bold' }}>{displayStats.giveaway}</div>
-          <div style={{ fontSize: '0.7rem', opacity: 0.5 }}>for streams & fans</div>
-        </div>
-
-        <div className="stat-card" style={{ 
-          background: 'rgba(255,255,255,0.3)', 
-          padding: '16px', 
-          borderRadius: '12px',
-          border: '1px solid rgba(255,255,255,0.3)'
-        }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
-            <Archive size={20} color="#8b5cf6" />
-            <span style={{ fontSize: '0.8rem', opacity: 0.7 }}>Personal</span>
-          </div>
-          <div style={{ fontSize: '1.5rem', fontWeight: 'bold' }}>{displayStats.personal}</div>
-          <div style={{ fontSize: '0.7rem', opacity: 0.5 }}>your personal stock</div>
-        </div>
-
-        <div className="stat-card" style={{ 
-          background: 'rgba(255,255,255,0.3)', 
-          padding: '16px', 
-          borderRadius: '12px',
-          border: '1px solid rgba(255,255,255,0.3)',
-          cursor: 'pointer'
-        }} onClick={() => setShowBundleBuilder(true)}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
-            <Box size={20} color="#10b981" />
-            <span style={{ fontSize: '0.8rem', opacity: 0.7 }}>Bundles</span>
-          </div>
-          <div style={{ fontSize: '1.5rem', fontWeight: 'bold' }}>{displayStats.bundles}</div>
-          <div style={{ fontSize: '0.7rem', opacity: 0.5 }}>click to build new</div>
-        </div>
-      </div>
-
-      {/* Tab Navigation */}
-      <div style={{ 
-        display: 'flex', 
-        gap: '8px', 
-        marginBottom: '20px',
-        borderBottom: '1px solid rgba(255,255,255,0.3)',
-        paddingBottom: '12px'
-      }}>
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {[
-          { id: 'shop', label: 'Shop Inventory', icon: ShoppingBag },
-          { id: 'giveaway', label: 'Giveaway Items', icon: Gift },
-          { id: 'personal', label: 'Personal Stock', icon: Archive },
-          { id: 'bundles', label: 'Mystery Packs', icon: Box }
-        ].map(tab => (
-          <button
-            key={tab.id}
-            onClick={() => setActiveTab(tab.id)}
-            style={{
-              padding: '10px 20px',
-              borderRadius: '8px',
-              border: 'none',
-              background: activeTab === tab.id ? 'rgba(59, 130, 246, 0.3)' : 'transparent',
-              color: activeTab === tab.id ? '#fff' : 'rgba(255,255,255,0.6)',
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '8px',
-              fontSize: '0.9rem',
-              transition: 'all 0.2s'
-            }}
+          { icon: ShoppingBag, label: 'Shop Inventory', value: displayStats.shop, sub: 'units for sale', color: 'text-blue-400', glass: 'bg-blue-500/5 border-blue-500/20' },
+          { icon: Gift, label: 'Giveaway Freq', value: displayStats.giveaway, sub: 'community rewards', color: 'text-amber-400', glass: 'bg-amber-500/5 border-amber-500/20' },
+          { icon: Archive, label: 'Archive Stock', value: displayStats.personal, sub: 'private collection', color: 'text-violet-400', glass: 'bg-violet-500/5 border-violet-500/20' },
+          { icon: Box, label: 'Mystery Packs', value: displayStats.bundles, sub: 'click to deploy', color: 'text-emerald-400', glass: 'bg-emerald-500/5 border-emerald-500/20', action: () => setShowBundleBuilder(true) }
+        ].map((stat, i) => (
+          <WidgetCard
+            key={i}
+            className={`p-6 transition-all duration-500 group cursor-pointer ${stat.glass} hover:scale-[1.02] active:scale-95`}
+            onClick={stat.action}
           >
-            <tab.icon size={16} />
-            {tab.label}
-          </button>
+            <div className="flex items-center gap-3 mb-4">
+              <stat.icon size={18} className={`${stat.color} group-hover:scale-110 transition-transform`} />
+              <span className="text-[10px] font-black text-white/50 uppercase tracking-widest">{stat.label}</span>
+            </div>
+            <div className="text-3xl font-black text-white font-premium tracking-tighter mb-1">{stat.value}</div>
+            <div className="text-[9px] font-mono text-gray-500 uppercase tracking-widest">{stat.sub}</div>
+          </WidgetCard>
         ))}
       </div>
 
-      {/* Search Bar */}
-      <div style={{ 
-        display: 'flex', 
-        gap: '12px', 
-        marginBottom: '20px' 
-      }}>
-        <div style={{ 
-          flex: 1, 
-          display: 'flex', 
-          alignItems: 'center', 
-          background: 'rgba(255,255,255,0.15)',
-          borderRadius: '8px',
-          padding: '0 12px'
-        }}>
-          <Search size={18} style={{ opacity: 0.5, marginRight: '8px' }} />
-          <input
-            type="text"
-            placeholder="Search by name or SKU..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            style={{
-              flex: 1,
-              background: 'transparent',
-              border: 'none',
-              padding: '12px 0',
-              color: 'inherit',
-              outline: 'none'
-            }}
-          />
+      {/* Navigation & Search */}
+      <div className="flex flex-col lg:flex-row gap-6 items-start lg:items-center pb-8 border-b border-white/5">
+        <div className="flex bg-white/5 p-1 rounded-2xl border border-white/10 shrink-0">
+          {[
+            { id: 'shop', label: 'Commercial', icon: ShoppingBag },
+            { id: 'giveaway', label: 'Community', icon: Gift },
+            { id: 'personal', label: 'Vault', icon: Archive },
+            { id: 'bundles', label: 'Matrix', icon: Box }
+          ].map(tab => (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id)}
+              className={`
+                px-6 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-2.5
+                ${activeTab === tab.id ? 'bg-amber-500 text-black shadow-[0_0_20px_rgba(245,158,11,0.4)]' : 'text-gray-500 hover:text-white'}
+              `}
+            >
+              <tab.icon size={14} />
+              {tab.label}
+            </button>
+          ))}
         </div>
-        <button style={{
-          padding: '12px 20px',
-          borderRadius: '8px',
-          border: 'none',
-          background: 'rgba(59, 130, 246, 0.8)',
-          color: 'white',
-          cursor: 'pointer',
-          display: 'flex',
-          alignItems: 'center',
-          gap: '8px'
-        }}>
-          <Plus size={16} />
-          Add Item
-        </button>
+
+        <div className="flex-1 w-full flex gap-4">
+          <div className="flex-1 relative group">
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-600 group-focus-within:text-amber-500 transition-colors" size={16} />
+            <input
+              type="text"
+              placeholder="SCAN SIGNAL BY NAME OR SKU..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full bg-white/5 border border-white/10 rounded-2xl pl-12 pr-6 py-3.5 text-xs text-white font-bold tracking-widest outline-none focus:border-amber-500/50 transition-all placeholder:text-gray-700"
+            />
+          </div>
+          <GlassPill variant="primary" className="!px-8 !py-3.5 shrink-0">
+            <Plus size={18} />
+            <span className="text-[10px] font-black uppercase tracking-widest">Register Unit</span>
+          </GlassPill>
+        </div>
       </div>
 
       {/* Inventory Grid */}
-      <div style={{
-        display: 'grid',
-        gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))',
-        gap: '16px'
-      }}>
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-6">
         {filteredItems.map(item => {
           const status = getStockStatus(item.qty || 0);
+          const isSelected = selectedItem?.id === item.id;
+
           return (
-            <div
+            <WidgetCard
               key={item.id}
               onClick={() => setSelectedItem(item)}
-              style={{
-                background: 'rgba(255,255,255,0.15)',
-                borderRadius: '12px',
-                padding: '16px',
-                cursor: 'pointer',
-                border: selectedItem?.id === item.id ? '2px solid #3b82f6' : '1px solid rgba(255,255,255,0.3)',
-                transition: 'all 0.2s'
-              }}
+              className={`p-6 transition-all duration-500 cursor-pointer group/card relative overflow-hidden
+                ${isSelected ? 'border-amber-500/40 ring-1 ring-amber-500/20 shadow-[0_0_40px_rgba(245,158,11,0.05)] bg-white/[0.04]' : 'border-white/5 hover:border-white/10 hover:bg-white/[0.02]'}
+              `}
             >
-              <div style={{ 
-                display: 'flex', 
-                justifyContent: 'space-between', 
-                alignItems: 'flex-start',
-                marginBottom: '12px'
-              }}>
-                <div style={{ 
-                  fontWeight: '600', 
-                  fontSize: '0.95rem',
-                  lineHeight: 1.3
-                }}>
-                  {item.name}
+              {isSelected && <div className="absolute top-0 left-0 right-0 h-1 bg-amber-500/50 glow-amber-sm"></div>}
+
+              <div className="flex justify-between items-start mb-6">
+                <div className="space-y-1">
+                  <div className="text-[11px] font-black text-white group-hover/card:text-amber-500 transition-colors uppercase tracking-tight">
+                    {item.name}
+                  </div>
+                  <div className="text-[9px] font-mono text-gray-600">ID://{item.sku}</div>
                 </div>
-                <span style={{
-                  fontSize: '0.75rem',
-                  padding: '4px 8px',
-                  borderRadius: '12px',
-                  background: status.color + '20',
-                  color: status.color
-                }}>
+                <div
+                  className="px-2 py-0.5 rounded-md text-[8px] font-black uppercase tracking-widest border"
+                  style={{
+                    borderColor: status.color + '40',
+                    color: status.color,
+                    background: status.color + '10'
+                  }}
+                >
                   {status.label}
-                </span>
+                </div>
               </div>
 
-              <div style={{ 
-                display: 'flex', 
-                justifyContent: 'space-between',
-                alignItems: 'center',
-                marginBottom: '8px'
-              }}>
-                <span style={{ fontSize: '0.8rem', opacity: 0.6 }}>SKU: {item.sku}</span>
-                <span style={{ 
-                  fontSize: '1.25rem', 
-                  fontWeight: 'bold',
-                  color: item.qty > 0 ? '#10b981' : '#ef4444'
-                }}>
-                  {item.qty || 0}
-                </span>
+              <div className="flex justify-between items-end mb-6">
+                <div className="space-y-1">
+                  <div className="text-[9px] font-bold text-gray-500 uppercase tracking-widest">Stock Level</div>
+                  <div className={`text-2xl font-black font-premium ${item.qty > 0 ? 'text-white' : 'text-red-500/50'}`}>
+                    {item.qty || 0}
+                  </div>
+                </div>
+                {item.price && item.price !== '0.00' && (
+                  <div className="text-right">
+                    <div className="text-[9px] font-bold text-gray-500 uppercase tracking-widest">Value</div>
+                    <div className="text-sm font-black text-emerald-400 font-mono">${item.price}</div>
+                  </div>
+                )}
               </div>
 
-              <div style={{ 
-                display: 'flex', 
-                gap: '8px',
-                fontSize: '0.75rem',
-                opacity: 0.6
-              }}>
-                {item.size && <span>Size: {item.size}</span>}
-                {item.price && item.price !== '0.00' && <span>Price: ${item.price}</span>}
-                {item.category === 'giveaway' && <span style={{color: '#f59e0b'}}>Giveaway</span>}
-                {item.condition && <span>Cond: {item.condition}</span>}
+              <div className="grid grid-cols-2 gap-2 mb-6 pt-4 border-t border-white/5">
+                {item.size && (
+                  <div className="flex items-center gap-2">
+                    <Tag size={10} className="text-gray-600" />
+                    <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest">{item.size}</span>
+                  </div>
+                )}
+                {item.condition && (
+                  <div className="flex items-center gap-2">
+                    <Sparkles size={10} className="text-gray-600" />
+                    <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest">{item.condition}</span>
+                  </div>
+                )}
               </div>
 
               {activeTab === 'giveaway' && (
-                <div style={{ 
-                  marginTop: '12px',
-                  paddingTop: '12px',
-                  borderTop: '1px solid rgba(255,255,255,0.3)'
-                }}>
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      addToBundle(item);
-                    }}
-                    style={{
-                      width: '100%',
-                      padding: '8px',
-                      borderRadius: '6px',
-                      border: '1px dashed rgba(255,255,255,0.3)',
-                      background: 'transparent',
-                      color: 'inherit',
-                      cursor: 'pointer',
-                      fontSize: '0.8rem',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      gap: '6px'
-                    }}
-                  >
-                    <Plus size={14} />
-                    Add to Bundle
-                  </button>
-                </div>
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    addToBundle(item);
+                  }}
+                  className="w-full py-2.5 rounded-xl border border-dashed border-white/10 text-[9px] font-black text-gray-500 uppercase tracking-[0.2em] hover:border-amber-500/30 hover:text-amber-500 hover:bg-amber-500/5 transition-all flex items-center justify-center gap-2"
+                >
+                  <Plus size={12} />
+                  Stage for Bundle
+                </button>
               )}
-            </div>
+            </WidgetCard>
           );
         })}
-        
+
         {filteredItems.length === 0 && !loading && (
-          <div style={{
-            gridColumn: '1 / -1',
-            padding: '60px',
-            textAlign: 'center',
-            background: 'rgba(255,255,255,0.03)',
-            borderRadius: '12px',
-            border: '1px dashed rgba(255,255,255,0.3)'
-          }}>
-            <div style={{ fontSize: '1.1rem', opacity: 0.7, marginBottom: '8px' }}>
-              No items in {activeTab}
-            </div>
-            <div style={{ fontSize: '0.85rem', opacity: 0.5 }}>
-              {activeTab === 'giveaway' 
-                ? 'Add items from the manifest to giveaway inventory' 
-                : 'Items will appear here once added to the database'}
-            </div>
+          <div className="col-span-full py-24 text-center opacity-30 flex flex-col items-center justify-center border border-dashed border-white/5 rounded-3xl">
+            <Box size={40} className="mb-6 opacity-20" />
+            <p className="text-sm font-black uppercase tracking-[0.4em]">Sector Deficit: No Units Detected</p>
+            <p className="text-[10px] font-bold text-gray-600 mt-2 uppercase tracking-widest">Adjust filters or register new inventory matrix</p>
           </div>
         )}
       </div>
 
       {/* Bundle Builder Modal */}
       {showBundleBuilder && (
-        <div style={{
-          position: 'fixed',
-          top: 0,
-          left: 0,
-          right: 0,
-          bottom: 0,
-          background: 'rgba(0,0,0,0.8)',
-          backdropFilter: 'blur(10px)',
-          zIndex: 300,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          padding: '40px'
-        }}>
-          <div style={{
-            background: 'rgba(30, 30, 30, 0.95)',
-            borderRadius: '16px',
-            padding: '32px',
-            maxWidth: '600px',
-            width: '100%',
-            maxHeight: '80vh',
-            overflow: 'auto'
-          }}>
-            <div style={{ 
-              display: 'flex', 
-              justifyContent: 'space-between',
-              alignItems: 'center',
-              marginBottom: '24px'
-            }}>
-              <h2 style={{ margin: 0, display: 'flex', alignItems: 'center', gap: '12px' }}>
-                <Sparkles size={24} color="#f59e0b" />
-                Mystery Pack Builder
-              </h2>
-              <button 
-                onClick={() => setShowBundleBuilder(false)}
-                style={{
-                  background: 'none',
-                  border: 'none',
-                  color: 'inherit',
-                  fontSize: '1.5rem',
-                  cursor: 'pointer'
-                }}
-              >
-                ×
-              </button>
-            </div>
-
-            <div style={{ marginBottom: '20px' }}>
-              <label style={{ display: 'block', marginBottom: '8px', fontSize: '0.9rem' }}>
-                Pack Name
-              </label>
-              <input
-                type="text"
-                placeholder="e.g., '2XL Mystery Box' or 'Stream Survivor Pack'"
-                style={{
-                  width: '100%',
-                  padding: '12px',
-                  borderRadius: '8px',
-                  border: '1px solid rgba(255,255,255,0.2)',
-                  background: 'rgba(255,255,255,0.15)',
-                  color: 'inherit',
-                  fontSize: '1rem'
-                }}
-              />
-            </div>
-
-            <div style={{ marginBottom: '20px' }}>
-              <label style={{ display: 'block', marginBottom: '8px', fontSize: '0.9rem' }}>
-                Items in Pack ({bundleItems.length})
-              </label>
-              <div style={{ 
-                minHeight: '100px',
-                background: 'rgba(255,255,255,0.03)',
-                borderRadius: '8px',
-                padding: '12px',
-                border: '1px dashed rgba(255,255,255,0.2)'
-              }}>
-                {bundleItems.length === 0 ? (
-                  <p style={{ opacity: 0.5, textAlign: 'center', margin: 0 }}>
-                    Click "Add to Bundle" on giveaway items to build your pack
-                  </p>
-                ) : (
-                  bundleItems.map((item, i) => (
-                    <div key={i} style={{
-                      display: 'flex',
-                      justifyContent: 'space-between',
-                      alignItems: 'center',
-                      padding: '8px',
-                      background: 'rgba(255,255,255,0.15)',
-                      borderRadius: '6px',
-                      marginBottom: '8px'
-                    }}>
-                      <span>{item.name}</span>
-                      <button
-                        onClick={() => removeFromBundle(i)}
-                        style={{
-                          background: 'none',
-                          border: 'none',
-                          color: '#ef4444',
-                          cursor: 'pointer'
-                        }}
-                      >
-                        <Minus size={16} />
-                      </button>
-                    </div>
-                  ))
-                )}
+        <div className="fixed inset-0 z-[1000] flex items-center justify-center p-6 animate-in-fade">
+          <div className="absolute inset-0 bg-black/80 backdrop-blur-md" onClick={() => setShowBundleBuilder(false)}></div>
+          <WidgetCard className="relative w-full max-w-xl overflow-visible animate-in-slide-up shadow-3xl border-white/10 bg-black/60">
+            <div className="p-8 border-b border-white/5 flex justify-between items-center">
+              <div className="flex items-center gap-4">
+                <div className="p-2.5 rounded-2xl bg-amber-500/10 border border-amber-500/20 text-amber-500">
+                  <Sparkles size={24} />
+                </div>
+                <h2 className="text-2xl font-black text-white font-premium tracking-tight uppercase tracking-widest">Bundle Assembly</h2>
               </div>
-            </div>
-
-            <div style={{ display: 'flex', gap: '12px' }}>
-              <button style={{
-                flex: 1,
-                padding: '14px',
-                borderRadius: '8px',
-                border: 'none',
-                background: '#3b82f6',
-                color: 'white',
-                cursor: 'pointer',
-                fontSize: '1rem',
-                fontWeight: '600'
-              }}>
-                Create Mystery Pack
+              <button
+                onClick={() => setShowBundleBuilder(false)}
+                className="w-10 h-10 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center text-gray-400 hover:text-white hover:bg-white/20 transition-all font-light"
+              >
+                <X size={20} />
               </button>
             </div>
-          </div>
+
+            <div className="p-8 space-y-8">
+              <div className="space-y-1.5">
+                <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest ml-1">Archive Designation</label>
+                <input
+                  type="text"
+                  placeholder="E.G. 'TITAN MYSTERY BOX v1.0'..."
+                  className="w-full bg-white/[0.03] border border-white/10 rounded-2xl p-4 text-white text-sm outline-none focus:border-amber-500/50 transition-all font-bold placeholder:text-gray-700 uppercase tracking-widest"
+                />
+              </div>
+
+              <div className="space-y-4">
+                <div className="flex justify-between items-center px-1">
+                  <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest">Matrix Components ({bundleItems.length})</label>
+                  <span className="text-[10px] font-mono text-gray-600">SECTOR_GIVEAWAY</span>
+                </div>
+
+                <div className="min-h-[140px] max-h-[240px] bg-white/[0.02] border border-dashed border-white/10 rounded-2xl p-4 overflow-y-auto glass-scroll flex flex-col gap-2">
+                  {bundleItems.length === 0 ? (
+                    <div className="flex-1 flex flex-col items-center justify-center gap-3 opacity-20">
+                      <Archive size={24} />
+                      <p className="text-[9px] font-black uppercase tracking-widest">Stage giveway units to initiate link</p>
+                    </div>
+                  ) : (
+                    bundleItems.map((item, i) => (
+                      <div key={i} className="flex justify-between items-center p-3.5 bg-white/5 border border-white/10 rounded-xl group/item hover:bg-white/10 transition-all">
+                        <div className="flex items-center gap-3">
+                          <Package size={14} className="text-amber-500/50" />
+                          <span className="text-[10px] font-bold text-gray-300 uppercase tracking-widest">{item.name}</span>
+                        </div>
+                        <button
+                          onClick={() => removeFromBundle(i)}
+                          className="p-1.5 rounded-lg bg-red-500/10 text-red-400 opacity-0 group/item-hover:opacity-100 transition-all hover:bg-red-500 hover:text-white"
+                        >
+                          <Minus size={14} />
+                        </button>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
+
+              <GlassPill variant="primary" className="w-full !py-5 shadow-[0_0_30px_rgba(245,158,11,0.2)]">
+                <span className="text-xs font-black uppercase tracking-[0.3em]">Initialize Mystery Pack Creation</span>
+              </GlassPill>
+            </div>
+          </WidgetCard>
         </div>
       )}
     </div>

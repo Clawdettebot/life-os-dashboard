@@ -1,11 +1,14 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { 
+import {
   Flame, Check, Plus, Trophy, TrendingUp,
   Droplets, BookOpen, Dumbbell, Moon, Sun,
-  Heart, Brain, Music, Code, PenTool,
+  Brain, Music, Code, PenTool,
   Coffee, Camera, Zap, Target, Star,
-  PersonStanding, Bike, Apple
+  PersonStanding, Bike, Apple, X
 } from 'lucide-react';
+import { WidgetCard } from './ui/WidgetCard';
+import { GlassPill } from './ui/GlassPill';
+import AnimatedIcon from './AnimatedIcon';
 
 const habitIcons = {
   water: Droplets,
@@ -22,68 +25,46 @@ const habitIcons = {
   energy: Zap,
   target: Target,
   star: Star,
-  heart: Heart,
   run: PersonStanding,
   bike: Bike,
   apple: Apple
 };
 
-const weekDays = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-
-// Generate mock history data for heatmap (in real app, comes from API)
-const generateMockHistory = (habitId, streak) => {
-  const history = [];
-  const today = new Date();
-  for (let i = 0; i < 28; i++) {
-    const date = new Date(today);
-    date.setDate(date.getDate() - i);
-    // Simulate check-ins based on streak
-    const shouldBeChecked = i < streak || (i < streak + 3 && Math.random() > 0.3);
-    history.unshift({
-      date: date.toISOString().split('T')[0],
-      completed: shouldBeChecked
-    });
-  }
-  return history;
-};
+const weekDays = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
 
 export default function HabitsView({ habits = [], api }) {
   const [showAddForm, setShowAddForm] = useState(false);
-  const [newHabit, setNewHabit] = useState({ name: '', icon: 'star', color: '#3b82f6' });
+  const [newHabit, setNewHabit] = useState({ name: '', icon: 'star', color: '#f59e0b' });
   const [animatingHabit, setAnimatingHabit] = useState(null);
   const [habitStats, setHabitStats] = useState({});
 
-  // Calculate completion stats for each habit
   useEffect(() => {
     const stats = {};
     const today = new Date();
-    
+
     habits.forEach(habit => {
-      // Create a map of existing history for O(1) lookup
       const historyMap = {};
       (habit.history || []).forEach(h => {
         if (h.completed) historyMap[h.date] = true;
       });
-      
+
       const fullHistory = [];
       let weeklyCompleted = 0;
-      
-      // Generate last 28 days
+
       for (let i = 27; i >= 0; i--) {
         const d = new Date(today);
         d.setDate(d.getDate() - i);
-        // Use local date string YYYY-MM-DD
-        const dateStr = d.toLocaleDateString('en-CA'); 
-        
+        const dateStr = d.toLocaleDateString('en-CA');
+
         const isCompleted = !!historyMap[dateStr];
         fullHistory.push({
-            date: dateStr,
-            completed: isCompleted
+          date: dateStr,
+          completed: isCompleted
         });
-        
+
         if (i < 7 && isCompleted) weeklyCompleted++;
       }
-      
+
       stats[habit.id] = {
         weeklyCompletion: Math.round((weeklyCompleted / 7) * 100),
         totalCompletion: fullHistory.length > 0 ? Math.round((fullHistory.filter(h => h.completed).length / fullHistory.length) * 100) : 0,
@@ -95,58 +76,41 @@ export default function HabitsView({ habits = [], api }) {
 
   const handleCheckIn = async (habit) => {
     setAnimatingHabit(habit.id);
-    
     try {
-      // Use local date for check-in to avoid timezone issues
       const now = new Date();
-      const localDate = now.toLocaleDateString('en-CA'); // YYYY-MM-DD in local time
-
+      const localDate = now.toLocaleDateString('en-CA');
       await fetch(`/api/habits/${habit.id}/checkin`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ date: localDate })
       });
-      
-      // Trigger refresh
       api.fetchAllData && api.fetchAllData();
     } catch (err) {
       console.error('Check-in failed:', err);
     }
-    
     setTimeout(() => setAnimatingHabit(null), 1000);
   };
 
   const handleAddHabit = async () => {
     if (!newHabit.name.trim()) return;
-    
     await api.create('habits', {
       name: newHabit.name,
       icon: newHabit.icon,
       color: newHabit.color,
-      streak: 0
+      streak: { current: 0, highest: 0 }
     });
-    
     setShowAddForm(false);
-    setNewHabit({ name: '', icon: 'star', color: '#3b82f6' });
+    setNewHabit({ name: '', icon: 'star', color: '#f59e0b' });
   };
 
   const getHabitIcon = (iconName) => {
-    const Icon = habitIcons[iconName] || Star;
-    return Icon;
+    return habitIcons[iconName] || Star;
   };
 
-  const getHeatmapColor = (completed, baseColor) => {
-    if (!completed) return '#fee2e2'; // Distinct red for missed days
-    return baseColor;
-  };
-
-  // Calculate overall weekly stats
   const overallStats = useMemo(() => {
     if (habits.length === 0) return { completion: 0, totalCheckins: 0 };
-    
     let totalCompletion = 0;
     let totalCheckins = 0;
-    
     habits.forEach(habit => {
       const stats = habitStats[habit.id];
       if (stats) {
@@ -154,7 +118,6 @@ export default function HabitsView({ habits = [], api }) {
         totalCheckins += habit.streak?.current || 0;
       }
     });
-    
     return {
       completion: Math.round(totalCompletion / habits.length),
       totalCheckins
@@ -162,320 +125,210 @@ export default function HabitsView({ habits = [], api }) {
   }, [habits, habitStats]);
 
   return (
-    <div className="habits-view">
+    <div className="space-y-8 animate-in-fade-slide">
+      {/* ambient background elements */}
+      <div className="fixed inset-0 pointer-events-none overflow-hidden z-0">
+        <div className="absolute top-[20%] right-[-5%] w-[400px] h-[400px] bg-amber-500/10 rounded-full blur-[120px]"></div>
+        <div className="absolute bottom-[10%] left-[-5%] w-[300px] h-[300px] bg-red-600/10 rounded-full blur-[100px]"></div>
+      </div>
+
       {/* Stats Overview */}
-      <div className="grid-3" style={{ marginBottom: '30px' }}>
-        <div className="stat-card">
-          <div className="stat-label">Active Habits</div>
-          <div className="stat-value">{habits.length}</div>
-        </div>
-        <div className="stat-card">
-          <div className="stat-label">Weekly Completion</div>
-          <div className="stat-value" style={{ color: overallStats.completion > 70 ? '#22c55e' : '#f59e0b' }}>
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 relative z-10">
+        <WidgetCard className="p-6 flex flex-col items-center justify-center text-center">
+          <span className="text-[10px] font-bold tracking-[0.2em] text-gray-500 uppercase mb-2">Active Protocols</span>
+          <div className="text-4xl font-black text-white font-premium">{habits.length}</div>
+        </WidgetCard>
+
+        <WidgetCard className="p-6 flex flex-col items-center justify-center text-center">
+          <span className="text-[10px] font-bold tracking-[0.2em] text-gray-500 uppercase mb-2">Weekly Efficiency</span>
+          <div className={`text-4xl font-black font-premium ${overallStats.completion > 70 ? 'text-green-400' : 'text-amber-500'}`}>
             {overallStats.completion}%
           </div>
-        </div>
-        <div className="stat-card">
-          <div className="stat-label">Total Check-ins</div>
-          <div className="stat-value">
-            <Trophy size={20} style={{ display: 'inline', marginRight: '5px', color: '#f59e0b' }} />
-            {overallStats.totalCheckins}
+        </WidgetCard>
+
+        <WidgetCard className="p-6 flex flex-col items-center justify-center text-center">
+          <span className="text-[10px] font-bold tracking-[0.2em] text-gray-500 uppercase mb-2">Total Momentum</span>
+          <div className="flex items-center gap-3">
+            <AnimatedIcon Icon={Trophy} size={32} className="text-amber-500" />
+            <div className="text-4xl font-black text-white font-premium">{overallStats.totalCheckins}</div>
           </div>
-        </div>
+        </WidgetCard>
       </div>
 
       {/* Habits Grid */}
-      <div style={{ 
-        display: 'grid', 
-        gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))',
-        gap: '20px',
-        marginBottom: '30px'
-      }}>
+      <div className="grid grid-cols-1 lg:grid-cols-2 2xl:grid-cols-3 gap-6 relative z-10">
         {habits.map(habit => {
           const Icon = getHabitIcon(habit.icon);
           const stats = habitStats[habit.id] || { weeklyCompletion: 0, history: [] };
           const isAnimating = animatingHabit === habit.id;
-          
+
           return (
-            <div 
-              key={habit.id}
-              className="habit-card"
-              style={{
-                background: 'var(--white)',
-                border: 'var(--border-thick)',
-                boxShadow: 'var(--shadow-manga)',
-                padding: '20px',
-                borderRadius: '12px',
-                position: 'relative',
-                overflow: 'hidden'
-              }}
-            >
-              {/* Header */}
-              <div style={{ 
-                display: 'flex', 
-                justifyContent: 'space-between', 
-                alignItems: 'center',
-                marginBottom: '15px'
-              }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                  <div style={{
-                    width: '48px',
-                    height: '48px',
-                    borderRadius: '12px',
-                    background: habit.color || '#3b82f6',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    color: 'white'
-                  }}>
-                    <Icon size={24} />
-                  </div>
-                  <div>
-                    <div style={{ fontWeight: '700', fontSize: '1.1rem' }}>{habit.name}</div>
-                    <div style={{ 
-                      fontSize: '0.8rem', 
-                      color: 'var(--grey-500)',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '5px'
-                    }}>
-                      <TrendingUp size={12} />
-                      {stats.weeklyCompletion}% this week
+            <WidgetCard key={habit.id} className="group relative">
+              <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-white/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity blur-2xl"></div>
+
+              <div className="p-6">
+                {/* Header */}
+                <div className="flex justify-between items-start mb-6">
+                  <div className="flex gap-4">
+                    <div className="w-14 h-14 rounded-2xl bg-white/[0.03] border border-white/10 flex items-center justify-center shadow-inner group-hover:scale-110 transition-transform duration-500">
+                      <AnimatedIcon Icon={Icon} size={28} style={{ color: habit.color || '#f59e0b' }} />
+                    </div>
+                    <div>
+                      <h3 className="text-lg font-bold text-white mb-1 font-premium tracking-wide">{habit.name}</h3>
+                      <div className="flex items-center gap-2 text-[10px] font-bold text-gray-500 uppercase tracking-widest">
+                        <TrendingUp size={12} className="text-amber-500/80" />
+                        {stats.weeklyCompletion}% efficiency
+                      </div>
                     </div>
                   </div>
-                </div>
-                
-                {/* Streak Counter */}
-                <div style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '5px',
-                  padding: '6px 12px',
-                  background: (habit.streak?.current || 0) > 7 ? '#fef3c7' : 'var(--grey-100)',
-                  borderRadius: '20px',
-                  color: (habit.streak?.current || 0) > 7 ? '#d97706' : 'var(--ink)'
-                }}>
-                  <Flame size={18} className={isAnimating ? 'flame-animate' : ''} />
-                  <span style={{ fontWeight: '700', fontSize: '1rem' }}>
-                    {habit.streak?.current || 0}
-                  </span>
-                </div>
-              </div>
 
-              {/* Weekly Heatmap */}
-              <div style={{ marginBottom: '15px' }}>
-                <div style={{ 
-                  display: 'flex', 
-                  justifyContent: 'space-between',
-                  marginBottom: '8px',
-                  fontSize: '0.7rem',
-                  color: 'var(--grey-500)'
-                }}>
-                  <span>Last 4 weeks</span>
-                  <span>{stats.totalCompletion || 0}% overall</span>
+                  {/* Streak */}
+                  <div className={`flex items-center gap-2 px-3 py-1.5 rounded-full border transition-all duration-500
+                    ${(habit.streak?.current || 0) > 7
+                      ? 'bg-amber-500/20 border-amber-500/30 text-amber-500 shadow-[0_0_20px_rgba(245,158,11,0.2)]'
+                      : 'bg-white/5 border-white/10 text-gray-400'}
+                  `}>
+                    <Flame size={16} className={isAnimating ? 'animate-pulse' : ''} />
+                    <span className="text-xs font-black font-mono">{habit.streak?.current || 0}</span>
+                  </div>
                 </div>
-                <div style={{ 
-                  display: 'grid',
-                  gridTemplateColumns: 'repeat(7, 1fr)',
-                  gap: '4px'
-                }}>
-                  {stats.history.map((day, i) => (
-                    <div
-                      key={i}
-                      style={{
-                        aspectRatio: '1',
-                        borderRadius: '4px',
-                        background: getHeatmapColor(day.completed, habit.color || '#3b82f6'),
-                        opacity: day.completed ? 0.8 + (i % 3) * 0.1 : 1,
-                        border: '1px solid var(--grey-200)'
-                      }}
-                      title={`${day.date}: ${day.completed ? 'Done' : 'Missed'}`}
-                    />
-                  ))}
-                </div>
-              </div>
 
-              {/* Check-in Button */}
-              <button
-                className={`btn btn-primary checkin-btn ${isAnimating ? 'animate-checkin' : ''}`}
-                onClick={() => handleCheckIn(habit)}
-                style={{
-                  width: '100%',
-                  padding: '12px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  gap: '8px',
-                  background: isAnimating ? habit.color : undefined
-                }}
-              >
-                {isAnimating ? (
-                  <>
-                    <Check size={20} /> Checked In!
-                  </>
-                ) : (
-                  <>
-                    <Check size={20} /> Check In
-                  </>
-                )}
-              </button>
-            </div>
+                {/* Heatmap Section */}
+                <div className="mb-6">
+                  <div className="flex justify-between items-center mb-3">
+                    <span className="text-[9px] font-bold text-gray-600 uppercase tracking-[0.2em]">Operational History</span>
+                    <span className="text-[9px] font-mono text-gray-500">{stats.totalCompletion || 0}% Total</span>
+                  </div>
+                  <div className="grid grid-cols-7 gap-2">
+                    {stats.history.map((day, i) => (
+                      <div
+                        key={i}
+                        className={`aspect-square rounded-md transition-all duration-300 border
+                          ${day.completed
+                            ? 'shadow-[inset_0_0_10px_rgba(255,255,255,0.05)]'
+                            : 'bg-black/40 border-white/[0.03]'}
+                        `}
+                        style={{
+                          backgroundColor: day.completed ? `${habit.color}30` : undefined,
+                          borderColor: day.completed ? `${habit.color}50` : undefined,
+                          boxShadow: day.completed ? `0 0 15px ${habit.color}20` : undefined
+                        }}
+                        title={`${day.date}: ${day.completed ? 'Success' : 'Missing'}`}
+                      />
+                    ))}
+                  </div>
+                  <div className="flex justify-between mt-2 px-0.5">
+                    {weekDays.map((d, i) => (
+                      <span key={i} className="text-[8px] font-bold text-gray-600 w-[calc(100%/7)] text-center">{d}</span>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Action */}
+                <GlassPill
+                  variant={isAnimating ? 'primary' : 'default'}
+                  className="w-full !py-3 group/btn"
+                  onClick={() => handleCheckIn(habit)}
+                >
+                  {isAnimating ? (
+                    <div className="flex items-center gap-2">
+                      <Check size={18} className="animate-bounce" />
+                      <span className="uppercase tracking-[0.2em] text-[10px]">Logged</span>
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-2">
+                      <Plus size={18} className="group-hover/btn:rotate-90 transition-transform" />
+                      <span className="uppercase tracking-[0.2em] text-[10px]">Execute Protocol</span>
+                    </div>
+                  )}
+                </GlassPill>
+              </div>
+            </WidgetCard>
           );
         })}
 
-        {/* Add New Habit Card */}
-        <div 
+        {/* Add Habit Placeholder */}
+        <WidgetCard
+          className="group cursor-pointer border-dashed border-white/20 hover:border-amber-500/50 hover:bg-amber-500/[0.02] transition-all duration-500 flex flex-col items-center justify-center min-h-[300px]"
           onClick={() => setShowAddForm(true)}
-          style={{
-            background: 'var(--grey-100)',
-            border: '2px dashed var(--grey-300)',
-            padding: '20px',
-            borderRadius: '12px',
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-            justifyContent: 'center',
-            cursor: 'pointer',
-            minHeight: '200px',
-            transition: 'all 0.2s ease'
-          }}
         >
-          <Plus size={40} color="var(--grey-400)" />
-          <span style={{ marginTop: '10px', color: 'var(--grey-500)' }}>Add New Habit</span>
-        </div>
+          <div className="w-16 h-16 rounded-full bg-white/5 border border-white/10 flex items-center justify-center mb-4 group-hover:scale-110 group-hover:border-amber-500/30 transition-all duration-500">
+            <Plus size={32} className="text-gray-500 group-hover:text-amber-500 transition-colors" />
+          </div>
+          <span className="text-[10px] font-bold text-gray-500 uppercase tracking-[0.3em] group-hover:text-white transition-colors">Initialize New Habit</span>
+        </WidgetCard>
       </div>
 
       {/* Add Habit Modal */}
       {showAddForm && (
-        <div className="modal-overlay active" onClick={() => setShowAddForm(false)}>
-          <div className="modal" onClick={e => e.stopPropagation()}>
-            <div className="modal-header">
-              <span className="modal-title">Create New Habit</span>
-              <button className="modal-close" onClick={() => setShowAddForm(false)}>✕</button>
-            </div>
-            <div className="modal-body">
-              <input 
-                className="form-input"
-                placeholder="Habit name (e.g., Drink Water)"
-                value={newHabit.name}
-                onChange={e => setNewHabit({...newHabit, name: e.target.value})}
-                style={{ marginBottom: '15px' }}
-              />
-              
-              <div style={{ marginBottom: '15px' }}>
-                <label style={{ 
-                  display: 'block', 
-                  fontSize: '0.7rem', 
-                  textTransform: 'uppercase',
-                  letterSpacing: '1px',
-                  marginBottom: '8px',
-                  color: 'var(--grey-500)'
-                }}>
-                  Choose Icon
-                </label>
-                <div style={{ 
-                  display: 'grid', 
-                  gridTemplateColumns: 'repeat(5, 1fr)',
-                  gap: '10px'
-                }}>
-                  {Object.entries(habitIcons).map(([name, Icon]) => (
-                    <button
-                      key={name}
-                      onClick={() => setNewHabit({...newHabit, icon: name})}
-                      style={{
-                        padding: '12px',
-                        border: newHabit.icon === name ? `2px solid ${newHabit.color}` : 'var(--border-thin)',
-                        borderRadius: '8px',
-                        background: newHabit.icon === name ? `${newHabit.color}20` : 'var(--white)',
-                        cursor: 'pointer'
-                      }}
-                    >
-                      <Icon size={20} color={newHabit.icon === name ? newHabit.color : 'var(--ink)'} />
-                    </button>
-                  ))}
+        <div className="fixed inset-0 z-[1000] flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-[#020203]/80 backdrop-blur-sm" onClick={() => setShowAddForm(false)}></div>
+          <WidgetCard className="relative w-full max-w-lg overflow-visible animate-in-fade-slide">
+            <div className="p-8">
+              <div className="flex justify-between items-center mb-8">
+                <h2 className="text-2xl font-black text-white font-premium tracking-tight">New Protocol</h2>
+                <button onClick={() => setShowAddForm(false)} className="w-10 h-10 rounded-full bg-white/5 hover:bg-white/10 flex items-center justify-center border border-white/10 transition-colors">
+                  <X size={20} className="text-gray-400" />
+                </button>
+              </div>
+
+              <div className="space-y-6">
+                <div>
+                  <label className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-3 block">Protocol Identifier</label>
+                  <input
+                    className="w-full bg-black/40 border border-white/10 rounded-2xl p-4 text-white outline-none focus:border-amber-500/50 transition-colors placeholder:text-gray-700"
+                    placeholder="e.g., Deep Focus Session"
+                    value={newHabit.name}
+                    onChange={e => setNewHabit({ ...newHabit, name: e.target.value })}
+                  />
+                </div>
+
+                <div>
+                  <label className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-3 block">Symbology</label>
+                  <div className="grid grid-cols-6 gap-3">
+                    {Object.entries(habitIcons).map(([name, Icon]) => (
+                      <button
+                        key={name}
+                        onClick={() => setNewHabit({ ...newHabit, icon: name })}
+                        className={`aspect-square rounded-xl border flex items-center justify-center transition-all
+                          ${newHabit.icon === name ? 'bg-amber-500/20 border-amber-500/50 text-amber-500' : 'bg-white/5 border-white/10 text-gray-500 hover:border-white/30'}
+                        `}
+                      >
+                        <Icon size={20} />
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div>
+                  <label className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-3 block">Energy Signature</label>
+                  <div className="flex gap-3 flex-wrap">
+                    {['#f59e0b', '#10b981', '#3b82f6', '#ef4444', '#8b5cf6', '#ec4899', '#06b6d4', '#f43f5e'].map(color => (
+                      <button
+                        key={color}
+                        onClick={() => setNewHabit({ ...newHabit, color })}
+                        className={`w-10 h-10 rounded-full transition-all duration-300 relative
+                          ${newHabit.color === color ? 'scale-125 shadow-[0_0_15px_rgba(255,255,255,0.2)]' : 'hover:scale-110'}
+                        `}
+                        style={{ background: color }}
+                      >
+                        {newHabit.color === color && (
+                          <div className="absolute inset-0 border-2 border-white rounded-full"></div>
+                        )}
+                      </button>
+                    ))}
+                  </div>
                 </div>
               </div>
 
-              <div>
-                <label style={{ 
-                  display: 'block', 
-                  fontSize: '0.7rem', 
-                  textTransform: 'uppercase',
-                  letterSpacing: '1px',
-                  marginBottom: '8px',
-                  color: 'var(--grey-500)'
-                }}>
-                  Choose Color
-                </label>
-                <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
-                  {['#3b82f6', '#22c55e', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#14b8a6', '#6366f1'].map(color => (
-                    <button
-                      key={color}
-                      onClick={() => setNewHabit({...newHabit, color})}
-                      style={{
-                        width: '40px',
-                        height: '40px',
-                        borderRadius: '50%',
-                        background: color,
-                        border: newHabit.color === color ? '3px solid var(--ink)' : '2px solid transparent',
-                        cursor: 'pointer',
-                        transform: newHabit.color === color ? 'scale(1.1)' : 'scale(1)',
-                        transition: 'all 0.2s ease'
-                      }}
-                    />
-                  ))}
-                </div>
+              <div className="flex gap-4 mt-12">
+                <GlassPill className="flex-1 !py-4" onClick={() => setShowAddForm(false)}>Abort</GlassPill>
+                <GlassPill variant="primary" className="flex-1 !py-4" onClick={handleAddHabit}>Initiate</GlassPill>
               </div>
             </div>
-            <div className="modal-footer">
-              <button className="btn" onClick={() => setShowAddForm(false)}>Cancel</button>
-              <button className="btn btn-primary" onClick={handleAddHabit}>Create Habit</button>
-            </div>
-          </div>
+          </WidgetCard>
         </div>
       )}
-
-      <style>{`
-        .habit-grid {
-          display: grid;
-          grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-          gap: 20px;
-        }
-        .day-cell {
-          aspect-ratio: 1;
-          border-radius: 6px;
-          transition: all 0.2s ease;
-        }
-        .day-cell.missed {
-          background: #fee2e2 !important;
-          border: 1px solid #fecaca;
-        }
-        .day-cell:hover {
-          transform: scale(1.1);
-          z-index: 1;
-        }
-        @keyframes checkin-pop {
-          0% { transform: scale(1); }
-          50% { transform: scale(1.2); }
-          100% { transform: scale(1); }
-        }
-        @keyframes checkin-fill {
-          0% { background-position: 100% 0; }
-          100% { background-position: 0 0; }
-        }
-        .animate-checkin {
-          animation: checkin-pop 0.4s ease;
-          background-size: 200% 100%;
-          animation: checkin-fill 0.6s ease-out;
-        }
-        .flame-animate {
-          animation: flame-pulse 0.5s ease infinite;
-        }
-        @keyframes flame-pulse {
-          0%, 100% { transform: scale(1); }
-          50% { transform: scale(1.2); }
-        }
-      `}</style>
     </div>
   );
 }

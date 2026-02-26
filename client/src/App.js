@@ -142,7 +142,7 @@ function App() {
         googleCalendarStatus
       ] = await Promise.all([
         fetch('/api/tasks').then(r => { if (!r.ok) throw new Error(r.status); return r.json(); }),
-        fetch('/api/projects').then(r => { if (!r.ok) throw new Error(r.status); return r.json(); }),
+        fetch('/api/projects/active').then(r => { if (!r.ok) throw new Error(r.status); return r.json(); }),
         fetch('/api/tables/finances').then(r => { if (!r.ok) throw new Error(r.status); return r.json().then(j => j.data || []); }),
         fetch('/api/tables/habits').then(r => { if (!r.ok) throw new Error(r.status); return r.json().then(j => j.data || []); }),
         fetch('/api/tables/notes').then(r => { if (!r.ok) throw new Error(r.status); return r.json().then(j => j.data || []); }),

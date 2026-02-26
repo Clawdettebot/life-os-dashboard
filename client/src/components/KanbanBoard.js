@@ -89,13 +89,13 @@ export default function KanbanBoard({ tasks = [], api }) {
   };
 
   return (
-    <div className="animate-in-fade-slide">
-      <div className="flex gap-6 overflow-x-auto glass-scroll pb-6 min-h-[70vh] items-start snap-x">
+    <div className="animate-in-fade-slide h-full">
+      <div className="flex gap-4 overflow-x-auto glass-scroll pb-6 min-h-[500px] h-full items-start snap-x pr-4">
         {columns.map(column => (
           <WidgetCard
             key={column.id}
-            className={`min-w-[340px] w-[340px] flex-shrink-0 flex flex-col p-2 transition-all duration-300 snap-start
-              ${dragOverColumn === column.id ? 'border-white/40 scale-[1.02] shadow-[0_0_40px_rgba(255,255,255,0.1)]' : 'border-white/[0.05]'}
+            className={`min-w-[260px] flex-1 flex flex-col p-2 transition-all duration-300 snap-start h-[calc(100vh-250px)]
+              ${dragOverColumn === column.id ? 'border-white/40 scale-[1.01] shadow-[0_0_40px_rgba(255,255,255,0.1)]' : 'border-white/[0.05]'}
             `}
           >
             <div
