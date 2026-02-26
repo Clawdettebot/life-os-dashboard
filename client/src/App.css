@@ -19,15 +19,15 @@ body {
 
 /* ── CSS Variables — Industrial Grey (Teenage Engineering Style) ── */
 :root {
-  --ink: #111111;
+  --ink: #000000;
   --paper: #e3e3e3;
   /* Slightly darker grey background */
   --paper-warm: #dcdcdc;
   --grey-100: #d4d4d4;
   --grey-200: #c0c0c0;
   --grey-300: #a0a0a0;
-  --grey-400: #808080;
-  --grey-500: #606060;
+  --grey-400: #333333;
+  --grey-500: #1a1a1a;
   --white: #f0f0f0;
   /* Off-white for cards to reduce glare */
   --accent: #ff4400;
@@ -68,6 +68,40 @@ body {
   --accent: #ff5500;
 }
 
+/* ── Day Mode (Sun-soaked / Vibrant) ── */
+[data-theme="day"] {
+  --ink: #1a0f00;
+  --paper: #fff9f0;
+  --paper-warm: #fff5e6;
+  --grey-100: #ffecd1;
+  --grey-200: #ffd8a8;
+  --grey-300: #ffc078;
+  --grey-400: #5c3b00;
+  --grey-500: #2d1d00;
+  --white: #ffffff;
+  --accent: #f59e0b;
+  /* Amber 500 */
+}
+
+/* ── Accessibility Contrast Overrides ── */
+[data-theme="light"] .text-gray-100,
+[data-theme="light"] .text-gray-200,
+[data-theme="light"] .text-gray-300,
+[data-theme="light"] .text-gray-400,
+[data-theme="light"] .text-gray-500,
+[data-theme="light"] .text-gray-600 {
+  color: #000000 !important;
+}
+
+[data-theme="day"] .text-gray-100,
+[data-theme="day"] .text-gray-200,
+[data-theme="day"] .text-gray-300,
+[data-theme="day"] .text-gray-400,
+[data-theme="day"] .text-gray-500,
+[data-theme="day"] .text-gray-600 {
+  color: #1a0f00 !important;
+}
+
 /* ── Reset & Base ── */
 *,
 *::before,
@@ -97,6 +131,76 @@ body {
   overflow-x: hidden;
   letter-spacing: -0.02em;
   /* Tighter leading/tracking */
+}
+
+[data-theme="day"] body {
+  background-image: radial-gradient(rgba(245, 158, 11, 0.1) 1px, transparent 1px);
+  background-size: 20px 20px;
+}
+
+[data-theme="day"] body::after {
+  content: '';
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: radial-gradient(circle at 80% 20%, rgba(251, 191, 36, 0.05) 0%, transparent 50%);
+  pointer-events: none;
+  z-index: -1;
+}
+
+/* ── Day Mode Specific Overrides ── */
+[data-theme="day"] .card,
+[data-theme="day"] .widget-card {
+  background: rgba(255, 255, 255, 0.75);
+  border-color: rgba(245, 158, 11, 0.3);
+  box-shadow: 0 10px 40px rgba(245, 158, 11, 0.15);
+  backdrop-filter: blur(20px);
+}
+
+[data-theme="day"] .card-title,
+[data-theme="day"] .section-title {
+  color: #78350f;
+  /* Amber 900 */
+}
+
+[data-theme="day"] .btn-primary {
+  background: var(--accent);
+  color: white;
+}
+
+[data-theme="day"] .btn-secondary {
+  background: rgba(255, 255, 255, 0.5);
+  color: #b45309;
+}
+
+[data-theme="day"] .glass-pill {
+  background: rgba(255, 255, 255, 0.5);
+  border-color: rgba(245, 158, 11, 0.3);
+  color: #92400e;
+  /* Amber 800 */
+}
+
+[data-theme="day"] .glass-pill.active {
+  background: var(--accent);
+  color: white;
+  box-shadow: 0 4px 12px rgba(245, 158, 11, 0.4);
+}
+
+[data-theme="day"] .glass-scroll::-webkit-scrollbar-thumb {
+  background: rgba(245, 158, 11, 0.3);
+}
+
+[data-theme="day"] aside {
+  background: rgba(255, 249, 240, 0.8) !important;
+  border-right: 1px solid rgba(245, 158, 11, 0.2) !important;
+}
+
+[data-theme="day"] .stat-value {
+  color: #b45309;
+  /* Amber 700 */
+  text-shadow: 0 0 20px rgba(245, 158, 11, 0.2);
 }
 
 /* ── Halftone Overlay ── */
@@ -1835,6 +1939,7 @@ body::before {
   line-height: 1.5;
   display: -webkit-box;
   -webkit-line-clamp: 3;
+  line-clamp: 3;
   -webkit-box-orient: vertical;
   overflow: hidden;
 }

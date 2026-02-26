@@ -258,11 +258,9 @@ function App() {
     fetchAllData();
     fetchSubagents();
 
-    const savedTheme = localStorage.getItem('lifeos-theme');
-    if (savedTheme === 'dark') {
-      document.documentElement.setAttribute('data-theme', 'dark');
-      setTheme('dark');
-    }
+    const savedTheme = localStorage.getItem('lifeos-theme') || 'light';
+    document.documentElement.setAttribute('data-theme', savedTheme);
+    setTheme(savedTheme);
 
     // Logo animation: swap PNG to GIF every 60 seconds
     const logoInterval = setInterval(() => {
@@ -296,17 +294,20 @@ function App() {
   };
 
   const toggleTheme = () => {
-    const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
-    if (isDark) {
-      document.documentElement.removeAttribute('data-theme');
-      localStorage.setItem('lifeos-theme', 'light');
-      setTheme('light');
-    } else {
-      document.documentElement.setAttribute('data-theme', 'dark');
-      localStorage.setItem('lifeos-theme', 'dark');
-      setTheme('dark');
-      triggerSFX('闇');
-    }
+    const currentTheme = document.documentElement.getAttribute('data-theme') || 'light';
+    let nextTheme = 'light';
+
+    if (currentTheme === 'light') nextTheme = 'dark';
+    else if (currentTheme === 'dark') nextTheme = 'day';
+    else nextTheme = 'light';
+
+    document.documentElement.setAttribute('data-theme', nextTheme);
+    localStorage.setItem('lifeos-theme', nextTheme);
+    setTheme(nextTheme);
+
+    if (nextTheme === 'dark') triggerSFX('闇');
+    if (nextTheme === 'day') triggerSFX('陽');
+    if (nextTheme === 'light') triggerSFX('光');
   };
 
   const triggerSFX = (text) => {
