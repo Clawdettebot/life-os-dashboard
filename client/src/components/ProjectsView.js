@@ -5,6 +5,7 @@ import {
   ChevronDown, X, Save, ArchiveRestore, AlertCircle,
   Clock, Flag, MoreVertical
 } from 'lucide-react';
+import { GlassPill } from './ui/GlassPill';
 
 const categoryColors = {
   'Cinematic Universe': { bg: '#8b5cf6', glass: 'bg-violet-500/10 border-violet-500/20 text-violet-400' },
