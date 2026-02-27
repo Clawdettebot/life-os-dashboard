@@ -149,6 +149,12 @@ export default function ContentSchedulerView({ api, postbridgeKey }) {
       return [];
     }
   });
+  
+  // Local Files State
+  const [localFiles, setLocalFiles] = useState([]);
+  const [localFilesDragging, setLocalFilesDragging] = useState(false);
+  const [selectedLocalFiles, setSelectedLocalFiles] = useState([]);
+  
   const scrollContainerRef = useRef(null);
 
   // Load guap.dad folder on mount
@@ -246,7 +252,7 @@ export default function ContentSchedulerView({ api, postbridgeKey }) {
       alert("Please select a time slot on the timeline first!");
       return;
     }
-    if (selectedDriveFiles.length === 0) {
+    if (selectedDriveFiles.length === 0 && selectedLocalFiles.length === 0) {
       alert("Please select at least one media file.");
       return;
     }
@@ -281,7 +287,24 @@ export default function ContentSchedulerView({ api, postbridgeKey }) {
         if (uploadData.success && uploadData.media_id) {
           mediaIds.push(uploadData.media_id);
         } else {
-          console.warn("Failed to upload file to PostBridge", uploadData.error);
+          console.warn("Failed to upload Drive file to PostBridge", uploadData.error);
+        }
+      }
+
+      // Upload local files
+      for (const file of selectedLocalFiles) {
+        const formData = new FormData();
+        formData.append('file', file.file);
+        
+        const uploadRes = await fetch('/api/postbridge/upload-local-file', {
+          method: 'POST',
+          body: formData
+        });
+        const uploadData = await uploadRes.json();
+        if (uploadData.success && uploadData.media_id) {
+          mediaIds.push(uploadData.media_id);
+        } else {
+          console.warn("Failed to upload local file to PostBridge", uploadData.error);
         }
       }
 
@@ -308,7 +331,9 @@ export default function ContentSchedulerView({ api, postbridgeKey }) {
 
       setSelectedSlot(null);
       setActiveTimelineSlot(null); // Reset timeline selection
-      setSelectedDriveFiles([]); // Reset local selection
+      setSelectedDriveFiles([]); // Reset drive selection
+      setSelectedLocalFiles([]); // Reset local file selection
+      setLocalFiles([]); // Clear local files list
       setPostCaption('');
       setShowDeploymentConfig(false);
     } catch (error) {
@@ -350,6 +375,7 @@ export default function ContentSchedulerView({ api, postbridgeKey }) {
           <div className="hidden md:flex items-center gap-1 bg-black/40 p-1 rounded-full border border-white/5">
             <GlassPill active={activeTab === 'Timeline'} onClick={() => setActiveTab('Timeline')}>Timeline</GlassPill>
             <GlassPill active={activeTab === 'Drive Sync'} onClick={() => setActiveTab('Drive Sync')}>Drive Sync</GlassPill>
+            <GlassPill active={activeTab === 'Local Files'} onClick={() => setActiveTab('Local Files')}>Local Files</GlassPill>
             <GlassPill active={activeTab === 'Releases'} onClick={() => setActiveTab('Releases')}>Releases</GlassPill>
           </div>
 
@@ -802,6 +828,99 @@ export default function ContentSchedulerView({ api, postbridgeKey }) {
                 </div>
               )}
             </div>
+
+            {/* Local Files Widget - Drag & Drop */}
+            <WidgetCard className="md:w-[400px] flex-shrink-0 bg-black/40 border border-white/10 rounded-2xl p-4 flex flex-col items-center justify-start min-h-[300px] max-h-[350px]">
+              <h3 className="text-[10px] tracking-widest text-gray-500 uppercase font-bold mb-3 flex items-center gap-2 px-2 w-full">
+                <Folder className="w-3 h-3 text-green-400" /> Local Files
+              </h3>
+
+              {/* Drag & Drop Zone */}
+              <div 
+                className={`w-full flex-1 border-2 border-dashed rounded-xl transition-all flex flex-col items-center justify-center gap-3 p-4 ${
+                  localFilesDragging 
+                    ? 'border-green-500 bg-green-500/10' 
+                    : 'border-white/20 hover:border-white/40'
+                }`}
+                onDragOver={(e) => { e.preventDefault(); setLocalFilesDragging(true); }}
+                onDragLeave={() => setLocalFilesDragging(false)}
+                onDrop={(e) => {
+                  e.preventDefault();
+                  setLocalFilesDragging(false);
+                  const files = Array.from(e.dataTransfer.files).map(f => ({
+                    name: f.name,
+                    size: f.size,
+                    type: f.type,
+                    lastModified: f.lastModified,
+                    file: f
+                  }));
+                  setLocalFiles(prev => [...prev, ...files]);
+                }}
+              >
+                {localFiles.length === 0 ? (
+                  <>
+                    <Folder className={`w-10 h-10 ${localFilesDragging ? 'text-green-400' : 'text-gray-500'}`} />
+                    <p className="text-xs text-gray-400 text-center">
+                      Drag & drop files here<br/>
+                      <span className="text-gray-600">or click to browse</span>
+                    </p>
+                    <input 
+                      type="file" 
+                      multiple 
+                      className="absolute inset-0 opacity-0 cursor-pointer"
+                      onChange={(e) => {
+                        const files = Array.from(e.target.files).map(f => ({
+                          name: f.name,
+                          size: f.size,
+                          type: f.type,
+                          lastModified: f.lastModified,
+                          file: f
+                        }));
+                        setLocalFiles(prev => [...prev, ...files]);
+                      }}
+                    />
+                  </>
+                ) : (
+                  <div className="w-full space-y-2 overflow-y-auto max-h-[200px] glass-scroll">
+                    {localFiles.map((file, idx) => (
+                      <div key={idx} className="flex items-center justify-between p-2 bg-white/5 rounded-lg border border-white/10">
+                        <div className="flex items-center gap-2 min-w-0 flex-1">
+                          <File className="w-4 h-4 text-green-400 flex-shrink-0" />
+                          <span className="text-xs text-white truncate">{file.name}</span>
+                        </div>
+                        <button 
+                          onClick={() => setLocalFiles(prev => prev.filter((_, i) => i !== idx))}
+                          className="text-gray-500 hover:text-red-400 text-xs px-2"
+                        >
+                          ✕
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Selected Files Action */}
+              {localFiles.length > 0 && (
+                <div className="w-full pt-3 mt-2 border-t border-white/10 flex gap-2">
+                  <button
+                    onClick={() => {
+                      setSelectedLocalFiles([...localFiles]);
+                      setShowDeploymentConfig(true);
+                    }}
+                    className="flex-1 py-2 bg-green-500 hover:bg-green-400 text-black font-bold text-xs uppercase tracking-widest rounded-lg transition-all"
+                  >
+                    Use {localFiles.length} File{localFiles.length > 1 ? 's' : ''}
+                  </button>
+                  <button
+                    onClick={() => setLocalFiles([])}
+                    className="px-3 py-2 bg-white/10 hover:bg-white/20 text-white text-xs rounded-lg transition-all"
+                  >
+                    Clear
+                  </button>
+                </div>
+              )}
+            </WidgetCard>
 
           </WidgetCard>
         )}

@@ -54,7 +54,56 @@ class KnowledgeKnaightBot {
     });
 
     this.client.on(Events.MessageCreate, async (message) => {
-      // Ignore bot messages
+      // Agent-to-agent communication in Round Table
+      const CLAUDNELIUS_ID = '1476826649201737991';
+      const ROUND_TABLE_ID = '1475656727188869180';
+      const CLAWDETTE_BOT_ID = '1465841282491486301';
+      
+      // If Claudnelius posts in Round Table, auto-respond as Clawdette
+      if (message.author.id === CLAUDNELIUS_ID && message.channelId === ROUND_TABLE_ID) {
+        console.log('🤝 Claudnelius detected in Round Table!');
+        
+        // React to show we saw it
+        try {
+          await message.react('🦐');
+        } catch (e) {}
+        
+        // Spawn a subagent to respond as Clawdette
+        try {
+          const response = await axios.post('http://localhost:3000/api/agents/spawn-reply', {
+            from: 'claudnelius',
+            message: message.content,
+            channelId: message.channelId
+          });
+          console.log('🦐 Spawned Clawdette reply:', response.data);
+          
+          // Wait a moment then check for pending reply
+          setTimeout(async () => {
+            try {
+              const pendingRes = await axios.get('http://localhost:3000/api/agents/pending-replies');
+              if (pendingRes.data.replies && pendingRes.data.replies.length > 0) {
+                const reply = pendingRes.data.replies[0];
+                const channel = await this.client.channels.fetch(ROUND_TABLE_ID);
+                if (channel && reply.message) {
+                  await channel.send(reply.message);
+                  console.log('🦐 Sent Clawdette reply to Round Table');
+                  // Clear the reply
+                  await axios.post('http://localhost:3000/api/agents/clear-replies');
+                }
+              }
+            } catch (e) {
+              console.error('Failed to send reply:', e.message);
+            }
+          }, 10000); // Wait 10 seconds for AI to generate response
+          
+        } catch (e) {
+          console.error('Failed to spawn reply:', e.message);
+        }
+        
+        return;
+      }
+
+      // Ignore other bot messages
       if (message.author.bot) return;
 
       /* Labrina handled separately now
