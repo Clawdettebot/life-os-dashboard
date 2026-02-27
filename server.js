@@ -1157,6 +1157,11 @@ app.get('/api/giveaway/inventory', async (req, res) => {
 
 // Supabase shop endpoint
 const { createClient } = require('@supabase/supabase-js');
+const lifeos = createClient(
+  process.env.LIFEOS_SUPABASE_URL || 'https://pvavybczlrhwagasriwu.supabase.co',
+  process.env.LIFEOS_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InB2YXZ5YmN6bHJod2FnYXNyaXd1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTUyMzUyMzIsImV4cCI6MjA3MDgxMTIzMn0.Y0vL36TCuE8QYFpEbVBKzLYazowtYneUpOkSTk3RkZg'
+);
+
 const supabase = createClient(
   process.env.SUPABASE_URL || 'https://yyoxpcsspmjvolteknsn.supabase.co',
   process.env.SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inl5b3hwY3NzcG1qdm9sdGVrbnNuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTY3MTM5MzAsImV4cCI6MjA3MjI4OTkzMH0.HFFOlmMjiiyQiKAODnz9RAmF3IR7n4KrvGhWp-K_dHM'
@@ -1395,4 +1400,76 @@ app.get('*', (req, res) => {
 
 server.listen(PORT, '0.0.0.0', () => {
   console.log(`🎨 Life OS Dashboard running on port ${PORT}`);
+});
+// ============================================
+// LIFE OS AGENTS (using Life OS Supabase)
+// ============================================
+
+// Get all agent statuses
+app.get('/api/agents/status', async (req, res) => {
+  try {
+    const { data: agents, error } = await lifeos
+      .from('lifeos_agents')
+      .select('*')
+      .order('name');
+    
+    if (error) throw error;
+    res.json({ agents: agents || [] });
+  } catch (e) {
+    console.error('Agent status error:', e);
+    res.status(500).json({ error: e.message, agents: [] });
+  }
+});
+
+// Update agent status (heartbeat)
+app.post('/api/agents/heartbeat', async (req, res) => {
+  try {
+    const { agentId, status, task, location } = req.body;
+    
+    const { data, error } = await lifeos
+      .from('lifeos_agents')
+      .upsert({
+        agent_id: agentId,
+        status: status || 'online',
+        current_task: task,
+        location: location || 'local',
+        last_seen: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      }, { onConflict: 'agent_id' })
+      .select();
+    
+    if (error) throw error;
+    res.json({ success: true, timestamp: Date.now() });
+  } catch (e) {
+    console.error('Heartbeat error:', e);
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// Update full agent status
+app.post('/api/agents/status', async (req, res) => {
+  try {
+    const { agentId, name, title, emoji, status, task, location, metadata } = req.body;
+    
+    const { data, error } = await lifeos
+      .from('lifeos_agents')
+      .upsert({
+        agent_id: agentId,
+        name,
+        title,
+        emoji,
+        status,
+        current_task: task,
+        location,
+        metadata: metadata || {},
+        updated_at: new Date().toISOString()
+      }, { onConflict: 'agent_id' })
+      .select();
+    
+    if (error) throw error;
+    res.json({ success: true, agent: data });
+  } catch (e) {
+    console.error('Agent update error:', e);
+    res.status(500).json({ error: e.message });
+  }
 });
