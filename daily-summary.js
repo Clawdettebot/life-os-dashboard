@@ -1,13 +1,22 @@
 /**
  * Daily Summary Generator
  * Creates a daily digest of all system stats
+ * NOW USING SUPABASE
  */
 
 const fs = require('fs');
 const path = require('path');
+require('dotenv').config({ path: '/root/.openclaw/workspace/dashboard/.env' });
 
 const DASHBOARD_DIR = '/root/.openclaw/workspace/dashboard';
 const OUTPUT_FILE = `${DASHBOARD_DIR}/data/pending-daily-summary.md`;
+
+// Supabase client
+const { createClient } = require('@supabase/supabase-js');
+const supabase = createClient(
+  process.env.LIFEOS_SUPABASE_URL,
+  process.env.LIFEOS_SUPABASE_ANON_KEY
+);
 
 async function generateDailySummary() {
   const today = new Date().toISOString().split('T')[0];
@@ -23,14 +32,14 @@ async function generateDailySummary() {
   sections.push('');
   
   // 2. Finance - Email-detected expenses
-  const finance = getFinanceSummary();
+  const finance = await getFinanceSummary();
   sections.push(`## 💰 Finance`);
   sections.push(`- **Expenses detected:** ${finance.expenseCount} (${finance.expenseTotal})`);
   sections.push(`- **Pending opportunities:** ${finance.opportunities}`);
   sections.push('');
   
   // 3. Tasks - Quick status
-  const tasks = getTasksSummary();
+  const tasks = await getTasksSummary();
   sections.push(`## 📋 Tasks`);
   sections.push(`- **Total:** ${tasks.total} | **Done:** ${tasks.done} | **Pending:** ${tasks.pending}`);
   if (tasks.dueToday.length) {
@@ -70,66 +79,76 @@ ${sections.join('\n')}
 
 async function getCortexNewEntries() {
   try {
-    const db = require('sqlite3').verbose();
-    const cortexDb = new db.Database(`${DASHBOARD_DIR}/data/cortex.db`);
+    const yesterday = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
     
-    return new Promise((resolve) => {
-      const yesterday = Date.now() - (24 * 60 * 60 * 1000);
-      
-      cortexDb.get(
-        `SELECT COUNT(*) as count FROM cortex_entries WHERE created_at > ?`,
-        [yesterday],
-        (err, row) => {
-          if (err) {
-            cortexDb.close();
-            resolve({ count: 0, bySection: [] });
-            return;
-          }
-          
-          cortexDb.all(
-            `SELECT section, COUNT(*) as count FROM cortex_entries WHERE created_at > ? GROUP BY section`,
-            [yesterday],
-            (err2, rows) => {
-              cortexDb.close();
-              const bySection = rows ? rows.map(r => `${r.count} ${r.section}`) : [];
-              resolve({ count: row?.count || 0, bySection });
-            }
-          );
-        }
-      );
-    });
+    const { data, error } = await supabase
+      .from('lifeos_cortex')
+      .select('section')
+      .gte('created_at', yesterday);
+    
+    if (error) throw error;
+    
+    const bySection = {};
+    for (const entry of data || []) {
+      bySection[entry.section] = (bySection[entry.section] || 0) + 1;
+    }
+    
+    const sectionStrings = Object.entries(bySection).map(([s, c]) => `${c} ${s}`);
+    
+    return { 
+      count: data?.length || 0, 
+      bySection: sectionStrings 
+    };
   } catch (e) {
+    console.error('Cortex summary error:', e.message);
     return { count: 0, bySection: [] };
   }
 }
 
-function getFinanceSummary() {
+async function getFinanceSummary() {
   try {
-    const finances = JSON.parse(fs.readFileSync(`${DASHBOARD_DIR}/data/finances.json`, 'utf8'));
-    const expenses = finances.filter(f => f.type === 'expense');
-    const opportunitiesRaw = fs.readFileSync(`${DASHBOARD_DIR}/data/opportunities.json`, 'utf8');
-    const opportunities = opportunitiesRaw ? JSON.parse(opportunitiesRaw) : [];
+    const { data: transactions, error } = await supabase
+      .from('lifeos_transactions')
+      .select('*')
+      .eq('type', 'expense');
     
-    const total = expenses.reduce((sum, f) => sum + (f.amount || 0), 0);
+    if (error) throw error;
+    
+    const total = (transactions || []).reduce((sum, t) => sum + (t.amount || 0), 0);
+    
+    // Opportunities from JSON for now (can migrate later)
+    let opportunities = 0;
+    try {
+      const oppData = fs.readFileSync(`${DASHBOARD_DIR}/data/opportunities.json`, 'utf8');
+      const opp = JSON.parse(oppData);
+      opportunities = opp.filter(o => o.status === 'pending').length;
+    } catch (e) {}
     
     return {
-      expenseCount: expenses.length,
+      expenseCount: transactions?.length || 0,
       expenseTotal: `$${total.toFixed(2)}`,
-      opportunities: opportunities.filter(o => o.status === 'pending').length
+      opportunities
     };
   } catch (e) {
     return { expenseCount: 0, expenseTotal: '$0', opportunities: 0 };
   }
 }
 
-function getTasksSummary() {
+async function getTasksSummary() {
   try {
-    const tasks = JSON.parse(fs.readFileSync(`${DASHBOARD_DIR}/data/tasks.json`, 'utf8'));
+    const { data: tasks, error } = await supabase
+      .from('lifeos_tasks')
+      .select('*');
+    
+    if (error) throw error;
+    
+    const today = new Date().toISOString().split('T')[0];
+    
     return {
-      total: tasks.length,
-      done: tasks.filter(t => t.status === 'done').length,
-      pending: tasks.filter(t => t.status !== 'done').length,
-      dueToday: tasks.filter(t => t.dueDate === new Date().toISOString().split('T')[0]).map(t => t.title)
+      total: tasks?.length || 0,
+      done: (tasks || []).filter(t => t.status === 'done').length,
+      pending: (tasks || []).filter(t => t.status !== 'done' && t.status !== 'archived').length,
+      dueToday: (tasks || []).filter(t => t.due_date === today).map(t => t.title)
     };
   } catch (e) {
     return { total: 0, done: 0, pending: 0, dueToday: [] };

@@ -1,18 +1,20 @@
 /**
  * Life OS Supabase Client
  * Single source of truth for all Life OS data
+ * Uses embedded credentials for out-of-box functionality
  */
 
+const config = require('./supabase-config');
 const { createClient } = require('@supabase/supabase-js');
 
-const supabaseUrl = process.env.LIFEOS_SUPABASE_URL || 'https://pvavybczlrhwagasriwu.supabase.co';
-const supabaseKey = process.env.LIFEOS_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InB2YXZ5YmN6bHJod2FnYXNyaXd1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTUyMzUyMzIsImV4cCI6MjA3MDgxMTIzMn0.Y0vL36TCuE8QYFpEbVBKzLYazowtYneUpOkSTk3RkZg';
+const supabaseUrl = process.env.LIFEOS_SUPABASE_URL || config.lifeos.url;
+const supabaseKey = process.env.LIFEOS_SUPABASE_ANON_KEY || config.lifeos.anonKey;
 
 if (!supabaseUrl || !supabaseKey) {
   console.warn('⚠️ Life OS Supabase not configured. Using fallback.');
 }
 
-const lifeos = (supabaseUrl && supabaseKey)
+const lifeos = (supabaseUrl && supabaseKey) 
   ? createClient(supabaseUrl, supabaseKey)
   : null;
 

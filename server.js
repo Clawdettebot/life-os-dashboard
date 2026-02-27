@@ -7,6 +7,7 @@ const path = require('path');
 const fs = require('fs').promises;
 const axios = require('axios');
 const multer = require('multer');
+const lifeos = require('./lifeos-supabase.js');
 require('dotenv').config();
 
 // Configure multer for file uploads
@@ -719,6 +720,25 @@ app.delete('/api/tasks/:id', async (req, res) => {
   tasks = tasks.filter(t => t.id !== req.params.id);
   await jsonDb.write('tasks', tasks);
   res.json({ success: true });
+});
+
+// Habits READ
+app.get('/api/habits', async (req, res) => {
+  if (lifeos) {
+    try {
+      const { data: habits, error } = await lifeos
+        .from('lifeos_habits')
+        .select('*')
+        .order('created_at', { ascending: true });
+      if (!error && habits) return res.json(habits.map(h => ({
+        ...h,
+        streak: { current: h.streak_current || 0, longest: h.streak_longest || 0 },
+        history: []
+      })));
+    } catch (e) { console.log('Habits supabase error, falling back'); }
+  }
+  const habits = await jsonDb.read('habits');
+  res.json(habits);
 });
 
 // Habits CREATE
@@ -1586,31 +1606,23 @@ app.get('/api/google-calendar/calendars', async (req, res) => {
   } catch (error) { res.json({ calendars: [], error: error.message }); }
 });
 
-// Cortex endpoints
+// Cortex endpoints (Supabase)
 app.get('/api/cortex', async (req, res) => {
   const { section, limit = 50 } = req.query;
   try {
-    const dbPath = path.join(DATA_DIR, 'cortex.db');
-    const SQLite = require('better-sqlite3');
-    const db = new SQLite(dbPath);
-    let query = 'SELECT * FROM cortex_entries';
-    if (section && section !== 'all_spark') { query += ' WHERE section = ?'; }
-    query += ' ORDER BY created_at DESC LIMIT ?';
-    const entries = db.prepare(query).all(section && section !== 'all_spark' ? [section, parseInt(limit)] : [parseInt(limit)]);
-    db.close();
+    const entries = await lifeos.getCortexEntries(section, parseInt(limit));
     res.json(entries);
   } catch (error) { res.json([]); }
 });
 
 app.get('/api/cortex/stats', async (req, res) => {
   try {
-    const dbPath = path.join(DATA_DIR, 'cortex.db');
-    const SQLite = require('better-sqlite3');
-    const db = new SQLite(dbPath);
-    const total = db.prepare('SELECT COUNT(*) as count FROM cortex_entries').get().count;
-    const bySection = db.prepare('SELECT section, COUNT(*) as count FROM cortex_entries GROUP BY section').all();
-    db.close();
-    res.json({ total, bySection });
+    const entries = await lifeos.getCortexEntries(null, 1000);
+    const bySection = {};
+    for (const e of entries) {
+      bySection[e.section] = (bySection[e.section] || 0) + 1;
+    }
+    res.json({ total: entries.length, bySection: Object.entries(bySection).map(([section, count]) => ({ section, count })) });
   } catch (error) { res.json({ total: 0, bySection: [] }); }
 });
 
@@ -1830,7 +1842,6 @@ app.get('/api/giveaway/inventory', async (req, res) => {
 
 // Supabase shop endpoint
 const { createClient } = require('@supabase/supabase-js');
-const { lifeos } = require('./lifeos-supabase');
 
 const supabase = createClient(
   process.env.SUPABASE_URL || 'https://yyoxpcsspmjvolteknsn.supabase.co',
