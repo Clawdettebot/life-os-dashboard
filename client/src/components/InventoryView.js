@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { WidgetCard } from './ui/WidgetCard';
+import { GlassPill } from './ui/GlassPill';
 import {
   Package, Gift, ShoppingBag, Archive, Plus, Minus,
   Search, Filter, Box, Tag, Truck, Users, Sparkles
