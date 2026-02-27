@@ -379,7 +379,34 @@ app.get('/api/tables/:table', async (req, res) => {
         .from(sbTable)
         .select('*')
         .order('created_at', { ascending: false });
-      if (!error) return res.json({ data: data || [], source: 'supabase' });
+      if (!error) {
+        let normalized = data || [];
+
+        // Normalize habits: Supabase uses flat columns, frontend expects nested streak object
+        if (table === 'habits') {
+          normalized = normalized.map(h => ({
+            ...h,
+            streak: {
+              current: h.streak_current || 0,
+              longest: h.streak_longest || 0,
+              last_completed: h.last_completed || null
+            },
+            history: h.history || []
+          }));
+        }
+
+        // Normalize finances: map amount to number
+        if (table === 'finances') {
+          normalized = normalized.map(f => ({
+            ...f,
+            amount: Number(f.amount) || 0,
+            type: f.type || 'expense',
+            category: f.category || 'Other'
+          }));
+        }
+
+        return res.json({ data: normalized, source: 'supabase' });
+      }
       console.log(`Supabase table ${sbTable} error, falling back to JSON:`, error.message);
     } catch (e) { console.log(`Supabase ${sbTable} error, falling back:`, e.message); }
   }
@@ -627,9 +654,8 @@ app.delete('/api/tables/:table/:id', async (req, res) => {
   res.json({ success: true });
 });
 
-// Legacy/Hybrid Endpoints
+// Tasks READ - Supabase-first
 app.get('/api/tasks', async (req, res) => {
-  // Try Life OS Supabase first
   try {
     const { data: tasks, error } = await lifeos
       .from('lifeos_tasks')
@@ -643,12 +669,140 @@ app.get('/api/tasks', async (req, res) => {
     }
   } catch (e) { console.log('LifeOS tasks error, falling back to JSON'); }
 
-  // Fallback to JSON
   const tasks = await jsonDb.read('tasks');
   const active = tasks.filter(t => t.status !== 'completed');
   const completed = tasks.filter(t => t.status === 'completed');
   res.json({ active, completed, all: tasks, source: 'json' });
 });
+
+// Tasks CREATE
+app.post('/api/tasks', async (req, res) => {
+  if (lifeos) {
+    try {
+      const { data, error } = await lifeos.from('lifeos_tasks')
+        .insert({ ...req.body, status: req.body.status || 'pending', created_at: new Date().toISOString() })
+        .select().single();
+      if (!error && data) return res.json(data);
+    } catch (e) { console.log('Task create supabase error, falling back'); }
+  }
+  const tasks = await jsonDb.read('tasks');
+  const t = { id: Date.now().toString(), created_at: Date.now(), status: 'pending', ...req.body };
+  tasks.push(t); await jsonDb.write('tasks', tasks);
+  res.json(t);
+});
+
+// Tasks UPDATE (any field, not just status)
+app.patch('/api/tasks/:id', async (req, res) => {
+  if (lifeos) {
+    try {
+      const { data, error } = await lifeos.from('lifeos_tasks')
+        .update({ ...req.body, updated_at: new Date().toISOString() })
+        .eq('id', req.params.id).select().single();
+      if (!error && data) return res.json(data);
+    } catch (e) { console.log('Task update supabase error, falling back'); }
+  }
+  const tasks = await jsonDb.read('tasks');
+  const i = tasks.findIndex(t => t.id === req.params.id);
+  if (i !== -1) { tasks[i] = { ...tasks[i], ...req.body }; await jsonDb.write('tasks', tasks); return res.json(tasks[i]); }
+  res.status(404).json({ error: 'Task not found' });
+});
+
+// Tasks DELETE
+app.delete('/api/tasks/:id', async (req, res) => {
+  if (lifeos) {
+    try {
+      const { error } = await lifeos.from('lifeos_tasks').delete().eq('id', req.params.id);
+      if (!error) return res.json({ success: true });
+    } catch (e) { console.log('Task delete supabase error, falling back'); }
+  }
+  let tasks = await jsonDb.read('tasks');
+  tasks = tasks.filter(t => t.id !== req.params.id);
+  await jsonDb.write('tasks', tasks);
+  res.json({ success: true });
+});
+
+// Habits CREATE
+app.post('/api/habits', async (req, res) => {
+  if (lifeos) {
+    try {
+      const { data, error } = await lifeos.from('lifeos_habits')
+        .insert({
+          ...req.body,
+          streak_current: 0, streak_longest: 0,
+          frequency: req.body.frequency || 'daily',
+          created_at: new Date().toISOString()
+        }).select().single();
+      if (!error && data) return res.json({
+        ...data,
+        streak: { current: data.streak_current || 0, longest: data.streak_longest || 0 },
+        history: []
+      });
+    } catch (e) { console.log('Habit create supabase error, falling back'); }
+  }
+  const habits = await jsonDb.read('habits');
+  const h = { id: Date.now().toString(), created_at: Date.now(), streak: { current: 0, longest: 0 }, history: [], ...req.body };
+  habits.push(h); await jsonDb.write('habits', habits);
+  res.json(h);
+});
+
+// Habits UPDATE
+app.patch('/api/habits/:id', async (req, res) => {
+  if (lifeos) {
+    try {
+      const { data, error } = await lifeos.from('lifeos_habits')
+        .update({ ...req.body, updated_at: new Date().toISOString() })
+        .eq('id', req.params.id).select().single();
+      if (!error && data) return res.json({
+        ...data,
+        streak: { current: data.streak_current || 0, longest: data.streak_longest || 0 }
+      });
+    } catch (e) { console.log('Habit update supabase error, falling back'); }
+  }
+  const habits = await jsonDb.read('habits');
+  const i = habits.findIndex(h => h.id === req.params.id);
+  if (i !== -1) { habits[i] = { ...habits[i], ...req.body }; await jsonDb.write('habits', habits); return res.json(habits[i]); }
+  res.status(404).json({ error: 'Habit not found' });
+});
+
+// Habits DELETE
+app.delete('/api/habits/:id', async (req, res) => {
+  if (lifeos) {
+    try {
+      const { error } = await lifeos.from('lifeos_habits').delete().eq('id', req.params.id);
+      if (!error) return res.json({ success: true });
+    } catch (e) { console.log('Habit delete supabase error, falling back'); }
+  }
+  let habits = await jsonDb.read('habits');
+  habits = habits.filter(h => h.id !== req.params.id);
+  await jsonDb.write('habits', habits);
+  res.json({ success: true });
+});
+
+// Journal CREATE
+app.post('/api/journal', async (req, res) => {
+  if (lifeos) {
+    try {
+      const { data, error } = await lifeos.from('lifeos_notes')
+        .insert({ ...req.body, section: 'journal', created_at: new Date().toISOString() })
+        .select().single();
+      if (!error && data) return res.json({ entry: { filename: data.id, date: data.created_at?.split('T')[0], content: data.content, title: data.title, id: data.id } });
+    } catch (e) { console.log('Journal create supabase error, falling back'); }
+  }
+  res.json({ entry: { id: Date.now().toString(), ...req.body, created_at: Date.now() }, source: 'json' });
+});
+
+// Journal DELETE
+app.delete('/api/journal/:id', async (req, res) => {
+  if (lifeos) {
+    try {
+      const { error } = await lifeos.from('lifeos_notes').delete().eq('id', req.params.id).eq('section', 'journal');
+      if (!error) return res.json({ success: true });
+    } catch (e) { console.log('Journal delete supabase error, falling back'); }
+  }
+  res.json({ success: true });
+});
+
+
 
 // Move task (change status/column) - Supabase-first
 app.post('/api/tasks/:id/move', async (req, res) => {
