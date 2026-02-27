@@ -64,18 +64,18 @@ function getAuthUrl() {
     'https://www.googleapis.com/auth/calendar.events'
   ];
   
-  // Use OOB (out-of-band) flow for headless/VPS - shows code to copy/paste
+  // Use localhost redirect (OOB is deprecated)
   const url = oauth2Client.generateAuthUrl({
     access_type: 'offline',
     scope: scopes,
     prompt: 'consent',
-    redirect_uri: 'urn:ietf:wg:oauth:2.0:oob' // Out-of-band flow
+    redirect_uri: 'http://localhost'
   });
   
   return { 
     success: true, 
     url,
-    instructions: 'After authorizing, Google will display a code. Copy that code and POST it to /api/google-calendar/auth-callback with {"code": "YOUR_CODE"}'
+    instructions: 'After authorizing, you will be redirected to localhost. Copy the "code" parameter from the URL and POST it to /api/google-calendar/auth-callback with {"code": "YOUR_CODE"}'
   };
 }
 
@@ -85,7 +85,7 @@ async function exchangeCode(code) {
     // Must specify the same redirect_uri used in getAuthUrl
     const { tokens } = await oauth2Client.getToken({
       code,
-      redirect_uri: 'urn:ietf:wg:oauth:2.0:oob'
+      redirect_uri: 'http://localhost'
     });
     oauth2Client.setCredentials(tokens);
     

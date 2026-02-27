@@ -1571,6 +1571,27 @@ app.post('/api/projects/:id/notes', async (req, res) => {
 });
 
 // Google Calendar endpoints
+// Get auth URL for re-authentication
+app.get('/api/google-calendar/auth-url', async (req, res) => {
+  try {
+    const calendarClient = require('./google-calendar-client.js');
+    const url = await calendarClient.getAuthUrl();
+    res.json({ authUrl: url, instructions: 'Visit the URL, authorize, then POST to /api/google-calendar/auth-callback with {"code": "THE_CODE"}' });
+  } catch (error) { res.status(500).json({ error: error.message }); }
+});
+
+// Exchange auth code for tokens
+app.post('/api/google-calendar/auth-callback', async (req, res) => {
+  try {
+    const { code } = req.body;
+    if (!code) return res.status(400).json({ error: 'Missing code' });
+    
+    const calendarClient = require('./google-calendar-client.js');
+    await calendarClient.exchangeCode(code);
+    res.json({ success: true, message: 'Google Calendar re-authenticated!' });
+  } catch (error) { res.status(500).json({ error: error.message }); }
+});
+
 app.get('/api/google-calendar/status', async (req, res) => {
   try {
     const calendarClient = require('./google-calendar-client.js');
