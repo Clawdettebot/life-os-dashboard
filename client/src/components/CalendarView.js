@@ -5,7 +5,7 @@ import {
   ExternalLink, Cloud, HardDrive, AlertCircle, Info, MapPin
 } from 'lucide-react';
 import { WidgetCard } from './ui/WidgetCard';
-import { GlassPill } from './ui/GlassPill';
+import { GlassyPill } from './ui/GlassPill';
 import AnimatedIcon from './AnimatedIcon';
 
 const eventTypeColors = {

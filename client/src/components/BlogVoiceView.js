@@ -1,11 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import {
-  FileText, Send, Plus, RefreshCw, Check, Globe, Mail, Edit2, Lightbulb, AlertTriangle, 
+  FileText, Send, Plus, RefreshCw, Check, Globe, Mail, Edit2, Lightbulb, AlertTriangle,
   CheckCircle, XCircle, X, Search, Filter, Mic, BookOpen, Clock, Zap, Trash2, Eye
 } from 'lucide-react';
 import AnimatedIcon from './AnimatedIcon';
 import { WidgetCard } from './ui/WidgetCard';
-import { GlassPill } from './ui/GlassPill';
+import { GlassyPill } from './ui/GlassPill';
 
 const statusConfig = {
   draft: { color: '#f59e0b', label: 'Draft', glass: 'bg-amber-500/10 border-amber-500/20 text-amber-400' },
@@ -101,9 +101,9 @@ export default function BlogVoiceView({ api }) {
       const res = await fetch('/api/blog/voice-drop', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          title: newPostTitle, 
-          transcript: newPostContent, 
+        body: JSON.stringify({
+          title: newPostTitle,
+          transcript: newPostContent,
           tags: newPostTags.split(',').map(t => t.trim()).filter(Boolean)
         })
       }).catch(() => ({ json: () => ({ success: false }) }));
@@ -144,7 +144,7 @@ export default function BlogVoiceView({ api }) {
   const publishedPosts = posts.filter(p => p.status === 'published');
   const pendingSuggestions = suggestions.filter(s => s.status === 'pending');
 
-  const filteredPosts = posts.filter(p => 
+  const filteredPosts = posts.filter(p =>
     p.title?.toLowerCase().includes(searchQuery.toLowerCase()) ||
     p.content?.toLowerCase().includes(searchQuery.toLowerCase())
   );
@@ -170,14 +170,14 @@ export default function BlogVoiceView({ api }) {
           </p>
         </div>
         <div className="flex gap-3">
-          <GlassPill onClick={fetchData} className="flex items-center gap-2">
+          <GlassyPill onClick={fetchData} className="flex items-center gap-2">
             <AnimatedIcon Icon={RefreshCw} className={`w-4 h-4 text-violet-400 ${isLoading ? 'animate-spin' : ''}`} />
             Refresh
-          </GlassPill>
-          <GlassPill variant="primary" onClick={() => setShowNewPost(true)} className="flex items-center gap-2">
+          </GlassyPill>
+          <GlassyPill variant="primary" onClick={() => setShowNewPost(true)} className="flex items-center gap-2">
             <Plus className="w-4 h-4" />
             New Post
-          </GlassPill>
+          </GlassyPill>
         </div>
       </div>
 
@@ -232,14 +232,14 @@ export default function BlogVoiceView({ api }) {
         </div>
         <div className="flex gap-2">
           {['posts', 'suggestions'].map(tab => (
-            <GlassPill
+            <GlassyPill
               key={tab}
               active={activeTab === tab}
               onClick={() => setActiveTab(tab)}
               className="!px-5 !py-3"
             >
               {tab === 'posts' ? 'Posts' : `Ideas (${pendingSuggestions.length})`}
-            </GlassPill>
+            </GlassyPill>
           ))}
         </div>
       </div>
@@ -261,16 +261,16 @@ export default function BlogVoiceView({ api }) {
                 </div>
                 <h3 className="text-xl font-outfit font-bold text-white mb-2">No posts yet</h3>
                 <p className="text-gray-500 mb-6">Create your first blog post or voice drop</p>
-                <GlassPill variant="primary" onClick={() => setShowNewPost(true)} className="inline-flex">
+                <GlassyPill variant="primary" onClick={() => setShowNewPost(true)} className="inline-flex">
                   <Plus className="w-4 h-4" /> Create Post
-                </GlassPill>
+                </GlassyPill>
               </WidgetCard>
             ) : (
               filteredPosts.map(post => {
                 const status = statusConfig[post.status] || statusConfig.draft;
                 return (
-                  <WidgetCard 
-                    key={post.id} 
+                  <WidgetCard
+                    key={post.id}
                     className={`p-0 overflow-hidden cursor-pointer hover:border-violet-500/30 transition-all ${selectedPost?.id === post.id ? 'border-violet-500/50' : ''}`}
                     onClick={() => setSelectedPost(post)}
                   >
@@ -294,9 +294,9 @@ export default function BlogVoiceView({ api }) {
                         </div>
                         <div className="flex gap-2">
                           {post.status === 'draft' && (
-                            <GlassPill onClick={(e) => { e.stopPropagation(); publishPost(post.id); }} className="!px-3 !py-1 text-xs">
+                            <GlassyPill onClick={(e) => { e.stopPropagation(); publishPost(post.id); }} className="!px-3 !py-1 text-xs">
                               <Send className="w-3 h-3" /> Publish
-                            </GlassPill>
+                            </GlassyPill>
                           )}
                         </div>
                       </div>
@@ -327,9 +327,9 @@ export default function BlogVoiceView({ api }) {
                   <p className="text-gray-300 whitespace-pre-wrap">{selectedPost.content || selectedPost.transcript || 'No content yet'}</p>
                 </div>
                 <div className="flex gap-2 mt-6 pt-4 border-t border-white/5">
-                  <GlassPill onClick={() => deletePost(selectedPost.id)} className="flex-1 !py-2 text-red-400">
+                  <GlassyPill onClick={() => deletePost(selectedPost.id)} className="flex-1 !py-2 text-red-400">
                     <Trash2 className="w-4 h-4" /> Delete
-                  </GlassPill>
+                  </GlassyPill>
                 </div>
               </WidgetCard>
             ) : (
@@ -350,10 +350,10 @@ export default function BlogVoiceView({ api }) {
           iconColor="text-violet-400"
           className="p-6"
           action={
-            <GlassPill onClick={scanForTopics} className="flex items-center gap-2">
+            <GlassyPill onClick={scanForTopics} className="flex items-center gap-2">
               <AnimatedIcon Icon={Zap} className={`w-4 h-4 text-violet-400 ${isLoading ? 'animate-pulse' : ''}`} />
               Generate Ideas
-            </GlassPill>
+            </GlassyPill>
           }
         >
           {pendingSuggestions.length === 0 ? (
@@ -371,12 +371,12 @@ export default function BlogVoiceView({ api }) {
                   <div className="font-bold text-violet-100 mb-2 font-outfit">{sug.suggested_topic || sug.title}</div>
                   <div className="text-sm text-gray-400 mb-4 line-clamp-2">{sug.full_context || sug.content}</div>
                   <div className="flex gap-2">
-                    <GlassPill onClick={() => approveSuggestion(sug.id)} className="flex items-center gap-1 text-xs">
+                    <GlassyPill onClick={() => approveSuggestion(sug.id)} className="flex items-center gap-1 text-xs">
                       <Check className="w-3 h-3 text-emerald-400" /> Use
-                    </GlassPill>
-                    <GlassPill variant="primary" onClick={() => expandSuggestion(sug.id)} className="flex items-center gap-1 text-xs">
+                    </GlassyPill>
+                    <GlassyPill variant="primary" onClick={() => expandSuggestion(sug.id)} className="flex items-center gap-1 text-xs">
                       <Zap className="w-3 h-3" /> Expand
-                    </GlassPill>
+                    </GlassyPill>
                   </div>
                 </div>
               ))}
@@ -436,15 +436,15 @@ export default function BlogVoiceView({ api }) {
                 </div>
 
                 <div className="flex gap-3 justify-end pt-4 border-t border-white/5">
-                  <GlassPill onClick={() => setShowNewPost(false)}>Cancel</GlassPill>
-                  <GlassPill
+                  <GlassyPill onClick={() => setShowNewPost(false)}>Cancel</GlassyPill>
+                  <GlassyPill
                     variant="primary"
                     onClick={createPost}
                     disabled={!newPostTitle.trim() || isLoading}
                     className="bg-violet-600 hover:bg-violet-500 border-violet-500 flex items-center gap-2"
                   >
                     <Send className="w-4 h-4" /> Create Post
-                  </GlassPill>
+                  </GlassyPill>
                 </div>
               </div>
             </div>

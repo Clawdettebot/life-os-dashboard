@@ -1,6 +1,6 @@
 import React from 'react';
 
-export const GlassPill = ({ children, className = '', onClick, active, variant = 'default' }) => {
+export const GlassyPill = ({ children, className = '', onClick, active, variant = 'default' }) => {
     const base = "relative px-5 py-2.5 text-xs font-semibold rounded-full transition-all duration-300 flex items-center justify-center gap-2 overflow-hidden cursor-pointer";
     const variants = {
         default: active

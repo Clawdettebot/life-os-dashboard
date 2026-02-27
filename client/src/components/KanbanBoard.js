@@ -4,7 +4,7 @@ import {
   Edit2, Trash2, GripVertical, CheckCircle
 } from 'lucide-react';
 import { WidgetCard } from './ui/WidgetCard';
-import { GlassPill } from './ui/GlassPill';
+import { GlassyPill } from './ui/GlassPill';
 
 const columns = [
   { id: 'backlog', label: 'Backlog', color: '#94a3b8', glowClass: 'shadow-[0_0_15px_rgba(148,163,184,0.3)]', bgClass: 'bg-slate-400' },
@@ -149,8 +149,8 @@ export default function KanbanBoard({ tasks = [], api }) {
                     />
                   </div>
                   <div className="flex justify-end gap-2">
-                    <GlassPill className="!py-1.5 !px-4" onClick={() => setShowAddForm(null)}>Abort</GlassPill>
-                    <GlassPill variant="primary" className="!py-1.5 !px-4" onClick={() => handleAddTask(column.id)}>Commit</GlassPill>
+                    <GlassyPill className="!py-1.5 !px-4" onClick={() => setShowAddForm(null)}>Abort</GlassyPill>
+                    <GlassyPill variant="primary" className="!py-1.5 !px-4" onClick={() => handleAddTask(column.id)}>Commit</GlassyPill>
                   </div>
                 </div>
               )}

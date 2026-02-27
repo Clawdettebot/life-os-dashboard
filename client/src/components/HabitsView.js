@@ -7,7 +7,7 @@ import {
   PersonStanding, Bike, Apple, X
 } from 'lucide-react';
 import { WidgetCard } from './ui/WidgetCard';
-import { GlassPill } from './ui/GlassPill';
+import { GlassyPill } from './ui/GlassPill';
 import AnimatedIcon from './AnimatedIcon';
 
 const habitIcons = {

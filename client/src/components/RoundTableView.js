@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Crown, Clock, Shield, Activity, Command, Cpu, X, Bot } from 'lucide-react';
 import { WidgetCard } from './ui/WidgetCard';
-import { GlassPill } from './ui/GlassPill';
+import { GlassyPill } from './ui/GlassPill';
 import AnimatedIcon from './AnimatedIcon';
 
 // Agent avatars from assets/avatars

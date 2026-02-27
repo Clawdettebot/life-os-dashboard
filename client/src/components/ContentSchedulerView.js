@@ -20,7 +20,7 @@ import {
 } from 'lucide-react';
 
 import { WidgetCard } from './ui/WidgetCard';
-import { GlassPill } from './ui/GlassPill';
+import { GlassyPill } from './ui/GlassPill';
 
 // ==========================================
 // POST BRIDGE API (Proxied through server to avoid CORS)
@@ -149,12 +149,12 @@ export default function ContentSchedulerView({ api, postbridgeKey }) {
       return [];
     }
   });
-  
+
   // Local Files State
   const [localFiles, setLocalFiles] = useState([]);
   const [localFilesDragging, setLocalFilesDragging] = useState(false);
   const [selectedLocalFiles, setSelectedLocalFiles] = useState([]);
-  
+
   const scrollContainerRef = useRef(null);
 
   // Load guap.dad folder on mount
@@ -295,7 +295,7 @@ export default function ContentSchedulerView({ api, postbridgeKey }) {
       for (const file of selectedLocalFiles) {
         const formData = new FormData();
         formData.append('file', file.file);
-        
+
         const uploadRes = await fetch('/api/postbridge/upload-local-file', {
           method: 'POST',
           body: formData
@@ -373,15 +373,15 @@ export default function ContentSchedulerView({ api, postbridgeKey }) {
           </div>
 
           <div className="hidden md:flex items-center gap-1 bg-black/40 p-1 rounded-full border border-white/5">
-            <GlassPill active={activeTab === 'Timeline'} onClick={() => setActiveTab('Timeline')}>Timeline</GlassPill>
-            <GlassPill active={activeTab === 'Drive Sync'} onClick={() => setActiveTab('Drive Sync')}>Drive Sync</GlassPill>
-            <GlassPill active={activeTab === 'Local Files'} onClick={() => setActiveTab('Local Files')}>Local Files</GlassPill>
-            <GlassPill active={activeTab === 'Releases'} onClick={() => setActiveTab('Releases')}>Releases</GlassPill>
+            <GlassyPill active={activeTab === 'Timeline'} onClick={() => setActiveTab('Timeline')}>Timeline</GlassyPill>
+            <GlassyPill active={activeTab === 'Drive Sync'} onClick={() => setActiveTab('Drive Sync')}>Drive Sync</GlassyPill>
+            <GlassyPill active={activeTab === 'Local Files'} onClick={() => setActiveTab('Local Files')}>Local Files</GlassyPill>
+            <GlassyPill active={activeTab === 'Releases'} onClick={() => setActiveTab('Releases')}>Releases</GlassyPill>
           </div>
 
           <div className="flex items-center gap-3 pr-2">
-            <GlassPill variant="dark" className="!px-4" onClick={() => alert('Settings opens')}><Settings className="w-4 h-4" /></GlassPill>
-            <GlassPill variant="primary" className="!px-6" onClick={() => setShowCreateModal(true)}><Plus className="w-4 h-4" /> Create</GlassPill>
+            <GlassyPill variant="dark" className="!px-4" onClick={() => alert('Settings opens')}><Settings className="w-4 h-4" /></GlassyPill>
+            <GlassyPill variant="primary" className="!px-6" onClick={() => setShowCreateModal(true)}><Plus className="w-4 h-4" /> Create</GlassyPill>
           </div>
         </div>
       </div>
@@ -451,7 +451,7 @@ export default function ContentSchedulerView({ api, postbridgeKey }) {
                 </div>
               </div>
             </div>
-            <GlassPill variant="dark" className="!px-4 !py-1.5 !text-[10px] tracking-widest uppercase">Select a day to target</GlassPill>
+            <GlassyPill variant="dark" className="!px-4 !py-1.5 !text-[10px] tracking-widest uppercase">Select a day to target</GlassyPill>
           </div>
 
           <div ref={scrollContainerRef} id="timeline-scroll-container" className="flex gap-6 p-8 overflow-x-auto glass-scroll snap-x">
@@ -836,12 +836,11 @@ export default function ContentSchedulerView({ api, postbridgeKey }) {
               </h3>
 
               {/* Drag & Drop Zone */}
-              <div 
-                className={`w-full flex-1 border-2 border-dashed rounded-xl transition-all flex flex-col items-center justify-center gap-3 p-4 ${
-                  localFilesDragging 
-                    ? 'border-green-500 bg-green-500/10' 
+              <div
+                className={`w-full flex-1 border-2 border-dashed rounded-xl transition-all flex flex-col items-center justify-center gap-3 p-4 ${localFilesDragging
+                    ? 'border-green-500 bg-green-500/10'
                     : 'border-white/20 hover:border-white/40'
-                }`}
+                  }`}
                 onDragOver={(e) => { e.preventDefault(); setLocalFilesDragging(true); }}
                 onDragLeave={() => setLocalFilesDragging(false)}
                 onDrop={(e) => {
@@ -861,12 +860,12 @@ export default function ContentSchedulerView({ api, postbridgeKey }) {
                   <>
                     <Folder className={`w-10 h-10 ${localFilesDragging ? 'text-green-400' : 'text-gray-500'}`} />
                     <p className="text-xs text-gray-400 text-center">
-                      Drag & drop files here<br/>
+                      Drag & drop files here<br />
                       <span className="text-gray-600">or click to browse</span>
                     </p>
-                    <input 
-                      type="file" 
-                      multiple 
+                    <input
+                      type="file"
+                      multiple
                       className="absolute inset-0 opacity-0 cursor-pointer"
                       onChange={(e) => {
                         const files = Array.from(e.target.files).map(f => ({
@@ -888,7 +887,7 @@ export default function ContentSchedulerView({ api, postbridgeKey }) {
                           <File className="w-4 h-4 text-green-400 flex-shrink-0" />
                           <span className="text-xs text-white truncate">{file.name}</span>
                         </div>
-                        <button 
+                        <button
                           onClick={() => setLocalFiles(prev => prev.filter((_, i) => i !== idx))}
                           className="text-gray-500 hover:text-red-400 text-xs px-2"
                         >

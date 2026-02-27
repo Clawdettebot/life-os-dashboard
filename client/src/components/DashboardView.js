@@ -1,7 +1,7 @@
 import React from 'react';
 import { Zap, BarChart3, Radio, FileText, CheckCircle, Activity, Plus } from 'lucide-react';
 import { WidgetCard } from './ui/WidgetCard';
-import { GlassPill } from './ui/GlassPill';
+import { GlassyPill } from './ui/GlassPill';
 import GoogleCalendarWidget from './GoogleCalendarWidget';
 
 export default function DashboardView({

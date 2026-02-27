@@ -4,7 +4,7 @@ import {
   Clock, Check, X, Bell, Trash2, Mail, Info
 } from 'lucide-react';
 import { WidgetCard } from './ui/WidgetCard';
-import { GlassPill } from './ui/GlassPill';
+import { GlassyPill } from './ui/GlassPill';
 import AnimatedIcon from './AnimatedIcon';
 
 const TYPE_CONFIG = {
@@ -146,7 +146,7 @@ export default function OpportunitiesView({ api }) {
           <h1 className="text-3xl font-black text-white font-premium tracking-tight mb-1">Fiscal Prospects</h1>
           <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">Opportunistic financial signal detection</p>
         </div>
-        <GlassPill
+        <GlassyPill
           variant={scanning ? 'primary' : 'default'}
           className="!px-6 !py-3"
           onClick={handleScan}
@@ -154,7 +154,7 @@ export default function OpportunitiesView({ api }) {
         >
           <RefreshCw size={16} className={scanning ? 'animate-spin' : ''} />
           <span className="uppercase tracking-widest text-[10px] font-bold">{scanning ? 'Calibrating...' : 'Sweep Frequencies'}</span>
-        </GlassPill>
+        </GlassyPill>
       </div>
 
       {/* Stats Summary */}
@@ -222,7 +222,7 @@ export default function OpportunitiesView({ api }) {
                 <Search size={32} />
               </div>
               <p className="text-xs font-bold uppercase tracking-[0.3em]">No prospects identified in current sweep</p>
-              <GlassPill className="mt-8" onClick={handleScan}>Re-initialize Sweep</GlassPill>
+              <GlassyPill className="mt-8" onClick={handleScan}>Re-initialize Sweep</GlassyPill>
             </div>
           ) : (
             filteredOpportunities.map(opp => {

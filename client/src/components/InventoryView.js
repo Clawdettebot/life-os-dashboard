@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { WidgetCard } from './ui/WidgetCard';
-import { GlassPill } from './ui/GlassPill';
+import { GlassyPill } from './ui/GlassPill';
 import {
   Package, Gift, ShoppingBag, Archive, Plus, Minus,
   Search, Filter, Box, Tag, Truck, Users, Sparkles
@@ -133,10 +133,10 @@ export default function InventoryView({ inventory = [], api }) {
               className="w-full bg-white/5 border border-white/10 rounded-2xl pl-12 pr-6 py-3.5 text-xs text-white font-bold tracking-widest outline-none focus:border-amber-500/50 transition-all placeholder:text-gray-700"
             />
           </div>
-          <GlassPill variant="primary" className="!px-8 !py-3.5 shrink-0">
+          <GlassyPill variant="primary" className="!px-8 !py-3.5 shrink-0">
             <Plus size={18} />
             <span className="text-[10px] font-black uppercase tracking-widest">Register Unit</span>
-          </GlassPill>
+          </GlassyPill>
         </div>
       </div>
 
@@ -302,9 +302,9 @@ export default function InventoryView({ inventory = [], api }) {
                 </div>
               </div>
 
-              <GlassPill variant="primary" className="w-full !py-5 shadow-[0_0_30px_rgba(245,158,11,0.2)]">
+              <GlassyPill variant="primary" className="w-full !py-5 shadow-[0_0_30px_rgba(245,158,11,0.2)]">
                 <span className="text-xs font-black uppercase tracking-[0.3em]">Initialize Mystery Pack Creation</span>
-              </GlassPill>
+              </GlassyPill>
             </div>
           </WidgetCard>
         </div>

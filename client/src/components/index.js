@@ -7,3 +7,4 @@ export { default as IconPicker } from './IconPicker';
 export { default as ExpensesView } from './ExpensesView';
 export { default as OpportunitiesView } from './OpportunitiesView';
 export { default as NotesView } from './NotesView';
+export { default as LanyardLogin } from './LanyardLogin';

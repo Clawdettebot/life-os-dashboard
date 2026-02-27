@@ -5,7 +5,7 @@ import {
   ChevronDown, X, Save, ArchiveRestore, AlertCircle,
   Clock, Flag, MoreVertical
 } from 'lucide-react';
-import { GlassPill } from './ui/GlassPill';
+import { GlassyPill } from './ui/GlassPill';
 import { WidgetCard } from './ui/WidgetCard';
 
 const categoryColors = {
@@ -271,10 +271,10 @@ export default function ProjectsView({ api }) {
             ))}
           </div>
 
-          <GlassPill variant="primary" className="!px-6 !py-3" onClick={() => setShowNewProjectForm(true)}>
+          <GlassyPill variant="primary" className="!px-6 !py-3" onClick={() => setShowNewProjectForm(true)}>
             <Plus size={16} />
             <span className="text-[10px] font-black uppercase tracking-widest">Spawn Project</span>
-          </GlassPill>
+          </GlassyPill>
         </div>
 
         {/* New Project Form Modal */}
@@ -349,13 +349,13 @@ export default function ProjectsView({ api }) {
               </div>
 
               <div className="p-8 bg-white/[0.01] border-t border-white/5 flex gap-3">
-                <GlassPill className="flex-1 !py-4" onClick={() => setShowNewProjectForm(false)}>
+                <GlassyPill className="flex-1 !py-4" onClick={() => setShowNewProjectForm(false)}>
                   <span className="text-[10px] font-black uppercase tracking-widest">Abort Initialization</span>
-                </GlassPill>
-                <GlassPill variant="primary" className="flex-2 !py-4" onClick={handleCreateProject}>
+                </GlassyPill>
+                <GlassyPill variant="primary" className="flex-2 !py-4" onClick={handleCreateProject}>
                   <Save size={16} />
                   <span className="text-[10px] font-black uppercase tracking-widest">Deploy Matrix</span>
-                </GlassPill>
+                </GlassyPill>
               </div>
             </WidgetCard>
           </div>
@@ -566,9 +566,9 @@ export default function ProjectsView({ api }) {
                       autoFocus
                       onKeyPress={e => e.key === 'Enter' && handleAddTask()}
                     />
-                    <GlassPill variant="primary" className="!px-4" onClick={handleAddTask}>
+                    <GlassyPill variant="primary" className="!px-4" onClick={handleAddTask}>
                       <Plus size={16} />
-                    </GlassPill>
+                    </GlassyPill>
                     <button className="text-gray-500 hover:text-white px-2" onClick={() => { setShowTaskForm(false); setNewTask(''); }}>
                       <X size={16} />
                     </button>
@@ -629,7 +629,7 @@ export default function ProjectsView({ api }) {
                     />
                     <div className="flex gap-3 justify-end">
                       <button className="px-6 py-2 text-[10px] font-black text-gray-500 hover:text-white uppercase tracking-widest" onClick={() => { setShowNoteForm(false); setNewNote(''); }}>Abort</button>
-                      <GlassPill variant="primary" className="!px-8 !py-2" onClick={handleAddNote}>Save Logic</GlassPill>
+                      <GlassyPill variant="primary" className="!px-8 !py-2" onClick={handleAddNote}>Save Logic</GlassyPill>
                     </div>
                   </div>
                 ) : (

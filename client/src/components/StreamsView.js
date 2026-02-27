@@ -1,7 +1,7 @@
 import React from 'react';
 import { Radio, CalendarDays, Activity, Plus, Edit2, CheckCircle, XCircle, Users, MessageSquare } from 'lucide-react';
 import { WidgetCard } from './ui/WidgetCard';
-import { GlassPill } from './ui/GlassPill';
+import { GlassyPill } from './ui/GlassPill';
 
 export default function StreamsView({ streams = [], setActiveModal, api, triggerSFX }) {
     const plannedStreams = streams.filter(s => s.status === 'planned');
@@ -21,9 +21,9 @@ export default function StreamsView({ streams = [], setActiveModal, api, trigger
                         <p className="text-[10px] text-gray-500 font-bold uppercase tracking-widest mt-1">Live Transmission Management</p>
                     </div>
                 </div>
-                <GlassPill variant="primary" onClick={() => setActiveModal('newStream')}>
+                <GlassyPill variant="primary" onClick={() => setActiveModal('newStream')}>
                     <Plus className="w-4 h-4" /> Schedule Stream
-                </GlassPill>
+                </GlassyPill>
             </div>
 
             {/* STATS ROW */}
@@ -80,8 +80,8 @@ export default function StreamsView({ streams = [], setActiveModal, api, trigger
                                         <div className="flex items-center gap-3 mb-2">
                                             <h3 className="text-xl font-bold text-white font-premium">{stream.title}</h3>
                                             <div className={`px-2.5 py-1 rounded-full text-[9px] font-black uppercase tracking-widest border ${stream.status === 'completed'
-                                                    ? 'bg-green-500/10 text-green-400 border-green-500/30'
-                                                    : 'bg-cyan-500/10 text-cyan-400 border-cyan-500/30'
+                                                ? 'bg-green-500/10 text-green-400 border-green-500/30'
+                                                : 'bg-cyan-500/10 text-cyan-400 border-cyan-500/30'
                                                 }`}>
                                                 {stream.status}
                                             </div>
@@ -104,28 +104,28 @@ export default function StreamsView({ streams = [], setActiveModal, api, trigger
 
                                     {/* Actions Section */}
                                     <div className="flex flex-row md:flex-col gap-2 flex-shrink-0">
-                                        <GlassPill
+                                        <GlassyPill
                                             className="!py-2 !px-4"
                                             onClick={() => { document.getElementById('editStreamId').value = stream.id; setActiveModal('editStream'); }}
                                         >
                                             <Edit2 className="w-3 h-3" /> Edit
-                                        </GlassPill>
+                                        </GlassyPill>
 
                                         {stream.status === 'planned' && (
-                                            <GlassPill
+                                            <GlassyPill
                                                 className="!py-2 !px-4 hover:!bg-green-500/20 hover:!border-green-500/50 hover:!text-green-400"
                                                 onClick={() => { api.update('streams', stream.id, { status: 'completed' }); if (triggerSFX) triggerSFX('完了'); }}
                                             >
                                                 <CheckCircle className="w-3 h-3" /> Complete
-                                            </GlassPill>
+                                            </GlassyPill>
                                         )}
 
-                                        <GlassPill
+                                        <GlassyPill
                                             className="!py-2 !px-4 hover:!bg-red-500/20 hover:!border-red-500/50 hover:!text-red-400"
                                             onClick={() => { api.delete('streams', stream.id); if (triggerSFX) triggerSFX('削除'); }}
                                         >
                                             <XCircle className="w-3 h-3" /> Cancel
-                                        </GlassPill>
+                                        </GlassyPill>
                                     </div>
 
                                 </div>
