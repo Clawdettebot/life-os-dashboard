@@ -5,7 +5,7 @@ import {
 } from 'lucide-react';
 import AnimatedIcon from './AnimatedIcon';
 import { WidgetCard } from './ui/WidgetCard';
-import { GlassyPill } from './ui/GlassPill';
+import { GlassyPill } from './ui/GlassyPill';
 
 const statusConfig = {
   draft: { color: '#f59e0b', label: 'Draft', glass: 'bg-amber-500/10 border-amber-500/20 text-amber-400' },

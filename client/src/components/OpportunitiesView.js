@@ -4,7 +4,7 @@ import {
   Clock, Check, X, Bell, Trash2, Mail, Info
 } from 'lucide-react';
 import { WidgetCard } from './ui/WidgetCard';
-import { GlassyPill } from './ui/GlassPill';
+import { GlassyPill } from './ui/GlassyPill';
 import AnimatedIcon from './AnimatedIcon';
 
 const TYPE_CONFIG = {
@@ -301,16 +301,16 @@ export default function OpportunitiesView({ api }) {
                     {opp.status === 'pending' ? (
                       <div className="flex gap-2 mt-6 pt-6 border-t border-white/5">
                         {['refund', 'payment_received', 'bonus'].includes(opp.type) && (
-                          <GlassPill variant="primary" className="flex-1 !py-2.5" onClick={() => handleAction(opp.id, 'claim')}>
+                          <GlassyPill variant="primary" className="flex-1 !py-2.5" onClick={() => handleAction(opp.id, 'claim')}>
                             <Check size={14} /> <span className="uppercase tracking-widest text-[9px] font-black">Secure</span>
-                          </GlassPill>
+                          </GlassyPill>
                         )}
-                        <GlassPill className="flex-1 !py-2.5" onClick={() => setShowReminderModal(opp.id)}>
+                        <GlassyPill className="flex-1 !py-2.5" onClick={() => setShowReminderModal(opp.id)}>
                           <Clock size={14} /> <span className="uppercase tracking-widest text-[9px] font-black">Defer</span>
-                        </GlassPill>
-                        <GlassPill className="!px-3 !py-2.5 hover:!bg-red-500/10 hover:!text-red-500 hover:!border-red-500/30" onClick={() => handleAction(opp.id, 'dismiss')}>
+                        </GlassyPill>
+                        <GlassyPill className="!px-3 !py-2.5 hover:!bg-red-500/10 hover:!text-red-500 hover:!border-red-500/30" onClick={() => handleAction(opp.id, 'dismiss')}>
                           <Trash2 size={14} />
-                        </GlassPill>
+                        </GlassyPill>
                       </div>
                     ) : (
                       <div className="mt-8 flex items-center justify-center gap-2 py-2 border border-white/5 bg-white/[0.01] rounded-xl">
@@ -345,11 +345,11 @@ export default function OpportunitiesView({ api }) {
                 />
               </div>
               <div className="flex gap-4 mt-8">
-                <GlassPill className="flex-1 !py-4" onClick={() => setShowReminderModal(null)}>Abort</GlassPill>
-                <GlassPill variant="primary" className="flex-1 !py-4" onClick={() => {
+                <GlassyPill className="flex-1 !py-4" onClick={() => setShowReminderModal(null)}>Abort</GlassyPill>
+                <GlassyPill variant="primary" className="flex-1 !py-4" onClick={() => {
                   const date = document.getElementById('reminder-input').value;
                   if (date) handleSetReminder(showReminderModal, date);
-                }}>Confirm</GlassPill>
+                }}>Confirm</GlassyPill>
               </div>
             </div>
           </WidgetCard>

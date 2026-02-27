@@ -4,7 +4,7 @@ import {
   Edit2, Trash2, GripVertical, CheckCircle
 } from 'lucide-react';
 import { WidgetCard } from './ui/WidgetCard';
-import { GlassyPill } from './ui/GlassPill';
+import { GlassyPill } from './ui/GlassyPill';
 
 const columns = [
   { id: 'backlog', label: 'Backlog', color: '#94a3b8', glowClass: 'shadow-[0_0_15px_rgba(148,163,184,0.3)]', bgClass: 'bg-slate-400' },

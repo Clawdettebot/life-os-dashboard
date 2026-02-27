@@ -1,7 +1,7 @@
 import React from 'react';
 import { Zap, BarChart3, Radio, FileText, CheckCircle, Activity, Plus } from 'lucide-react';
 import { WidgetCard } from './ui/WidgetCard';
-import { GlassyPill } from './ui/GlassPill';
+import { GlassyPill } from './ui/GlassyPill';
 import GoogleCalendarWidget from './GoogleCalendarWidget';
 
 export default function DashboardView({
@@ -105,7 +105,7 @@ export default function DashboardView({
                         <Radio className="w-5 h-5 text-cyan-400" />
                         <h3 className="text-lg font-bold text-white font-premium tracking-tight">Upcoming Streams</h3>
                     </div>
-                    <GlassPill onClick={() => setActivePage('streams')} className="!py-1.5 !px-4 hover:!bg-cyan-500/20 hover:!text-cyan-400">View All</GlassPill>
+                    <GlassyPill onClick={() => setActivePage('streams')} className="!py-1.5 !px-4 hover:!bg-cyan-500/20 hover:!text-cyan-400">View All</GlassyPill>
                 </div>
 
                 <div className="flex gap-4 overflow-x-auto glass-scroll pb-2 relative z-10 snap-x">

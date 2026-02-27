@@ -1,7 +1,7 @@
 import React from 'react';
 import { Radio, CalendarDays, Activity, Plus, Edit2, CheckCircle, XCircle, Users, MessageSquare } from 'lucide-react';
 import { WidgetCard } from './ui/WidgetCard';
-import { GlassyPill } from './ui/GlassPill';
+import { GlassyPill } from './ui/GlassyPill';
 
 export default function StreamsView({ streams = [], setActiveModal, api, triggerSFX }) {
     const plannedStreams = streams.filter(s => s.status === 'planned');

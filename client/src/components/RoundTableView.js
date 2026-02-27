@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
+import RoundTableBackground from './RoundTableBackground';
 import { Crown, Clock, Shield, Activity, Command, Cpu, X, Bot } from 'lucide-react';
 import { WidgetCard } from './ui/WidgetCard';
-import { GlassyPill } from './ui/GlassPill';
+import { GlassyPill } from './ui/GlassyPill';
 import AnimatedIcon from './AnimatedIcon';
 
 // Agent avatars from assets/avatars
@@ -141,7 +142,11 @@ export default function RoundTableView() {
   };
 
   return (
-    <div className="animate-in-fade-slide w-full max-w-[1400px] mx-auto pb-24">
+    <>
+      <div className="fixed inset-0 -z-10">
+        <RoundTableBackground />
+      </div>
+      <div className="animate-in-fade-slide w-full max-w-[1400px] mx-auto pb-24 relative z-10">
 
       {/* EPIC HEADER */}
       <div className="flex flex-col items-center justify-center mb-16 relative mt-8">
@@ -237,9 +242,9 @@ export default function RoundTableView() {
             <h4 className="text-sm font-bold text-white mb-2 font-premium tracking-tight">{soldier.name}</h4>
             <p className="text-[11px] text-gray-400 mb-6 flex-1 px-2">{soldier.task}</p>
 
-            <GlassPill className="w-full !py-2.5 !text-xs bg-white/[0.03] border-white/10 group-hover:!bg-cyan-500/20 group-hover:!text-cyan-400 group-hover:!border-cyan-500/50 transition-colors duration-300">
+            <GlassyPill className="w-full !py-2.5 !text-xs bg-white/[0.03] border-white/10 group-hover:!bg-cyan-500/20 group-hover:!text-cyan-400 group-hover:!border-cyan-500/50 transition-colors duration-300">
               Deploy Unit
-            </GlassPill>
+            </GlassyPill>
           </WidgetCard>
         ))}
       </div>
@@ -325,6 +330,7 @@ export default function RoundTableView() {
         )
       }
 
-    </div >
+    </div>
+    </>
   );
 }

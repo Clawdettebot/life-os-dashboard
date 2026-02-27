@@ -5,7 +5,7 @@ import {
   ChevronDown, X, Save, ArchiveRestore, AlertCircle,
   Clock, Flag, MoreVertical
 } from 'lucide-react';
-import { GlassyPill } from './ui/GlassPill';
+import { GlassyPill } from './ui/GlassyPill';
 import { WidgetCard } from './ui/WidgetCard';
 
 const categoryColors = {

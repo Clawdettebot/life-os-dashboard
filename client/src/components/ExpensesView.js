@@ -4,7 +4,7 @@ import {
   DollarSign, Calendar, Repeat, Tag, AlertCircle, Check, X
 } from 'lucide-react';
 import { WidgetCard } from './ui/WidgetCard';
-import { GlassyPill } from './ui/GlassPill';
+import { GlassyPill } from './ui/GlassyPill';
 import AnimatedIcon from './AnimatedIcon';
 
 const CATEGORY_COLORS = {
@@ -119,7 +119,7 @@ export default function ExpensesView({ finances = [], api }) {
           <h1 className="text-3xl font-black text-white font-premium tracking-tight mb-1">Fiscal Intelligence</h1>
           <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">Email-detected transaction analysis</p>
         </div>
-        <GlassPill
+        <GlassyPill
           variant={scanning ? 'primary' : 'default'}
           className="!px-6 !py-3"
           onClick={handleScan}
@@ -127,7 +127,7 @@ export default function ExpensesView({ finances = [], api }) {
         >
           <RefreshCw size={16} className={scanning ? 'animate-spin' : ''} />
           <span className="uppercase tracking-widest text-[10px] font-bold">{scanning ? 'Analyzing...' : 'Scan Matrix'}</span>
-        </GlassPill>
+        </GlassyPill>
       </div>
 
       {/* Stats Summary */}
@@ -249,7 +249,7 @@ export default function ExpensesView({ finances = [], api }) {
                   <Mail size={32} className="text-gray-700" />
                 </div>
                 <p className="text-xs font-bold text-gray-600 uppercase tracking-widest">No transaction signals detected</p>
-                <GlassPill className="mt-6" onClick={handleScan}>Re-initialize Scan</GlassPill>
+                <GlassyPill className="mt-6" onClick={handleScan}>Re-initialize Scan</GlassyPill>
               </div>
             ) : (
               <table className="w-full text-left border-collapse">

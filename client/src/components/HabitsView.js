@@ -7,7 +7,7 @@ import {
   PersonStanding, Bike, Apple, X
 } from 'lucide-react';
 import { WidgetCard } from './ui/WidgetCard';
-import { GlassyPill } from './ui/GlassPill';
+import { GlassyPill } from './ui/GlassyPill';
 import AnimatedIcon from './AnimatedIcon';
 
 const habitIcons = {
@@ -225,7 +225,7 @@ export default function HabitsView({ habits = [], api }) {
                 </div>
 
                 {/* Action */}
-                <GlassPill
+                <GlassyPill
                   variant={isAnimating ? 'primary' : 'default'}
                   className="w-full !py-3 group/btn"
                   onClick={() => handleCheckIn(habit)}
@@ -241,7 +241,7 @@ export default function HabitsView({ habits = [], api }) {
                       <span className="uppercase tracking-[0.2em] text-[10px]">Execute Protocol</span>
                     </div>
                   )}
-                </GlassPill>
+                </GlassyPill>
               </div>
             </WidgetCard>
           );
@@ -322,8 +322,8 @@ export default function HabitsView({ habits = [], api }) {
               </div>
 
               <div className="flex gap-4 mt-12">
-                <GlassPill className="flex-1 !py-4" onClick={() => setShowAddForm(false)}>Abort</GlassPill>
-                <GlassPill variant="primary" className="flex-1 !py-4" onClick={handleAddHabit}>Initiate</GlassPill>
+                <GlassyPill className="flex-1 !py-4" onClick={() => setShowAddForm(false)}>Abort</GlassyPill>
+                <GlassyPill variant="primary" className="flex-1 !py-4" onClick={handleAddHabit}>Initiate</GlassyPill>
               </div>
             </div>
           </WidgetCard>

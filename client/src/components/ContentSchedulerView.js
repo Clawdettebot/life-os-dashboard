@@ -20,7 +20,7 @@ import {
 } from 'lucide-react';
 
 import { WidgetCard } from './ui/WidgetCard';
-import { GlassyPill } from './ui/GlassPill';
+import { GlassyPill } from './ui/GlassyPill';
 
 // ==========================================
 // POST BRIDGE API (Proxied through server to avoid CORS)

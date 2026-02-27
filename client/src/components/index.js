@@ -8,3 +8,4 @@ export { default as ExpensesView } from './ExpensesView';
 export { default as OpportunitiesView } from './OpportunitiesView';
 export { default as NotesView } from './NotesView';
 export { default as LanyardLogin } from './LanyardLogin';
+export { default as RoundTableBackground } from './RoundTableBackground';

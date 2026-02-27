@@ -5,7 +5,7 @@ import {
   ExternalLink, Cloud, HardDrive, AlertCircle, Info, MapPin
 } from 'lucide-react';
 import { WidgetCard } from './ui/WidgetCard';
-import { GlassyPill } from './ui/GlassPill';
+import { GlassyPill } from './ui/GlassyPill';
 import AnimatedIcon from './AnimatedIcon';
 
 const eventTypeColors = {
@@ -271,12 +271,12 @@ export default function CalendarView({ events = [], api, googleConnected = false
               >
                 <ChevronLeft size={16} />
               </button>
-              <GlassPill
+              <GlassyPill
                 className="!text-[10px] !px-3 font-black uppercase tracking-widest h-8 flex items-center"
                 onClick={goToToday}
               >
                 Temporal Present
-              </GlassPill>
+              </GlassyPill>
               <button
                 className="w-8 h-8 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-gray-400 hover:text-white hover:bg-white/10 transition-all"
                 onClick={() => navigateDate(1)}
@@ -318,7 +318,7 @@ export default function CalendarView({ events = [], api, googleConnected = false
                 </div>
               </div>
 
-              <GlassPill
+              <GlassyPill
                 variant={syncStatus === 'syncing' ? 'primary' : 'default'}
                 onClick={syncAllToGoogle}
                 disabled={syncStatus === 'syncing'}
@@ -330,7 +330,7 @@ export default function CalendarView({ events = [], api, googleConnected = false
                     syncStatus === 'success' ? 'Synchronized' :
                       syncStatus === 'error' ? 'Sync Failed' : 'Pulse Sync'}
                 </span>
-              </GlassPill>
+              </GlassyPill>
             </>
           )}
 
@@ -375,10 +375,10 @@ export default function CalendarView({ events = [], api, googleConnected = false
               <span className="text-[10px] font-bold text-amber-500/80 uppercase tracking-widest animate-pulse">Scanning Frequencies...</span>
             </div>
           )}
-          <GlassPill variant="primary" className="!px-4 !py-1.5" onClick={() => { setSelectedDate(new Date()); setShowAddModal(true); }}>
+          <GlassyPill variant="primary" className="!px-4 !py-1.5" onClick={() => { setSelectedDate(new Date()); setShowAddModal(true); }}>
             <Plus size={14} />
             <span className="text-[9px] font-black uppercase tracking-widest">Add Event</span>
-          </GlassPill>
+          </GlassyPill>
         </div>
       </WidgetCard>
 
@@ -542,9 +542,9 @@ export default function CalendarView({ events = [], api, googleConnected = false
                   {currentDate.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}
                 </p>
               </div>
-              <GlassPill variant="primary" className="!px-6 !py-3" onClick={() => { setSelectedDate(currentDate); setShowAddModal(true); }}>
+              <GlassyPill variant="primary" className="!px-6 !py-3" onClick={() => { setSelectedDate(currentDate); setShowAddModal(true); }}>
                 <Plus size={16} /> <span className="uppercase tracking-widest text-[10px] font-black">Initialize Entry</span>
-              </GlassPill>
+              </GlassyPill>
             </div>
 
             <div className="p-8 space-y-4">
@@ -602,17 +602,17 @@ export default function CalendarView({ events = [], api, googleConnected = false
 
                       <div className="flex flex-row md:flex-col justify-end gap-2 shrink-0">
                         {event.htmlLink && (
-                          <GlassPill
+                          <GlassyPill
                             className="!px-3 !py-1.5"
                             onClick={(e) => { e.stopPropagation(); window.open(event.htmlLink, '_blank'); }}
                           >
                             <ExternalLink size={14} />
-                          </GlassPill>
+                          </GlassyPill>
                         )}
                         {!isGoogle && (
-                          <GlassPill className="!px-3 !py-1.5" onClick={(e) => { e.stopPropagation(); setEditingEvent(event); }}>
+                          <GlassyPill className="!px-3 !py-1.5" onClick={(e) => { e.stopPropagation(); setEditingEvent(event); }}>
                             <Edit2 size={14} />
-                          </GlassPill>
+                          </GlassyPill>
                         )}
                       </div>
                     </div>
@@ -733,13 +733,13 @@ export default function CalendarView({ events = [], api, googleConnected = false
             </div>
 
             <div className="p-8 bg-white/[0.01] border-t border-white/5 flex gap-3">
-              <GlassPill className="flex-1 !py-4" onClick={() => setShowAddModal(false)}>
+              <GlassyPill className="flex-1 !py-4" onClick={() => setShowAddModal(false)}>
                 <span className="text-[10px] font-black uppercase tracking-widest">Abort Process</span>
-              </GlassPill>
-              <GlassPill variant="primary" className="flex-2 !py-4 !px-10" onClick={handleCreateEvent}>
+              </GlassyPill>
+              <GlassyPill variant="primary" className="flex-2 !py-4 !px-10" onClick={handleCreateEvent}>
                 <Plus size={16} />
                 <span className="text-[10px] font-black uppercase tracking-widest">Commit to Matrix</span>
-              </GlassPill>
+              </GlassyPill>
             </div>
           </WidgetCard>
         </div>
@@ -833,14 +833,14 @@ export default function CalendarView({ events = [], api, googleConnected = false
               )}
 
               <div className="flex gap-3 flex-[2]">
-                <GlassPill className="flex-1 !py-4" onClick={() => setEditingEvent(null)}>
+                <GlassyPill className="flex-1 !py-4" onClick={() => setEditingEvent(null)}>
                   <span className="text-[10px] font-black uppercase tracking-widest">Close</span>
-                </GlassPill>
+                </GlassyPill>
                 {editingEvent.source !== 'google' && (
-                  <GlassPill variant="primary" className="flex-1 !py-4" onClick={handleUpdateEvent}>
+                  <GlassyPill variant="primary" className="flex-1 !py-4" onClick={handleUpdateEvent}>
                     <Check size={16} />
                     <span className="text-[10px] font-black uppercase tracking-widest">Update State</span>
-                  </GlassPill>
+                  </GlassyPill>
                 )}
               </div>
             </div>

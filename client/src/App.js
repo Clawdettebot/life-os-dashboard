@@ -23,6 +23,7 @@ import ProjectsView from './components/ProjectsView';
 import ContactsView from './components/ContactsView';
 import RoundTableView from './components/RoundTableView';
 import StreamsView from './components/StreamsView';
+import LanyardLogin from './components/LanyardLogin';
 import DashboardView from './components/DashboardView';
 
 // ── CONSTANTS & CONFIG ──
@@ -51,6 +52,7 @@ function App() {
   const [status, setStatus] = useState('Offline');
   const [activePage, setActivePage] = useState('dashboard');
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [isAuthenticated, setIsAuthenticated] = useState(true); // Set to true for now, can toggle
   const [activeModal, setActiveModal] = useState(null);
   const [theme, setTheme] = useState(localStorage.getItem('lifeos-theme') || 'light');
 
@@ -267,6 +269,7 @@ function App() {
       setLogoAnimated(prev => !prev);
     }, 60000);
 
+
     // Wallpaper auto-rotation: change every 5 minutes
     const wallpaperInterval = setInterval(() => {
       setCurrentWallpaper(prev => (prev + 1) % wallpapers.length);
@@ -366,6 +369,10 @@ function App() {
     }
   };
 
+  if (!isAuthenticated) {
+    return <LanyardLogin onLogin={() => setIsAuthenticated(true)} agents={[]} />;
+  }
+
   return (
     <div className={`app-container ${sidebarOpen ? 'sidebar-open' : ''} ${focusMode ? 'focus-active' : ''}`}>
       {/* BASE WALLPAPER LAYER */}
@@ -411,6 +418,7 @@ function App() {
               {['clawdette', 'knowledge-knaight'].map(agentId => {
                 const agent = moodsData.agents[agentId];
                 const mood = agent ? moodsData.moods[agent.currentMood] : null;
+
                 return (
                   <div
                     key={agentId}
