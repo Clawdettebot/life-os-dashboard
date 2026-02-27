@@ -362,6 +362,8 @@ app.post('/api/subagents/kill', (req, res) => {
 // Generic table endpoint - Supabase-first with JSON fallback
 // Table mapping: finances→lifeos_transactions, habits→lifeos_habits, notes→lifeos_notes, etc.
 const SUPABASE_TABLE_MAP = {
+  tasks: 'lifeos_tasks',
+  projects: 'lifeos_projects',
   finances: 'lifeos_transactions',
   habits: 'lifeos_habits',
   notes: 'lifeos_notes',
