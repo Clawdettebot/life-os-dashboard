@@ -7,7 +7,7 @@ const path = require('path');
 const fs = require('fs').promises;
 const axios = require('axios');
 const multer = require('multer');
-const lifeos = require('./lifeos-supabase.js');
+const { lifeos } = require('./lifeos-supabase.js');
 require('dotenv').config();
 
 // Configure multer for file uploads
