@@ -3,9 +3,10 @@
 
 echo "💃 Setting up Labrina Discord Bot..."
 
-# Set environment variables
-export LABRINA_DISCORD_TOKEN="MTQ3NjQ3MDIyNTk0Mjc0NTExOQ.Gdbc5T.rnpezC6t2_2d3kMWLi6czkYUpOcn39qDRJZaT4"
-export LABRINA_CHANNEL_ID="1476470225942745119"
+# Load environment from .env
+set -a
+source .env
+set +a
 
 # Check if .env exists
 if [ ! -f .env ]; then

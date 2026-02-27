@@ -11,7 +11,7 @@ require('dotenv').config({ path: path.join(__dirname, '.env.knaight') });
 
 // Config
 const CONFIG = {
-  token: process.env.LABRINA_TOKEN || 'MTQ3NjQ3MDIyNTk0Mjc0NTExOQ.Gdbc5T.rnpezC6t2_2d3kMWLi6czkYUpOcn39qDRJZaT4',
+  token: process.env.LABRINA_TOKEN,
   channelId: process.env.LABRINA_CHANNEL_ID || '1476071526909345884', // Updated to correct channel
   apiUrl: process.env.API_URL || 'http://localhost:3000',
   permissions: '536988672'
