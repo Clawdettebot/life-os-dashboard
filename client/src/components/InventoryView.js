@@ -149,6 +149,17 @@ export default function InventoryView({ inventory = [], api }) {
               `}
             >
               {isSelected && <div className="absolute top-0 left-0 right-0 h-1 bg-amber-500/50 glow-amber-sm"></div>}
+              
+              // Product image
+              {(item.image || item.image_url) && (
+                <div className="w-full h-32 mb-4 rounded-xl overflow-hidden bg-black/40 flex items-center justify-center">
+                  <img 
+                    src={item.image || item.image_url} 
+                    alt={item.name}
+                    className="w-full h-full object-contain p-2"
+                  />
+                </div>
+              )}
 
               <div className="flex justify-between items-start mb-6">
                 <div className="space-y-1">

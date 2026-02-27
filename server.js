@@ -1118,7 +1118,7 @@ app.get('/api/inventory/all', async (req, res) => {
 
     const shopFormatted = (shopItems || []).map(item => ({
       id: item.id, name: item.name, sku: item.stripe_product_id, qty: item.inventory_count,
-      price: item.price, category: item.category, type: 'shop'
+      price: item.price, category: item.category, image_url: item.image_url, type: 'shop'
     }));
 
     const giveawayFormatted = giveawayItems.map(item => ({
