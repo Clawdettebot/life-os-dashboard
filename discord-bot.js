@@ -385,31 +385,94 @@ class KnowledgeKnaightBot {
   }
 
   async processURLs(message) {
+    // Load robust modules
+    const { withRetry, RateLimiter, CacheManager, DuplicateDetector } = require('./knaight-robust.js');
+    const { scrapeURL } = require('./url-scraper.js');
+    
     const urlRegex = /(https?:\/\/[^\s]+)/g;
     const urls = message.content.match(urlRegex);
 
     if (!urls || urls.length === 0) return;
 
+    // Initialize robust helpers (lazy load)
+    if (!this.rateLimiter) {
+      this.rateLimiter = new RateLimiter(20);
+      this.cache = new CacheManager('./data/knaight-cache.json', 24 * 60 * 60 * 1000);
+      this.dedup = new DuplicateDetector('./data/knaight-processed.json');
+      await this.cache.load();
+      await this.dedup.load();
+    }
+
     // React to show we're processing
     await message.react('🧠');
 
     let contentToSend = message.content;
+    let processedCount = 0;
+    let skippedCount = 0;
+    let scrapedData = [];
 
-    // Twitter/X Expansion
-    if (process.env.TWITTER_BEARER_TOKEN) {
-      for (const url of urls) {
-        if (url.includes('twitter.com') || url.includes('x.com')) {
-          const tweetId = url.split('/').pop().split('?')[0];
-          const tweetData = await this.fetchTweet(tweetId);
-          if (tweetData) {
-            contentToSend += `\n\n🐦 **Tweet Content:**\n${tweetData.text}`;
-            if (tweetData.media && tweetData.media.length > 0) {
-              contentToSend += `\n(Media: ${tweetData.media.join(', ')})`;
-            }
-          }
+    for (const url of urls) {
+      // Check for duplicates
+      if (this.dedup.isProcessed(url)) {
+        console.log(`⏭️ Skipping duplicate: ${url.substring(0, 50)}...`);
+        skippedCount++;
+        continue;
+      }
+      
+      // Check cache
+      const cached = this.cache.get(url);
+      if (cached) {
+        console.log(`📦 Using cached: ${url.substring(0, 50)}...`);
+        scrapedData.push(cached);
+        continue;
+      }
+      
+      // Rate limit
+      await this.rateLimiter.waitForSlot();
+
+      // Scrape URL with retry
+      try {
+        const scraped = await withRetry(async () => {
+          return await scrapeURL(url);
+        });
+        
+        if (scraped.success) {
+          console.log(`✅ Scraped: ${scraped.title?.substring(0, 30)}... (${scraped.platform})`);
+          scrapedData.push(scraped);
+          this.cache.set(url, scraped);
+        } else {
+          console.warn(`⚠️ Scraping failed: ${scraped.error}`);
+        }
+      } catch (e) {
+        console.warn(`⚠️ URL processing failed: ${e.message}`);
+      }
+      
+      // Mark as processed
+      this.dedup.markProcessed(url);
+      processedCount++;
+    }
+
+    // Build enhanced content from scraped data
+    if (scrapedData.length > 0) {
+      for (const data of scrapedData) {
+        if (data.title) {
+          contentToSend += `\n\n📄 **${data.title}**`;
+        }
+        if (data.description) {
+          contentToSend += `\n> ${data.description.substring(0, 300)}${data.description.length > 300 ? '...' : ''}`;
+        }
+        if (data.author) {
+          contentToSend += `\n👤 ${data.author}`;
+        }
+        if (data.platform) {
+          contentToSend += `\n📱 ${data.platform}`;
         }
       }
     }
+
+    // Save cache and processed URLs
+    await this.cache.save();
+    await this.dedup.save();
 
     try {
       const response = await axios.post(`${this.config.apiUrl}/api/discord/webhook`, {
@@ -436,6 +499,9 @@ class KnowledgeKnaightBot {
       if (successCount > 0) {
         await message.react('✅');
       }
+      
+      // Log summary
+      console.log(`📊 Processed: ${processedCount} new, ${skippedCount} skipped (duplicates)`);
 
       // Send summary if multiple URLs
       if (results.length > 1) {
