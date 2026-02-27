@@ -1506,6 +1506,7 @@ app.get('/api/giveaway/inventory', async (req, res) => {
 });
 
 // Supabase shop endpoint
+const { createClient } = require('@supabase/supabase-js');
 const { lifeos } = require('./lifeos-supabase');
 
 const supabase = createClient(
