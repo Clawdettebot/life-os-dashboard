@@ -48,8 +48,8 @@ ${chatHistory}
 User: ${prompt}
 Labrina:`;
 
-    // Using stable 'gemini-1.5-flash' - no 'latest', no 'exp'
-    const response = await axios.post(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`, {
+    // Using stable 'gemini-2.0-flash-exp' - latest experimental
+    const response = await axios.post(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=${apiKey}`, {
       contents: [{
         parts: [{ text: systemPrompt + "\n" + prompt }]
       }],
