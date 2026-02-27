@@ -774,108 +774,86 @@ app.get('/api/assets/library', async (req, res) => {
   }
 });
 
-// Analytics and insights
+// Analytics and insights - Supabase counts with filesystem fallback
 app.get('/api/analytics', async (req, res) => {
   try {
-    const stats = {
-      totalFiles: 0,
-      totalSize: 0,
-      projectCount: 0,
-      memoryEntries: 0,
-      lastActivity: null,
-      taskCount: (await jsonDb.read('tasks')).length,
-      financeCount: (await jsonDb.read('finances')).length
-    };
+    let taskCount = 0, financeCount = 0;
 
-    const scanWorkspace = async (dir) => {
-      const items = await fs.readdir(dir, { withFileTypes: true });
+    // Get counts from Supabase
+    if (lifeos) {
+      try {
+        const [{ count: tc }, { count: fc }] = await Promise.all([
+          lifeos.from('lifeos_tasks').select('*', { count: 'exact', head: true }),
+          lifeos.from('lifeos_transactions').select('*', { count: 'exact', head: true })
+        ]);
+        taskCount = tc || 0;
+        financeCount = fc || 0;
+      } catch (e) {
+        taskCount = (await jsonDb.read('tasks')).length;
+        financeCount = (await jsonDb.read('finances')).length;
+      }
+    }
 
-      for (const item of items) {
-        if (item.isDirectory() && !item.name.startsWith('.') && item.name !== 'node_modules' && item.name !== 'dashboard') {
-          await scanWorkspace(path.join(dir, item.name));
-        } else if (item.isFile() && item.name.endsWith('.md')) {
-          const filePath = path.join(dir, item.name);
-          const stat = await fs.stat(filePath);
+    const stats = { totalFiles: 0, totalSize: 0, projectCount: 0, memoryEntries: 0, lastActivity: null, taskCount, financeCount };
 
-          stats.totalFiles++;
-          stats.totalSize += stat.size;
-
-          if (filePath.includes('projects/')) stats.projectCount++;
-          if (filePath.includes('MEMORY.md')) {
-            const content = await fs.readFile(filePath, 'utf8');
-            stats.memoryEntries = content.split('\n').filter(line => line.trim()).length;
-          }
-
-          if (!stats.lastActivity || stat.mtime > stats.lastActivity) {
-            stats.lastActivity = stat.mtime;
+    // Scan workspace if it exists
+    try {
+      const scanWorkspace = async (dir) => {
+        const items = await fs.readdir(dir, { withFileTypes: true });
+        for (const item of items) {
+          if (item.isDirectory() && !item.name.startsWith('.') && item.name !== 'node_modules' && item.name !== 'dashboard') {
+            await scanWorkspace(path.join(dir, item.name));
+          } else if (item.isFile() && item.name.endsWith('.md')) {
+            const filePath = path.join(dir, item.name);
+            const stat = await fs.stat(filePath);
+            stats.totalFiles++;
+            stats.totalSize += stat.size;
+            if (filePath.includes('projects/')) stats.projectCount++;
+            if (filePath.includes('MEMORY.md')) {
+              const content = await fs.readFile(filePath, 'utf8');
+              stats.memoryEntries = content.split('\n').filter(line => line.trim()).length;
+            }
+            if (!stats.lastActivity || stat.mtime > stats.lastActivity) stats.lastActivity = stat.mtime;
           }
         }
-      }
-    };
+      };
+      await scanWorkspace(WORKSPACE_DIR);
+    } catch (e) { /* workspace dir may not exist locally */ }
 
-    await scanWorkspace(WORKSPACE_DIR);
     res.json(stats);
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    res.json({ totalFiles: 0, totalSize: 0, projectCount: 0, memoryEntries: 0, lastActivity: null, taskCount: 0, financeCount: 0 });
   }
 });
 
+
 // Content calendar system
 app.get('/api/content/calendar', async (req, res) => {
+  // Try Supabase content schedule first
+  if (lifeos) {
+    try {
+      const { data, error } = await lifeos
+        .from('lifeos_content_schedule')
+        .select('*')
+        .order('scheduled_at', { ascending: true });
+      if (!error) return res.json({ calendar: data || [], source: 'supabase', weeks: [] });
+    } catch (e) { console.log('Content calendar supabase error'); }
+  }
+
+  // Try filesystem fallback (VPS path)
   try {
     const calendarPath = path.join(WORKSPACE_DIR, 'content_calendar_a_few_things.md');
     const content = await fs.readFile(calendarPath, 'utf8');
-
-    // Parse content calendar
-    const calendar = {
-      title: 'A Few Things Release Campaign',
-      releaseDate: 'February 25th, 2025',
-      weeks: []
-    };
-
+    const calendar = { title: 'A Few Things Release Campaign', releaseDate: 'February 25th, 2025', weeks: [] };
     const weekPattern = /## Week (\d+) \(([^)]+)\)/g;
-    const dayPattern = /### February (\d+) \(([^)]+)\)/g;
-
     let weekMatch;
     while ((weekMatch = weekPattern.exec(content)) !== null) {
-      const week = {
-        number: parseInt(weekMatch[1]),
-        dateRange: weekMatch[2],
-        days: []
-      };
-
-      // Find days within this week
-      let dayMatch;
-      while ((dayMatch = dayPattern.exec(content)) !== null) {
-        const dayIndex = content.indexOf(dayMatch[0]);
-        if (dayIndex > weekMatch.index && (weekMatch.index + 1000 > dayIndex)) { // Rough boundary check
-          const day = {
-            date: parseInt(dayMatch[1]),
-            dayOfWeek: dayMatch[2],
-            content: {}
-          };
-
-          // Extract content details
-          const lines = content.substring(dayIndex).split('\n');
-          for (let i = 1; i < lines.length; i++) {
-            const line = lines[i];
-            if (line.startsWith('### ')) break; // Next day
-            if (line.startsWith('- **')) {
-              const [key, value] = line.replace('- **', '').split(':**');
-              day.content[key.trim()] = value ? value.trim() : '';
-            }
-          }
-
-          week.days.push(day);
-        }
-      }
-
-      calendar.weeks.push(week);
+      calendar.weeks.push({ number: parseInt(weekMatch[1]), dateRange: weekMatch[2], days: [] });
     }
-
-    res.json(calendar);
-  } catch (error) {
-    res.status(500).json({ error: error.message });
+    return res.json(calendar);
+  } catch (e) {
+    // File not on this machine — return safe empty
+    res.json({ calendar: [], weeks: [], source: 'empty', message: 'No content calendar file found' });
   }
 });
 
