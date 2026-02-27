@@ -387,6 +387,7 @@ class KnowledgeKnaightBot {
   async processURLs(message) {
     // Load robust modules
     const { withRetry, RateLimiter, CacheManager, DuplicateDetector } = require('./knaight-robust.js');
+    const { scrapeURL } = require('./url-scraper.js');
     
     const urlRegex = /(https?:\/\/[^\s]+)/g;
     const urls = message.content.match(urlRegex);
@@ -408,6 +409,7 @@ class KnowledgeKnaightBot {
     let contentToSend = message.content;
     let processedCount = 0;
     let skippedCount = 0;
+    let scrapedData = [];
 
     for (const url of urls) {
       // Check for duplicates
@@ -421,36 +423,51 @@ class KnowledgeKnaightBot {
       const cached = this.cache.get(url);
       if (cached) {
         console.log(`📦 Using cached: ${url.substring(0, 50)}...`);
-        contentToSend += `\n\n[Cached summary: ${cached.substring(0, 100)}...]`;
+        scrapedData.push(cached);
         continue;
       }
       
       // Rate limit
       await this.rateLimiter.waitForSlot();
 
-      // Twitter/X Expansion with retry
-      if (url.includes('twitter.com') || url.includes('x.com')) {
-        try {
-          const result = await withRetry(async () => {
-            const tweetId = url.split('/').pop().split('?')[0];
-            return await this.fetchTweet(tweetId);
-          });
-          
-          if (result) {
-            contentToSend += `\n\n🐦 **Tweet Content:**\n${result.text}`;
-            if (result.media && result.media.length > 0) {
-              contentToSend += `\n(Media: ${result.media.join(', ')})`;
-            }
-            this.cache.set(url, result.text);
-          }
-        } catch (e) {
-          console.warn('Twitter fetch failed:', e.message);
+      // Scrape URL with retry
+      try {
+        const scraped = await withRetry(async () => {
+          return await scrapeURL(url);
+        });
+        
+        if (scraped.success) {
+          console.log(`✅ Scraped: ${scraped.title?.substring(0, 30)}... (${scraped.platform})`);
+          scrapedData.push(scraped);
+          this.cache.set(url, scraped);
+        } else {
+          console.warn(`⚠️ Scraping failed: ${scraped.error}`);
         }
+      } catch (e) {
+        console.warn(`⚠️ URL processing failed: ${e.message}`);
       }
       
       // Mark as processed
       this.dedup.markProcessed(url);
       processedCount++;
+    }
+
+    // Build enhanced content from scraped data
+    if (scrapedData.length > 0) {
+      for (const data of scrapedData) {
+        if (data.title) {
+          contentToSend += `\n\n📄 **${data.title}**`;
+        }
+        if (data.description) {
+          contentToSend += `\n> ${data.description.substring(0, 300)}${data.description.length > 300 ? '...' : ''}`;
+        }
+        if (data.author) {
+          contentToSend += `\n👤 ${data.author}`;
+        }
+        if (data.platform) {
+          contentToSend += `\n📱 ${data.platform}`;
+        }
+      }
     }
 
     // Save cache and processed URLs
