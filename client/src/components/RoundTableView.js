@@ -142,28 +142,28 @@ export default function RoundTableView() {
   };
 
   return (
-    <div className="relative min-h-screen w-full flex flex-col justify-end">
+    <div className="relative min-h-screen w-full flex flex-col justify-center py-12">
       <div className="fixed inset-0 z-0">
         <RoundTableBackground />
       </div>
 
-      <div className="animate-in-fade-slide w-full max-w-[1200px] mx-auto pb-24 relative z-10 px-6">
+      <div className="animate-in-fade-slide w-full max-w-[1100px] mx-auto relative z-10 px-6">
 
         {/* EPIC HEADER */}
-        <div className="flex flex-col items-center justify-center mb-16 relative mt-8">
-          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[400px] bg-yellow-500/10 rounded-[100%] blur-[120px] pointer-events-none"></div>
+        <div className="flex flex-col items-center justify-center mb-10 relative">
+          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[300px] bg-yellow-500/10 rounded-[100%] blur-[100px] pointer-events-none"></div>
 
-          <div className="w-24 h-24 rounded-full bg-gradient-to-br from-yellow-300 to-orange-600 p-[2px] mb-6 shadow-[0_0_60px_rgba(250,204,21,0.3)] relative z-10 transition-transform hover:scale-105 duration-700">
+          <div className="w-16 h-16 rounded-full bg-gradient-to-br from-yellow-300 to-orange-600 p-[2px] mb-4 shadow-[0_0_40px_rgba(250,204,21,0.2)] relative z-10 transition-transform hover:scale-105 duration-700">
             <div className="w-full h-full bg-[#050508] rounded-full flex items-center justify-center relative overflow-hidden">
               <div className="absolute inset-0 opacity-10" style={{ backgroundImage: `url('data:image/svg+xml;utf8,%3Csvg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg"%3E%3Cfilter id="n"%3E%3CfeTurbulence type="fractalNoise" baseFrequency="0.8" numOctaves="3" stitchTiles="stitch"/%3E%3C/filter%3E%3Crect width="100%25" height="100%25" filter="url(%23n)"/%3E%3C/svg%3E')` }}></div>
-              <Crown className="w-12 h-12 text-yellow-500 drop-shadow-[0_0_15px_rgba(234,179,8,0.5)]" />
+              <Crown className="w-8 h-8 text-yellow-500 drop-shadow-[0_0_10px_rgba(234,179,8,0.5)]" />
             </div>
           </div>
 
-          <h1 className="text-6xl font-black text-transparent bg-clip-text bg-gradient-to-b from-white to-gray-400 font-premium tracking-tighter mb-4 text-center relative z-10 drop-shadow-2xl">
+          <h1 className="text-4xl font-black text-transparent bg-clip-text bg-gradient-to-b from-white to-gray-400 font-premium tracking-tighter mb-2 text-center relative z-10 drop-shadow-2xl">
             THE ROUND TABLE
           </h1>
-          <p className="text-sm font-bold tracking-[0.4em] text-yellow-500/80 uppercase relative z-10 bg-black/40 px-6 py-2 rounded-full border border-yellow-500/20 backdrop-blur-md">
+          <p className="text-[9px] font-bold tracking-[0.4em] text-yellow-500/80 uppercase relative z-10 bg-black/40 px-4 py-1 rounded-full border border-yellow-500/20 backdrop-blur-md">
             Council of Knights
           </p>
         </div>
@@ -179,17 +179,17 @@ export default function RoundTableView() {
               <WidgetCard
                 key={agent.id}
                 onClick={() => !isComingSoon && setSelectedAgent(agent)}
-                className={`min-h-[260px] relative overflow-hidden group ${isComingSoon ? 'opacity-50 grayscale cursor-not-allowed' : 'cursor-pointer hover:-translate-y-2 hover:shadow-[0_40px_80px_rgba(0,0,0,0.6)] hover:border-white/30 transition-all duration-700'}`}
+                className={`min-h-[220px] relative overflow-hidden group ${isComingSoon ? 'opacity-50 grayscale cursor-not-allowed' : 'cursor-pointer hover:-translate-y-1 hover:shadow-[0_20px_40px_rgba(0,0,0,0.5)] hover:border-white/30 transition-all duration-700'}`}
               >
                 {/* Glow Behind the Card inside for aesthetic */}
                 <div className={`absolute -right-20 -top-20 w-80 h-80 rounded-full blur-[80px] bg-gradient-to-bl ${theme.gradient} opacity-5 group-hover:opacity-20 transition-opacity duration-700 pointer-events-none`}></div>
 
                 <div className="p-8 relative z-10 flex flex-col h-full justify-between">
                   <div>
-                    <div className="flex justify-between items-start mb-6">
-                      <AgentAvatar agentId={agent.id} size={84} />
-                      <div className="flex flex-col items-end pt-2">
-                        <span className={`px-3 py-1.5 rounded-full text-[9px] font-black tracking-[0.2em] uppercase border ${isActive ? 'bg-green-500/10 text-green-400 border-green-500/30 shadow-[0_0_15px_rgba(34,197,94,0.15)]' :
+                    <div className="flex justify-between items-start mb-4">
+                      <AgentAvatar agentId={agent.id} size={64} />
+                      <div className="flex flex-col items-end pt-1">
+                        <span className={`px-2 py-1 rounded-full text-[8px] font-black tracking-[0.2em] uppercase border ${isActive ? 'bg-green-500/10 text-green-400 border-green-500/30 shadow-[0_0_10px_rgba(34,197,94,0.15)]' :
                           isComingSoon ? 'bg-slate-500/10 text-slate-400 border-slate-500/30' :
                             'bg-yellow-500/10 text-yellow-400 border-yellow-500/30'
                           }`}>
@@ -198,21 +198,21 @@ export default function RoundTableView() {
                       </div>
                     </div>
 
-                    <h3 className="text-2xl font-bold text-white font-premium tracking-tight mb-1 group-hover:text-transparent group-hover:bg-clip-text group-hover:bg-gradient-to-r group-hover:from-white group-hover:to-gray-400 transition-colors">
+                    <h3 className="text-xl font-bold text-white font-premium tracking-tight mb-0.5 group-hover:text-transparent group-hover:bg-clip-text group-hover:bg-gradient-to-r group-hover:from-white group-hover:to-gray-400 transition-colors">
                       {agent.name}
                     </h3>
-                    <p className={`text-xs font-bold uppercase tracking-[0.2em] bg-clip-text text-transparent bg-gradient-to-r ${theme.gradient} mb-6 filter drop-shadow-[0_0_8px_rgba(255,255,255,0.1)]`}>
+                    <p className={`text-[10px] font-bold uppercase tracking-[0.2em] bg-clip-text text-transparent bg-gradient-to-r ${theme.gradient} mb-4 filter drop-shadow-[0_0_8px_rgba(255,255,255,0.1)]`}>
                       {agent.role}
                     </p>
                   </div>
 
-                  <div className="pt-6 border-t border-white/[0.05] mt-auto">
-                    <div className="flex items-center gap-3 mb-3 text-[11px] font-medium text-gray-300 leading-snug">
-                      <Shield className="w-4 h-4 text-white/40 flex-shrink-0" /> {agent.specialty}
+                  <div className="pt-4 border-t border-white/[0.05] mt-auto">
+                    <div className="flex items-center gap-2 mb-2 text-[10px] font-medium text-gray-300 leading-snug">
+                      <Shield className="w-3.5 h-3.5 text-white/40 flex-shrink-0" /> {agent.specialty}
                     </div>
                     {agent.lastActivity && (
-                      <div className="flex items-center gap-2 text-[9px] font-mono tracking-widest text-gray-500 uppercase mt-4 bg-black/40 inline-flex px-3 py-1.5 rounded-full border border-white/5">
-                        <Activity className="w-3 h-3 text-cyan-500" /> Ping: {formatLastActivity(agent.lastActivity)}
+                      <div className="flex items-center gap-2 text-[8px] font-mono tracking-widest text-gray-500 uppercase mt-3 bg-black/40 inline-flex px-2 py-1 rounded-full border border-white/5">
+                        <Activity className="w-2.5 h-2.5 text-cyan-500" /> Ping: {formatLastActivity(agent.lastActivity)}
                       </div>
                     )}
                   </div>
@@ -223,27 +223,27 @@ export default function RoundTableView() {
         </div>
 
         {/* SHRIMP SOLDIERS DIVISION */}
-        <div className="mt-32 mb-12 flex flex-col items-center relative">
-          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-3xl h-px bg-gradient-to-r from-transparent via-cyan-500/30 to-transparent"></div>
-          <div className="bg-[#020203] px-6 relative z-10 flex flex-col items-center">
-            <h2 className="text-3xl font-bold text-white font-premium tracking-tight mb-2 flex items-center gap-4">
-              <AnimatedIcon Icon={Bot} animation="wiggle" size={36} className="text-cyan-400 filter drop-shadow-[0_0_20px_rgba(6,182,212,0.4)]" /> Shrimp Soldiers
+        <div className="mt-16 mb-8 flex flex-col items-center relative">
+          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-2xl h-px bg-gradient-to-r from-transparent via-cyan-500/30 to-transparent"></div>
+          <div className="bg-[#020203] px-4 relative z-10 flex flex-col items-center">
+            <h2 className="text-xl font-bold text-white font-premium tracking-tight mb-1 flex items-center gap-3">
+              <AnimatedIcon Icon={Bot} animation="wiggle" size={24} className="text-cyan-400 filter drop-shadow-[0_0_15px_rgba(6,182,212,0.4)]" /> Shrimp Soldiers
             </h2>
-            <p className="text-[10px] font-bold tracking-[0.3em] text-cyan-500/80 uppercase">Tactical Swarm Units</p>
+            <p className="text-[8px] font-bold tracking-[0.3em] text-cyan-500/80 uppercase">Tactical Swarm Units</p>
           </div>
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
           {shrimpSoldiers.map(soldier => (
-            <WidgetCard key={soldier.id} className="p-6 flex flex-col items-center text-center group hover:-translate-y-2 hover:shadow-[0_20px_40px_rgba(6,182,212,0.1)] transition-all duration-500 border-white/5 hover:border-cyan-500/30 relative overflow-hidden">
+            <WidgetCard key={soldier.id} className="p-4 flex flex-col items-center text-center group hover:-translate-y-1 hover:shadow-[0_15px_30px_rgba(6,182,212,0.1)] transition-all duration-500 border-white/5 hover:border-cyan-500/30 relative overflow-hidden">
               <div className="absolute inset-0 bg-gradient-to-b from-cyan-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none"></div>
 
-              <AgentAvatar agentId="soldier" size={60} className="mb-5 group-hover:scale-110 transition-transform duration-500 shadow-xl" />
+              <AgentAvatar agentId="soldier" size={48} className="mb-4 group-hover:scale-110 transition-transform duration-500 shadow-xl" />
 
-              <h4 className="text-sm font-bold text-white mb-2 font-premium tracking-tight">{soldier.name}</h4>
-              <p className="text-[11px] text-gray-400 mb-6 flex-1 px-2">{soldier.task}</p>
+              <h4 className="text-xs font-bold text-white mb-1 font-premium tracking-tight">{soldier.name}</h4>
+              <p className="text-[10px] text-gray-400 mb-4 flex-1 px-1">{soldier.task}</p>
 
-              <GlassyPill className="w-full !py-2.5 !text-xs bg-white/[0.03] border-white/10 group-hover:!bg-cyan-500/20 group-hover:!text-cyan-400 group-hover:!border-cyan-500/50 transition-colors duration-300">
+              <GlassyPill className="w-full !py-2 !text-[10px] bg-white/[0.03] border-white/10 group-hover:!bg-cyan-500/20 group-hover:!text-cyan-400 group-hover:!border-cyan-500/50 transition-colors duration-300">
                 Deploy Unit
               </GlassyPill>
             </WidgetCard>
@@ -251,21 +251,21 @@ export default function RoundTableView() {
         </div>
 
         {/* CUSTOM INCUBATOR */}
-        <WidgetCard className="p-2 pl-8 max-w-3xl mx-auto flex flex-col md:flex-row items-center gap-6 border-cyan-500/20 shadow-[0_0_40px_rgba(6,182,212,0.1)] relative group overflow-hidden">
-          <div className="absolute top-0 right-0 w-64 h-full bg-gradient-to-l from-cyan-500/10 to-transparent pointer-events-none group-focus-within:opacity-100 opacity-50 transition-opacity"></div>
+        <WidgetCard className="p-1 pl-6 max-w-xl mx-auto flex flex-col md:flex-row items-center gap-4 border-cyan-500/20 shadow-[0_0_30px_rgba(6,182,212,0.1)] relative group overflow-hidden">
+          <div className="absolute top-0 right-0 w-48 h-full bg-gradient-to-l from-cyan-500/10 to-transparent pointer-events-none group-focus-within:opacity-100 opacity-50 transition-opacity"></div>
 
-          <div className="w-12 h-12 rounded-full bg-cyan-500/10 flex items-center justify-center border border-cyan-500/30 flex-shrink-0 relative z-10 shadow-[0_0_15px_rgba(6,182,212,0.2)]">
-            <Command className="w-5 h-5 text-cyan-400" />
+          <div className="w-10 h-10 rounded-full bg-cyan-500/10 flex items-center justify-center border border-cyan-500/30 flex-shrink-0 relative z-10 shadow-[0_0_10px_rgba(6,182,212,0.2)]">
+            <Command className="w-4 h-4 text-cyan-400" />
           </div>
 
           <input
             type="text"
             placeholder="Designate custom directives for a new Shrimp Soldier..."
-            className="flex-1 bg-transparent border-none py-6 text-sm text-white placeholder:text-gray-500 focus:outline-none transition-colors relative z-10 min-w-0 font-medium"
+            className="flex-1 bg-transparent border-none py-4 text-xs text-white placeholder:text-gray-500 focus:outline-none transition-colors relative z-10 min-w-0 font-medium"
           />
 
-          <div className="pr-2 relative z-10 w-full md:w-auto">
-            <button className="w-full md:w-auto relative overflow-hidden group/btn bg-gradient-to-r from-cyan-500 to-blue-600 text-white font-bold text-[11px] uppercase tracking-widest px-8 py-5 rounded-2xl flex items-center justify-center hover:scale-[1.02] active:scale-[0.98] transition-all shadow-[0_10px_30px_rgba(6,182,212,0.3)]">
+          <div className="pr-1 relative z-10 w-full md:w-auto">
+            <button className="w-full md:w-auto relative overflow-hidden group/btn bg-gradient-to-r from-cyan-500 to-blue-600 text-white font-bold text-[10px] uppercase tracking-widest px-6 py-4 rounded-xl flex items-center justify-center hover:scale-[1.02] active:scale-[0.98] transition-all shadow-[0_8px_20px_rgba(6,182,212,0.2)]">
               <div className="absolute inset-0 bg-white/20 opacity-0 group-hover/btn:opacity-100 transition-opacity"></div>
               Spawn Custom
             </button>
@@ -332,5 +332,6 @@ export default function RoundTableView() {
         }
 
       </div>
-      );
+    </div>
+  );
 }
