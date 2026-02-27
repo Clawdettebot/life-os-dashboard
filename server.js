@@ -516,11 +516,25 @@ app.delete('/api/tables/:table/:id', async (req, res) => {
 
 // Legacy/Hybrid Endpoints
 app.get('/api/tasks', async (req, res) => {
-  // Now serves primarily from JSON, but can still read MD for migration if needed
+  // Try Life OS Supabase first
+  try {
+    const { data: tasks, error } = await lifeos
+      .from('lifeos_tasks')
+      .select('*')
+      .order('created_at', { ascending: false });
+    
+    if (!error && tasks) {
+      const active = tasks.filter(t => t.status !== 'completed');
+      const completed = tasks.filter(t => t.status === 'completed');
+      return res.json({ active, completed, all: tasks, source: 'supabase' });
+    }
+  } catch(e) { console.log('LifeOS tasks error, falling back to JSON'); }
+  
+  // Fallback to JSON
   const tasks = await jsonDb.read('tasks');
   const active = tasks.filter(t => t.status !== 'completed');
   const completed = tasks.filter(t => t.status === 'completed');
-  res.json({ active, completed, all: tasks });
+  res.json({ active, completed, all: tasks, source: 'json' });
 });
 
 // Move task (change status/column)
