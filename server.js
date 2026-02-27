@@ -6,9 +6,22 @@ const { exec } = require('child_process');
 const path = require('path');
 const fs = require('fs').promises;
 const axios = require('axios');
+const multer = require('multer');
 require('dotenv').config();
 
+// Configure multer for file uploads
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 100 * 1024 * 1024 } // 100MB limit
+});
+
 const app = express();
+app.use((req, res, next) => {
+  res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0');
+  res.setHeader('Pragma', 'no-cache');
+  res.setHeader('Expires', '0');
+  next();
+});
 const server = http.createServer(app);
 const io = socketIo(server, {
   cors: {
@@ -306,15 +319,12 @@ app.get('/api/status', (req, res) => {
 app.get('/api/subagents', (req, res) => {
   runOpenClawCommand('openclaw cron list --json', (error, result) => {
     if (error) {
-      // Gracefully handle auth failures - return empty list with warning
-      if (error.message && error.message.includes('unauthorized')) {
-        return res.json({
-          subagents: [],
-          warning: 'Gateway auth required. Run: openclaw doctor --fix',
-          error: 'Device token mismatch'
-        });
-      }
-      return res.status(500).json({ error: error.message });
+      // Gracefully handle failures - return empty list
+      console.log('Subagents endpoint error:', error.message);
+      return res.json({
+        subagents: [],
+        warning: 'Gateway unavailable. Subagents disabled.'
+      });
     }
     try {
       const jobs = JSON.parse(result.stdout);
@@ -511,6 +521,38 @@ app.get('/api/tasks', async (req, res) => {
   const active = tasks.filter(t => t.status !== 'completed');
   const completed = tasks.filter(t => t.status === 'completed');
   res.json({ active, completed, all: tasks });
+});
+
+// Move task (change status/column)
+app.post('/api/tasks/:id/move', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { column } = req.body; // column = 'backlog', 'todo', 'in_progress', 'review', 'done'
+
+    const tasks = await jsonDb.read('tasks');
+    const taskIndex = tasks.findIndex(t => t.id === id);
+
+    if (taskIndex === -1) {
+      return res.status(404).json({ error: 'Task not found' });
+    }
+
+    // Map column to status
+    const columnToStatus = {
+      'backlog': 'pending',
+      'todo': 'pending',
+      'in_progress': 'in_progress',
+      'review': 'review',
+      'done': 'completed'
+    };
+
+    tasks[taskIndex].status = columnToStatus[column] || column;
+
+    await jsonDb.write('tasks', tasks);
+    res.json({ success: true, task: tasks[taskIndex] });
+  } catch (err) {
+    console.error('Error moving task:', err);
+    res.status(500).json({ error: err.message });
+  }
 });
 
 app.get('/api/projects/detailed', async (req, res) => {
@@ -734,7 +776,315 @@ io.on('connection', (socket) => {
 
 // ─── ADDED ENDPOINTS (must be before catch-all) ───
 
+// Agent Trigger Endpoint - for bot-to-bot communication
+app.post('/api/agent/trigger', async (req, res) => {
+  const { agent, trigger, from, message, channelId, messageId } = req.body;
+
+  console.log(`🤖 Agent trigger: ${agent} <- ${from} (${trigger})`);
+
+  try {
+    // Forward to Clawdette's session via the message system
+    // This will trigger the main agent to respond
+    const triggerPayload = {
+      type: 'agent_conversation',
+      from_agent: from,
+      to_agent: agent,
+      channel: 'discord',
+      channelId: channelId,
+      messageId: messageId,
+      message: message,
+      timestamp: Date.now()
+    };
+
+    // Store the trigger for the main session to pick up
+    const triggerFile = path.join(WORKSPACE_DIR, 'data', 'agent-triggers.json');
+    let triggers = [];
+    try {
+      triggers = JSON.parse(await fs.readFile(triggerFile, 'utf8'));
+    } catch (e) {
+      triggers = [];
+    }
+    triggers.push(triggerPayload);
+    await fs.writeFile(triggerFile, JSON.stringify(triggers, null, 2));
+
+    res.json({ success: true, triggered: agent });
+  } catch (e) {
+    console.error('Agent trigger error:', e.message);
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// Agent Status System - Round Table coordination
+const AGENTS_FILE = path.join(WORKSPACE_DIR, 'data', 'agents-status.json');
+
+// Default agents
+const DEFAULT_AGENTS = {
+  clawdette: {
+    name: 'Clawdette',
+    title: 'Queen / CEO',
+    emoji: '🦐',
+    status: 'online',
+    location: 'cloud',
+    task: 'Managing the Empire',
+    lastSeen: Date.now(),
+    color: '#ef4444'
+  },
+  claudnelius: {
+    name: 'Claudnelius',
+    title: 'Code Magician',
+    emoji: '🧙‍♂️',
+    status: 'offline',
+    location: 'local',
+    task: 'Idle',
+    lastSeen: null,
+    color: '#8b5cf6'
+  },
+  knowledge_knaight: {
+    name: 'Knowledge Knaight',
+    title: 'Research & Knowledge',
+    emoji: '📚',
+    status: 'online',
+    location: 'cloud',
+    task: 'Processing cortex entries',
+    lastSeen: Date.now(),
+    color: '#3b82f6'
+  },
+  knaight_of_affairs: {
+    name: 'Knaight of Affairs',
+    title: 'Calendar & Schedule',
+    emoji: '📅',
+    status: 'online',
+    location: 'cloud',
+    task: 'Monitoring events',
+    lastSeen: Date.now(),
+    color: '#10b981'
+  },
+  sir_clawthchilds: {
+    name: 'Sir Clawthchilds',
+    title: 'Finance & Scanning',
+    emoji: '💰',
+    status: 'online',
+    location: 'cloud',
+    task: 'Watching finances',
+    lastSeen: Date.now(),
+    color: '#f59e0b'
+  },
+  labrina: {
+    name: 'Labrina',
+    title: 'Social Media',
+    emoji: '📱',
+    status: 'online',
+    location: 'cloud',
+    task: 'Social automation',
+    lastSeen: Date.now(),
+    color: '#ec4899'
+  }
+};
+
+// Get all agent statuses
+app.get('/api/agents/status', async (req, res) => {
+  try {
+    let agents = { ...DEFAULT_AGENTS };
+    try {
+      const saved = JSON.parse(await fs.readFile(AGENTS_FILE, 'utf8'));
+      agents = { ...agents, ...saved };
+    } catch (e) {
+      // File doesn't exist yet, use defaults
+    }
+    res.json({ agents, timestamp: Date.now() });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// Update an agent's status
+app.post('/api/agents/status', async (req, res) => {
+  const { agentId, status, task, location } = req.body;
+
+  try {
+    let agents = { ...DEFAULT_AGENTS };
+    try {
+      const saved = JSON.parse(await fs.readFile(AGENTS_FILE, 'utf8'));
+      agents = { ...agents, ...saved };
+    } catch (e) { }
+
+    if (!agents[agentId]) {
+      agents[agentId] = {
+        name: agentId,
+        title: 'Agent',
+        emoji: '🤖',
+        status: 'unknown',
+        location: 'unknown',
+        task: 'Unknown',
+        color: '#6b7280'
+      };
+    }
+
+    // Update fields
+    if (status) agents[agentId].status = status;
+    if (task) agents[agentId].task = task;
+    if (location) agents[agentId].location = location;
+    agents[agentId].lastSeen = Date.now();
+
+    await fs.writeFile(AGENTS_FILE, JSON.stringify(agents, null, 2));
+    res.json({ success: true, agent: agents[agentId] });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// Claudnelius heartbeat - he calls this to say "I'm alive and working on X"
+app.post('/api/agents/heartbeat', async (req, res) => {
+  const { agentId, task, metadata } = req.body;
+
+  try {
+    let agents = { ...DEFAULT_AGENTS };
+    try {
+      const saved = JSON.parse(await fs.readFile(AGENTS_FILE, 'utf8'));
+      agents = { ...agents, ...saved };
+    } catch (e) { }
+
+    if (agents[agentId]) {
+      agents[agentId].status = 'active';
+      agents[agentId].task = task || agents[agentId].task;
+      agents[agentId].lastSeen = Date.now();
+      if (metadata) agents[agentId].metadata = metadata;
+    }
+
+    await fs.writeFile(AGENTS_FILE, JSON.stringify(agents, null, 2));
+    res.json({ success: true, timestamp: Date.now() });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// Agent auto-reply endpoint - triggered by watcher
+app.post('/api/discord/agent-reply', async (req, res) => {
+  const { channel, from, message } = req.body;
+
+  console.log(`🦐 Auto-reply triggered: ${from} in ${channel}`);
+
+  // Store for main session to pick up
+  const replyQueue = path.join(WORKSPACE_DIR, 'data', 'agent-reply-queue.json');
+  let queue = [];
+  try {
+    queue = JSON.parse(await fs.readFile(replyQueue, 'utf8'));
+  } catch (e) { }
+
+  queue.push({
+    from,
+    message,
+    channel,
+    timestamp: Date.now()
+  });
+
+  await fs.writeFile(replyQueue, JSON.stringify(queue, null, 2));
+  res.json({ success: true, queued: true });
+});
+
+// Spawn Clawdette reply to agent message
+app.post('/api/agents/spawn-reply', async (req, res) => {
+  const { from, message, channelId } = req.body;
+
+  console.log(`🦐 Spawning Clawdette reply to ${from}...`);
+
+  try {
+    // Use OpenClaw to spawn a quick subagent response
+    const { execSync } = require('child_process');
+
+    const prompt = `You are Clawdette, Queen of the Crustazion Empire. Another agent "${from}" posted in the Round Table: "${message}". Reply as Clawdette - brief, 1-2 sentences, engaged. End with ⚔️👑`;
+
+    try {
+      const result = execSync(`openclaw spawn "${prompt.replace(/"/g, '\\"')}" --model zai/glm-5 --timeout 20 --json 2>/dev/null`, {
+        cwd: '/root/.openclaw/workspace',
+        encoding: 'utf8',
+        timeout: 25000
+      });
+
+      console.log('🦐 OpenClaw spawn result:', result.substring(0, 200));
+    } catch (e) {
+      console.log('🦐 Spawn exec error, using fallback:', e.message);
+    }
+
+    res.json({ success: true, spawning: true });
+  } catch (e) {
+    console.error('Spawn reply error:', e.message);
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// Get pending replies
+app.get('/api/agents/pending-replies', async (req, res) => {
+  try {
+    const replyFile = path.join(WORKSPACE_DIR, 'data', 'pending-replies.json');
+    const replies = JSON.parse(await fs.readFile(replyFile, 'utf8'));
+    res.json({ replies });
+  } catch (e) {
+    res.json({ replies: [] });
+  }
+});
+
+// Clear replies
+app.post('/api/agents/clear-replies', async (req, res) => {
+  try {
+    const replyFile = path.join(WORKSPACE_DIR, 'data', 'pending-replies.json');
+    await fs.writeFile(replyFile, '[]');
+    res.json({ success: true });
+  } catch (e) {
+    res.json({ success: true });
+  }
+});
+
+// Habits Check-in Endpoint
+app.post('/api/habits/:id/checkin', async (req, res) => {
+  const { id } = req.params;
+  const { date, note } = req.body;
+
+  try {
+    const habits = await jsonDb.read('habits');
+    const habitIndex = habits.findIndex(h => h.id.toString() === id.toString());
+
+    if (habitIndex === -1) {
+      return res.status(404).json({ error: 'Habit not found' });
+    }
+
+    const habit = habits[habitIndex];
+    if (!habit.history) habit.history = [];
+    if (!habit.streak) habit.streak = { current: 0, longest: 0 };
+
+    // Add to history
+    habit.history.push({
+      date: date || new Date().toISOString().split('T')[0],
+      completed: true,
+      note: note || '',
+      timestamp: Date.now()
+    });
+
+    // Update streak
+    habit.streak.last_completed = date || new Date().toISOString().split('T')[0];
+    habit.streak.current = (habit.streak.current || 0) + 1;
+    if (habit.streak.current > (habit.streak.longest || 0)) {
+      habit.streak.longest = habit.streak.current;
+    }
+
+    habits[habitIndex] = habit;
+    await jsonDb.write('habits', habits);
+
+    res.json(habit);
+  } catch (error) {
+    console.error('Checkin error:', error);
+    res.status(500).json({ error: 'Failed to check in' });
+  }
+});
+
 // Projects using jsonDb
+app.get('/api/projects', async (req, res) => {
+  try {
+    const projects = await jsonDb.read('projects');
+    res.json({ projects: projects.filter(p => p.status !== 'archived') });
+  } catch (error) { res.json({ projects: [] }); }
+});
+
 app.get('/api/projects/active', async (req, res) => {
   try {
     const projects = await jsonDb.read('projects');
@@ -1156,11 +1506,7 @@ app.get('/api/giveaway/inventory', async (req, res) => {
 });
 
 // Supabase shop endpoint
-const { createClient } = require('@supabase/supabase-js');
-const lifeos = createClient(
-  process.env.LIFEOS_SUPABASE_URL || 'https://pvavybczlrhwagasriwu.supabase.co',
-  process.env.LIFEOS_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InB2YXZ5YmN6bHJod2FnYXNyaXd1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTUyMzUyMzIsImV4cCI6MjA3MDgxMTIzMn0.Y0vL36TCuE8QYFpEbVBKzLYazowtYneUpOkSTk3RkZg'
-);
+const { lifeos } = require('./lifeos-supabase');
 
 const supabase = createClient(
   process.env.SUPABASE_URL || 'https://yyoxpcsspmjvolteknsn.supabase.co',
@@ -1369,6 +1715,39 @@ app.post('/api/postbridge/upload-drive-file', async (req, res) => {
   }
 });
 
+// Local File Upload Endpoint
+app.post('/api/postbridge/upload-local-file', upload.single('file'), async (req, res) => {
+  try {
+    const { postBridge } = require('./postbridge-client.js');
+
+    if (!req.files || !req.files.file) {
+      return res.status(400).json({ error: 'No file provided' });
+    }
+
+    const file = req.files.file;
+    const buffer = file.data;
+    const fileName = file.name;
+    const mimeType = file.mimetype || 'application/octet-stream';
+
+    // Create upload URL and upload to PostBridge
+    const uploadUrlResult = await postBridge.createUploadUrl(fileName, mimeType, buffer.length);
+    if (!uploadUrlResult.success) {
+      throw new Error(`Postbridge createUploadUrl failed: ${uploadUrlResult.error}`);
+    }
+
+    const uploadResult = await postBridge.uploadFile(uploadUrlResult.upload_url, buffer, mimeType);
+    if (!uploadResult.success) {
+      throw new Error(`Postbridge uploadFile failed: ${uploadResult.error}`);
+    }
+
+    // Return the media_id
+    res.json({ success: true, media_id: uploadUrlResult.media_id, name: uploadUrlResult.name });
+  } catch (e) {
+    console.error('Local file upload error:', e.message);
+    res.status(500).json({ error: e.message });
+  }
+});
+
 // Google Drive Endpoints
 app.get('/api/drive/status', async (req, res) => {
   const driveClient = require('./google-drive-client.js');
@@ -1412,7 +1791,7 @@ app.get('/api/agents/status', async (req, res) => {
       .from('lifeos_agents')
       .select('*')
       .order('name');
-    
+
     if (error) throw error;
     res.json({ agents: agents || [] });
   } catch (e) {
@@ -1425,7 +1804,7 @@ app.get('/api/agents/status', async (req, res) => {
 app.post('/api/agents/heartbeat', async (req, res) => {
   try {
     const { agentId, status, task, location } = req.body;
-    
+
     const { data, error } = await lifeos
       .from('lifeos_agents')
       .upsert({
@@ -1437,7 +1816,7 @@ app.post('/api/agents/heartbeat', async (req, res) => {
         updated_at: new Date().toISOString()
       }, { onConflict: 'agent_id' })
       .select();
-    
+
     if (error) throw error;
     res.json({ success: true, timestamp: Date.now() });
   } catch (e) {
@@ -1450,7 +1829,7 @@ app.post('/api/agents/heartbeat', async (req, res) => {
 app.post('/api/agents/status', async (req, res) => {
   try {
     const { agentId, name, title, emoji, status, task, location, metadata } = req.body;
-    
+
     const { data, error } = await lifeos
       .from('lifeos_agents')
       .upsert({
@@ -1465,7 +1844,7 @@ app.post('/api/agents/status', async (req, res) => {
         updated_at: new Date().toISOString()
       }, { onConflict: 'agent_id' })
       .select();
-    
+
     if (error) throw error;
     res.json({ success: true, agent: data });
   } catch (e) {
