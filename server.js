@@ -1321,6 +1321,49 @@ app.post('/api/postbridge/posts', async (req, res) => {
   }
 });
 
+app.post('/api/postbridge/upload-drive-file', async (req, res) => {
+  const { driveFileId } = req.body;
+
+  if (!driveFileId) {
+    return res.status(400).json({ error: 'driveFileId is required' });
+  }
+
+  try {
+    const driveClient = require('./google-drive-client.js');
+    const { postBridge } = require('./postbridge-client.js');
+
+    // 1. Download file buffer from Google Drive
+    const downloadResult = await driveClient.downloadFile(driveFileId);
+    if (!downloadResult.success) {
+      throw new Error(`Drive download failed: ${downloadResult.error}`);
+    }
+
+    const { buffer, metadata } = downloadResult;
+    // Postbridge requires 'name', 'mime_type', 'size_bytes'
+    const fileName = metadata.name || 'file.mp4';
+    const mimeType = metadata.mimeType || 'video/mp4';
+
+    // 2. Upload to Post Bridge
+    // Note: Postbridge uploadAndPost helper exists but we just want the media uploaded right now 
+    // to combine multiple media into a post later on the frontend.
+    const uploadUrlResult = await postBridge.createUploadUrl(fileName, mimeType, buffer.byteLength || buffer.length);
+    if (!uploadUrlResult.success) {
+      throw new Error(`Postbridge createUploadUrl failed: ${uploadUrlResult.error}`);
+    }
+
+    const uploadResult = await postBridge.uploadFile(uploadUrlResult.upload_url, buffer, mimeType);
+    if (!uploadResult.success) {
+      throw new Error(`Postbridge uploadFile failed: ${uploadResult.error}`);
+    }
+
+    // 3. Return the media_id
+    res.json({ success: true, media_id: uploadUrlResult.media_id, name: uploadUrlResult.name });
+  } catch (e) {
+    console.error('Drive to PostBridge upload error:', e.message);
+    res.status(500).json({ error: e.message });
+  }
+});
+
 // Google Drive Endpoints
 app.get('/api/drive/status', async (req, res) => {
   const driveClient = require('./google-drive-client.js');

@@ -139,7 +139,9 @@ export default function ContentSchedulerView({ api, postbridgeKey }) {
   const [currentDriveFolder, setCurrentDriveFolder] = useState(null);
   const [activeTab, setActiveTab] = useState('Timeline');
   const [activeTimelineSlot, setActiveTimelineSlot] = useState(null);
-  const [selectedDriveFile, setSelectedDriveFile] = useState(null);
+  const [selectedDriveFiles, setSelectedDriveFiles] = useState([]);
+  const [postCaption, setPostCaption] = useState('');
+  const [showDeploymentConfig, setShowDeploymentConfig] = useState(false);
   const [postedDriveFiles, setPostedDriveFiles] = useState(() => {
     try {
       return JSON.parse(localStorage.getItem('lifeos_posted_files') || '[]');
@@ -220,7 +222,9 @@ export default function ContentSchedulerView({ api, postbridgeKey }) {
     setSelectedTimelineDay(dayId);
     setSelectedSlot(null); // Reset sequence when picking a new day
     setActiveTimelineSlot(null);
-    setSelectedDriveFile(null);
+    setSelectedDriveFiles([]);
+    setPostCaption('');
+    setShowDeploymentConfig(false);
   };
 
   const baseTimelineDates = (() => {
@@ -237,43 +241,79 @@ export default function ContentSchedulerView({ api, postbridgeKey }) {
     return days;
   })();
 
-  const handleDraftFromDrive = async (file, isDraft = true) => {
+  const handleDraftFromDrive = async (isDraft = true) => {
     if (!selectedSlot) {
       alert("Please select a time slot on the timeline first!");
+      return;
+    }
+    if (selectedDriveFiles.length === 0) {
+      alert("Please select at least one media file.");
       return;
     }
     setIsProcessingAction(true);
     try {
       const accounts = await pb.getSocialAccounts();
-      const accountIds = accounts.data.map(a => a.id);
-      if (!accountIds.length) {
+      if (!accounts.data || !accounts.data.length) {
         alert("No social accounts connected to PostBridge!");
+        setIsProcessingAction(false);
         return;
+      }
+
+      // Match accounts by selected platforms
+      const accountIds = accounts.data
+        .filter(a => formData.platforms.includes(a.platform))
+        .map(a => a.id);
+
+      if (!accountIds.length && formData.platforms.length > 0) {
+        alert("No connected social accounts found for selected platforms!");
+        setIsProcessingAction(false);
+        return;
+      }
+
+      const mediaIds = [];
+      for (const file of selectedDriveFiles) {
+        const uploadRes = await fetch('/api/postbridge/upload-drive-file', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ driveFileId: file.id })
+        });
+        const uploadData = await uploadRes.json();
+        if (uploadData.success && uploadData.media_id) {
+          mediaIds.push(uploadData.media_id);
+        } else {
+          console.warn("Failed to upload file to PostBridge", uploadData.error);
+        }
       }
 
       const timelineMatch = baseTimelineDates.find(d => d.dayLabel === selectedSlot.day);
       const isoDateStr = timelineMatch ? timelineMatch.id : new Date().toISOString().split('T')[0];
       const scheduledDate = new Date(`${isoDateStr}T${selectedSlot.hour.toString().padStart(2, '0')}:00:00Z`);
 
+      const finalCaption = postCaption.trim() || selectedDriveFiles[0].name.split('.')[0];
+
       const newPost = await pb.createPost({
-        caption: file ? file.name : "Draft synced from Google Drive",
+        caption: finalCaption,
         scheduled_at: scheduledDate.toISOString(),
-        social_accounts: [accountIds[0]],
+        social_accounts: accountIds.length > 0 ? accountIds : [accounts.data[0]?.id],
         status: isDraft ? 'draft' : 'scheduled',
         is_draft: isDraft,
+        media: mediaIds.length > 0 ? mediaIds : undefined
       });
 
       setApiPosts(prev => [...prev, mapPostToUI(newPost)]);
 
-      const updatedPostedFiles = [...postedDriveFiles, file.id];
+      const updatedPostedFiles = [...postedDriveFiles, ...selectedDriveFiles.map(f => f.id)];
       setPostedDriveFiles(updatedPostedFiles);
       localStorage.setItem('lifeos_posted_files', JSON.stringify(updatedPostedFiles));
 
       setSelectedSlot(null);
       setActiveTimelineSlot(null); // Reset timeline selection
-      setSelectedDriveFile(null); // Reset local selection
+      setSelectedDriveFiles([]); // Reset local selection
+      setPostCaption('');
+      setShowDeploymentConfig(false);
     } catch (error) {
-      console.error("API Error during draft creation", error);
+      console.error("API Error during post creation", error);
+      alert("Failed to create post. Check console for details.");
     } finally {
       setIsProcessingAction(false);
     }
@@ -627,42 +667,57 @@ export default function ContentSchedulerView({ api, postbridgeKey }) {
             {/* Drive Sync Workflow */}
             <div className="md:w-[400px] flex-shrink-0 bg-black/40 border border-white/10 rounded-2xl p-4 flex flex-col items-center justify-start min-h-[300px] max-h-[350px]">
 
-              {selectedDriveFile ? (
+              {showDeploymentConfig ? (
                 <div className="w-full flex flex-col gap-6 animate-in-fade-slide">
-                  <div className="flex items-center gap-4 bg-white/5 p-4 rounded-xl border border-white/10 shadow-inner">
-                    <div className="w-12 h-12 rounded-full bg-orange-400/10 flex items-center justify-center border border-orange-400/20">
-                      <File className="w-6 h-6 text-orange-400" />
+
+                  {/* Selected Files List */}
+                  <div className="flex flex-col gap-2 bg-white/5 p-3 rounded-xl border border-white/10 shadow-inner max-h-[120px] overflow-y-auto glass-scroll">
+                    <div className="text-[10px] text-gray-400 uppercase tracking-widest font-bold mb-1 border-b border-white/10 pb-1 flex justify-between">
+                      <span>Selected Media ({selectedDriveFiles.length})</span>
+                      <span className="text-orange-400">Ready</span>
                     </div>
-                    <div className="flex-1 min-w-0">
-                      <h4 className="text-white font-medium truncate text-base leading-tight">{selectedDriveFile.name}</h4>
-                      <p className="text-[10px] text-gray-400 mt-1 uppercase tracking-widest font-bold">Ready for deployment</p>
-                    </div>
+                    {selectedDriveFiles.map(f => (
+                      <div key={f.id} className="flex items-center gap-3">
+                        <File className="w-3 h-3 text-orange-400 flex-shrink-0" />
+                        <span className="text-white text-xs truncate leading-tight">{f.name}</span>
+                      </div>
+                    ))}
                   </div>
 
-                  <div className="flex flex-col gap-3">
-                    <button
-                      onClick={() => handleDraftFromDrive(selectedDriveFile, false)}
-                      className="w-full py-4 px-4 bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-400 hover:to-red-400 text-white font-bold text-sm uppercase tracking-widest rounded-xl shadow-[0_4px_20px_rgba(234,88,12,0.3)] flex items-center justify-center gap-3 transition-all transform hover:scale-[1.02]"
-                      disabled={isProcessingAction}
-                    >
-                      <Zap className="w-5 h-5" /> Send As Post
-                    </button>
-                    <button
-                      onClick={() => handleDraftFromDrive(selectedDriveFile, true)}
-                      className="w-full py-3 px-4 bg-white/10 hover:bg-white/20 text-white font-bold text-sm uppercase tracking-widest rounded-xl border border-white/20 transition-all flex items-center justify-center gap-3 transform hover:scale-[1.02]"
-                      disabled={isProcessingAction}
-                    >
-                      <Folder className="w-4 h-4" /> Save as Draft
-                    </button>
+                  {/* Caption Input */}
+                  <div className="flex flex-col gap-1">
+                    <label className="text-[10px] text-gray-400 uppercase tracking-widest font-bold pl-1">Caption</label>
+                    <textarea
+                      value={postCaption}
+                      onChange={(e) => setPostCaption(e.target.value)}
+                      placeholder="Write your caption here..."
+                      className="w-full bg-black/40 border border-white/10 rounded-xl p-3 text-sm text-white placeholder-gray-600 focus:border-orange-500/50 focus:ring-1 focus:ring-orange-500/50 resize-none h-[80px] glass-scroll transition-all"
+                    />
                   </div>
 
-                  <button
-                    onClick={() => setSelectedDriveFile(null)}
-                    className="text-[10px] text-gray-500 hover:text-white uppercase tracking-widest font-bold mt-2 py-2 transition-colors flex items-center justify-center gap-1"
-                    disabled={isProcessingAction}
-                  >
-                    <ChevronRight className="w-3 h-3 rotate-180" /> Back to selection
-                  </button>
+                  <div className="flex flex-col gap-3 mt-auto">
+                    <button
+                      onClick={() => handleDraftFromDrive(false)}
+                      className="w-full py-3 px-4 bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-400 hover:to-red-400 text-white font-bold text-xs uppercase tracking-widest rounded-xl shadow-[0_4px_20px_rgba(234,88,12,0.3)] flex items-center justify-center gap-2 transition-all transform hover:scale-[1.02]"
+                      disabled={isProcessingAction}
+                    >
+                      <Zap className="w-4 h-4" /> Send As Post
+                    </button>
+                    <button
+                      onClick={() => handleDraftFromDrive(true)}
+                      className="w-full py-2.5 px-4 bg-white/10 hover:bg-white/20 text-white font-bold text-xs uppercase tracking-widest rounded-xl border border-white/20 transition-all flex items-center justify-center gap-2 transform hover:scale-[1.02]"
+                      disabled={isProcessingAction}
+                    >
+                      <Folder className="w-3 h-3" /> Save Draft
+                    </button>
+                    <button
+                      onClick={() => setShowDeploymentConfig(false)}
+                      className="text-[10px] text-gray-500 hover:text-white uppercase tracking-widest font-bold mt-1 py-1 transition-colors flex items-center justify-center gap-1"
+                      disabled={isProcessingAction}
+                    >
+                      <ChevronRight className="w-3 h-3 rotate-180" /> Back to selection
+                    </button>
+                  </div>
                 </div>
               ) : (
                 <div className="w-full flex flex-col h-full overflow-hidden">
@@ -694,21 +749,35 @@ export default function ContentSchedulerView({ api, postbridgeKey }) {
                               key={file.id}
                               onClick={() => {
                                 if (isFolder) handleDriveFileClick(file);
-                                else setSelectedDriveFile(file);
+                                else {
+                                  setSelectedDriveFiles(prev =>
+                                    prev.some(f => f.id === file.id)
+                                      ? prev.filter(f => f.id !== file.id)
+                                      : [...prev, file]
+                                  );
+                                }
                               }}
                               className={`flex items-center justify-between p-3 rounded-xl cursor-pointer transition-all border ${isFolder
-                                  ? 'hover:bg-orange-500/10 border-transparent hover:border-orange-500/20 text-orange-400'
-                                  : isPosted
-                                    ? 'opacity-60 hover:opacity-100 bg-white/5 border-transparent text-gray-400'
+                                ? 'hover:bg-orange-500/10 border-transparent hover:border-orange-500/20 text-orange-400'
+                                : isPosted
+                                  ? 'opacity-60 hover:opacity-100 bg-white/5 border-transparent text-gray-400'
+                                  : selectedDriveFiles.some(f => f.id === file.id)
+                                    ? 'bg-orange-500/10 border-orange-500/40 text-orange-400 shadow-[0_0_15px_rgba(234,88,12,0.15)]'
                                     : 'hover:bg-white/10 border-transparent hover:border-white/10 text-gray-200'
                                 }`}
                             >
                               <div className="flex items-center gap-3 min-w-0 flex-1">
-                                {isFolder ? <Folder className="w-5 h-5 flex-shrink-0" /> : <File className="w-5 h-5 flex-shrink-0" />}
+                                {isFolder ? <Folder className="w-5 h-5 flex-shrink-0" /> : <File className={`w-5 h-5 flex-shrink-0 ${selectedDriveFiles.some(f => f.id === file.id) ? 'text-orange-400' : ''}`} />}
                                 <span className="truncate text-sm font-medium">{file.name}</span>
                               </div>
 
-                              {isPosted && !isFolder && (
+                              {selectedDriveFiles.some(f => f.id === file.id) && !isFolder && (
+                                <div className="w-4 h-4 rounded-full bg-orange-500 flex items-center justify-center flex-shrink-0 ml-2 shadow-[0_0_8px_#ea580c]">
+                                  <div className="w-1.5 h-1.5 bg-white rounded-full"></div>
+                                </div>
+                              )}
+
+                              {isPosted && !isFolder && !selectedDriveFiles.some(f => f.id === file.id) && (
                                 <span className="text-[8px] font-bold tracking-widest uppercase text-green-400 bg-green-400/10 px-2 py-0.5 rounded border border-green-400/20 flex-shrink-0 ml-2 shadow-[0_0_10px_rgba(74,222,128,0.1)]">
                                   Used
                                 </span>
@@ -719,6 +788,17 @@ export default function ContentSchedulerView({ api, postbridgeKey }) {
                       </div>
                     )}
                   </div>
+                  {/* Selected count and proceed button */}
+                  {selectedDriveFiles.length > 0 && (
+                    <div className="w-full pt-3 mt-1 border-t border-white/10 animate-in-fade-slide">
+                      <button
+                        onClick={() => setShowDeploymentConfig(true)}
+                        className="w-full py-3 bg-white hover:bg-gray-100 text-black font-bold text-xs uppercase tracking-widest rounded-xl transition-all shadow-[0_0_20px_rgba(255,255,255,0.2)]"
+                      >
+                        Configure Post ({selectedDriveFiles.length})
+                      </button>
+                    </div>
+                  )}
                 </div>
               )}
             </div>

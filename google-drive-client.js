@@ -13,7 +13,7 @@ async function listFiles(folderId = 'root') {
       pageSize: 50,
       orderBy: 'name',
     };
-    
+
     const response = await axios.get(url, { params });
     return { success: true, files: response.data.files || [] };
   } catch (e) {
@@ -35,10 +35,38 @@ async function searchFiles(query) {
       fields: 'files(id,name,mimeType)',
       pageSize: 20,
     };
-    
+
     const response = await axios.get(url, { params });
     return { success: true, files: response.data.files || [] };
   } catch (e) {
+    return { success: false, error: e.message };
+  }
+}
+
+async function downloadFile(fileId) {
+  try {
+    const url = `https://www.googleapis.com/drive/v3/files/${fileId}`;
+
+    // 1. Get metadata to get the actual original name and mimeType
+    const metaResponse = await axios.get(url, {
+      params: { key: API_KEY, fields: 'id,name,mimeType,size' }
+    });
+
+    // 2. Export or get file directly
+    // Note: If it's a Google Workspace file type (Google Docs/Sheets), you'd need the export api.
+    // For media (images/videos), we can just download via alt=media.
+    const downloadUrl = `https://www.googleapis.com/drive/v3/files/${fileId}?alt=media&key=${API_KEY}`;
+    const fileResponse = await axios.get(downloadUrl, {
+      responseType: 'arraybuffer'
+    });
+
+    return {
+      success: true,
+      buffer: fileResponse.data,
+      metadata: metaResponse.data
+    };
+  } catch (e) {
+    console.error('Drive download error:', e.message);
     return { success: false, error: e.message };
   }
 }
@@ -49,4 +77,5 @@ module.exports = {
   listFiles,
   listGuapDadFiles,
   searchFiles,
+  downloadFile,
 };
