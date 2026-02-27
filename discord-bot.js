@@ -385,31 +385,77 @@ class KnowledgeKnaightBot {
   }
 
   async processURLs(message) {
+    // Load robust modules
+    const { withRetry, RateLimiter, CacheManager, DuplicateDetector } = require('./knaight-robust.js');
+    
     const urlRegex = /(https?:\/\/[^\s]+)/g;
     const urls = message.content.match(urlRegex);
 
     if (!urls || urls.length === 0) return;
 
+    // Initialize robust helpers (lazy load)
+    if (!this.rateLimiter) {
+      this.rateLimiter = new RateLimiter(20);
+      this.cache = new CacheManager('./data/knaight-cache.json', 24 * 60 * 60 * 1000);
+      this.dedup = new DuplicateDetector('./data/knaight-processed.json');
+      await this.cache.load();
+      await this.dedup.load();
+    }
+
     // React to show we're processing
     await message.react('🧠');
 
     let contentToSend = message.content;
+    let processedCount = 0;
+    let skippedCount = 0;
 
-    // Twitter/X Expansion
-    if (process.env.TWITTER_BEARER_TOKEN) {
-      for (const url of urls) {
-        if (url.includes('twitter.com') || url.includes('x.com')) {
-          const tweetId = url.split('/').pop().split('?')[0];
-          const tweetData = await this.fetchTweet(tweetId);
-          if (tweetData) {
-            contentToSend += `\n\n🐦 **Tweet Content:**\n${tweetData.text}`;
-            if (tweetData.media && tweetData.media.length > 0) {
-              contentToSend += `\n(Media: ${tweetData.media.join(', ')})`;
+    for (const url of urls) {
+      // Check for duplicates
+      if (this.dedup.isProcessed(url)) {
+        console.log(`⏭️ Skipping duplicate: ${url.substring(0, 50)}...`);
+        skippedCount++;
+        continue;
+      }
+      
+      // Check cache
+      const cached = this.cache.get(url);
+      if (cached) {
+        console.log(`📦 Using cached: ${url.substring(0, 50)}...`);
+        contentToSend += `\n\n[Cached summary: ${cached.substring(0, 100)}...]`;
+        continue;
+      }
+      
+      // Rate limit
+      await this.rateLimiter.waitForSlot();
+
+      // Twitter/X Expansion with retry
+      if (url.includes('twitter.com') || url.includes('x.com')) {
+        try {
+          const result = await withRetry(async () => {
+            const tweetId = url.split('/').pop().split('?')[0];
+            return await this.fetchTweet(tweetId);
+          });
+          
+          if (result) {
+            contentToSend += `\n\n🐦 **Tweet Content:**\n${result.text}`;
+            if (result.media && result.media.length > 0) {
+              contentToSend += `\n(Media: ${result.media.join(', ')})`;
             }
+            this.cache.set(url, result.text);
           }
+        } catch (e) {
+          console.warn('Twitter fetch failed:', e.message);
         }
       }
+      
+      // Mark as processed
+      this.dedup.markProcessed(url);
+      processedCount++;
     }
+
+    // Save cache and processed URLs
+    await this.cache.save();
+    await this.dedup.save();
 
     try {
       const response = await axios.post(`${this.config.apiUrl}/api/discord/webhook`, {
@@ -436,6 +482,9 @@ class KnowledgeKnaightBot {
       if (successCount > 0) {
         await message.react('✅');
       }
+      
+      // Log summary
+      console.log(`📊 Processed: ${processedCount} new, ${skippedCount} skipped (duplicates)`);
 
       // Send summary if multiple URLs
       if (results.length > 1) {
