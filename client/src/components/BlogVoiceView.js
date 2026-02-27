@@ -3,27 +3,15 @@ import {
   FileText, Send, Plus, RefreshCw, Check, Globe, Mail, Edit2, Lightbulb, AlertTriangle, CheckCircle, XCircle
 } from 'lucide-react';
 import AnimatedIcon from './AnimatedIcon';
+import { WidgetCard } from './ui/WidgetCard';
+import { GlassPill } from './ui/GlassPill';
 
 export default function BlogVoiceView({ api }) {
   const [posts, setPosts] = useState([]);
   const [suggestions, setSuggestions] = useState([]);
   const [releases, setReleases] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
-  const [darkMode, setDarkMode] = useState(false);
 
-  useEffect(() => {
-    // Detect dark mode
-    const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
-    setDarkMode(isDark);
-
-    // Listen for theme changes
-    const observer = new MutationObserver(() => {
-      setDarkMode(document.documentElement.getAttribute('data-theme') === 'dark');
-    });
-    observer.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
-
-    return () => observer.disconnect();
-  }, []);
   const [showNewPost, setShowNewPost] = useState(false);
   const [newPostTitle, setNewPostTitle] = useState('');
   const [newPostContent, setNewPostContent] = useState('');
@@ -119,133 +107,198 @@ export default function BlogVoiceView({ api }) {
   const publishedPosts = posts.filter(p => p.status === 'published');
   const pendingSuggestions = suggestions.filter(s => s.status === 'pending');
 
-  const styles = {
-    container: { padding: '20px', maxWidth: '1400px', margin: '0 auto' },
-    card: { background: darkMode ? '#1e293b' : 'white', borderRadius: '16px', padding: '20px', boxShadow: '0 1px 3px rgba(0,0,0,0.1)' },
-    cardBg: darkMode ? '#1e293b' : 'white',
-    altBg: darkMode ? '#0f172a' : '#f8fafc',
-    greenBg: darkMode ? '#14532d' : '#f0fdf4',
-    yellowBg: darkMode ? '#78350f' : '#fef3c7',
-    text: darkMode ? '#e2e8f0' : '#1e293b',
-    muted: darkMode ? '#94a3b8' : '#64748b',
-    border: darkMode ? '#334155' : '#e2e8f0',
-    inputBg: darkMode ? '#0f172a' : 'white',
-  };
-
   return (
-    <div style={styles.container}>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '24px' }}>
+    <div className="flex flex-col h-full animate-in-fade gap-6 pb-[150px] overflow-y-auto glass-scroll pr-2 pt-2">
+      {/* Header */}
+      <div className="flex items-center justify-between">
         <div>
-          <h1 style={{ fontSize: '28px', fontWeight: 700, margin: 0 }}>
-            <FileText size={28} color="#8b5cf6" style={{ marginRight: '12px' }} />
-            Blog and Voice Drops
+          <h1 className="text-3xl font-outfit font-bold title-gradient flex items-center gap-3">
+            <AnimatedIcon Icon={FileText} className="w-8 h-8 text-violet-400" />
+            Blog & Voice Drops
           </h1>
-          <p style={{ color: '#64748b', marginTop: '4px' }}>Voice notes → Tasks, Memories, Blog Topics</p>
+          <p className="text-sm text-gray-400 mt-1 uppercase tracking-widest font-bold font-mono">
+            Voice notes → Tasks, Memories, Blog Topics
+          </p>
         </div>
-        <div style={{ display: 'flex', gap: '12px' }}>
-          <button className="btn" onClick={fetchData}><RefreshCw size={16} /> Refresh</button>
-          <button className="btn btn-primary" onClick={() => setShowNewPost(true)}><Plus size={16} /> New Post</button>
+        <div className="flex gap-3">
+          <GlassPill
+            onClick={fetchData}
+            className="flex items-center gap-2"
+          >
+            <AnimatedIcon Icon={RefreshCw} className={`w-4 h-4 text-violet-400 ${isLoading ? 'animate-spin' : ''}`} />
+            Refresh
+          </GlassPill>
+          <GlassPill
+            variant="primary"
+            onClick={() => setShowNewPost(true)}
+            className="flex items-center gap-2"
+          >
+            <Plus className="w-4 h-4" />
+            New Post
+          </GlassPill>
         </div>
       </div>
 
       {/* Release Status */}
       {releases.length > 0 && releases[0].needs_attention && (
-        <div style={{ background: '#fef3c7', border: '1px solid #f59e0b', borderRadius: '12px', padding: '16px', marginBottom: '24px', display: 'flex', alignItems: 'center', gap: '16px' }}>
-          <AlertTriangle size={24} color="#f59e0b" />
-          <div style={{ flex: 1 }}>
-            <strong>Release coming up: {releases[0].name}</strong>
-            <div style={{ fontSize: '14px', color: '#92400e' }}>
-              {releases[0].days_until} days away •
-              Cover art: {releases[0].assets.cover_art ? <AnimatedIcon Icon={CheckCircle} size={14} className="inline text-green-600" /> : <AnimatedIcon Icon={XCircle} size={14} className="inline text-red-600" />} •
-              Visualizer: {releases[0].assets.visualizer ? <AnimatedIcon Icon={CheckCircle} size={14} className="inline text-green-600" /> : <AnimatedIcon Icon={XCircle} size={14} className="inline text-red-600" />} •
-              Clips: {releases[0].assets.clips ? <AnimatedIcon Icon={CheckCircle} size={14} className="inline text-green-600" /> : <AnimatedIcon Icon={XCircle} size={14} className="inline text-red-600" />}
+        <WidgetCard className="bg-amber-500/10 border-amber-500/30">
+          <div className="flex items-center gap-4">
+            <div className="w-12 h-12 rounded-full bg-amber-500/20 flex items-center justify-center flex-shrink-0">
+              <AnimatedIcon Icon={AlertTriangle} className="w-6 h-6 text-amber-500" />
+            </div>
+            <div className="flex-1">
+              <h3 className="text-amber-400 font-bold text-lg font-outfit uppercase tracking-wider">
+                Release coming up: {releases[0].name}
+              </h3>
+              <div className="flex gap-4 mt-2 text-sm text-amber-200/80 font-mono">
+                <span>{releases[0].days_until} days away</span>
+                <span className="flex items-center gap-1">Cover art: {releases[0].assets.cover_art ? <CheckCircle className="w-4 h-4 text-emerald-400" /> : <XCircle className="w-4 h-4 text-red-400" />}</span>
+                <span className="flex items-center gap-1">Visualizer: {releases[0].assets.visualizer ? <CheckCircle className="w-4 h-4 text-emerald-400" /> : <XCircle className="w-4 h-4 text-red-400" />}</span>
+                <span className="flex items-center gap-1">Clips: {releases[0].assets.clips ? <CheckCircle className="w-4 h-4 text-emerald-400" /> : <XCircle className="w-4 h-4 text-red-400" />}</span>
+              </div>
             </div>
           </div>
-        </div>
+        </WidgetCard>
       )}
 
       {/* Tabs */}
-      <div style={{ display: 'flex', gap: '8px', marginBottom: '24px' }}>
+      <div className="flex gap-3">
         {['posts', 'suggestions'].map(tab => (
-          <button
+          <GlassPill
             key={tab}
+            active={activeTab === tab}
             onClick={() => setActiveTab(tab)}
-            style={{
-              padding: '10px 20px',
-              borderRadius: '8px',
-              border: 'none',
-              background: activeTab === tab ? '#8b5cf6' : '#f1f5f9',
-              color: activeTab === tab ? 'white' : '#64748b',
-              cursor: 'pointer',
-              fontWeight: 600
-            }}
+            className="!px-6 !py-3"
           >
             {tab === 'posts' ? 'Posts' : `Suggestions (${pendingSuggestions.length})`}
-          </button>
+          </GlassPill>
         ))}
       </div>
 
+      {/* Posts Tab */}
       {activeTab === 'posts' && (
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px' }}>
-          <div style={{ background: 'white', borderRadius: '16px', padding: '20px', boxShadow: '0 1px 3px rgba(0,0,0,0.1)' }}>
-            <h3>Drafts ({draftPosts.length})</h3>
-            {draftPosts.map(post => (
-              <div key={post.id} style={{ padding: '16px', background: '#f8fafc', borderRadius: '12px', marginBottom: '12px' }}>
-                <div style={{ fontWeight: 600 }}>{post.title}</div>
-                <button className="btn btn-sm" onClick={() => { }} style={{ marginTop: '8px' }}>
-                  <Send size={12} style={{ marginRight: '4px' }} /> Publish
-                </button>
-              </div>
-            ))}
-          </div>
-          <div style={{ background: 'white', borderRadius: '16px', padding: '20px', boxShadow: '0 1px 3px rgba(0,0,0,0.1)' }}>
-            <h3>Published ({publishedPosts.length})</h3>
-            {publishedPosts.map(post => (
-              <div key={post.id} style={{ padding: '16px', background: '#f0fdf4', borderRadius: '12px', marginBottom: '12px' }}>
-                <div style={{ fontWeight: 600 }}>{post.title}</div>
-                <div style={{ fontSize: '12px', color: '#64748b' }}>{new Date(post.published_at).toLocaleDateString()}</div>
-              </div>
-            ))}
-          </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <WidgetCard title={`Drafts (${draftPosts.length})`} icon={FileText} iconColor="text-gray-400">
+            <div className="flex flex-col gap-3">
+              {draftPosts.length === 0 ? (
+                <div className="text-sm text-gray-500 italic p-4 text-center">No drafts currently.</div>
+              ) : (
+                draftPosts.map(post => (
+                  <div key={post.id} className="p-4 bg-black/40 border border-white/5 rounded-xl flex items-center justify-between hover:bg-white/5 transition-colors">
+                    <div className="font-medium text-gray-200 truncate">{post.title}</div>
+                    <GlassPill variant="primary" className="!px-3 !py-1 text-xs flex items-center gap-2">
+                      <Send className="w-3 h-3" /> Publish
+                    </GlassPill>
+                  </div>
+                ))
+              )}
+            </div>
+          </WidgetCard>
+
+          <WidgetCard title={`Published (${publishedPosts.length})`} icon={CheckCircle} iconColor="text-emerald-400">
+            <div className="flex flex-col gap-3">
+              {publishedPosts.length === 0 ? (
+                <div className="text-sm text-gray-500 italic p-4 text-center">No published posts yet.</div>
+              ) : (
+                publishedPosts.map(post => (
+                  <div key={post.id} className="p-4 bg-emerald-500/5 border border-emerald-500/10 rounded-xl flex items-center justify-between hover:bg-emerald-500/10 transition-colors">
+                    <div className="font-medium text-emerald-100 truncate pr-4">{post.title}</div>
+                    <div className="text-xs text-emerald-400/60 font-mono flex-shrink-0">
+                      {new Date(post.published_at).toLocaleDateString()}
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          </WidgetCard>
         </div>
       )}
 
+      {/* Suggestions Tab */}
       {activeTab === 'suggestions' && (
-        <div>
-          <div style={{ marginBottom: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <h3>Blog Topic Suggestions</h3>
-            <button className="btn" onClick={scanForTopics}><Lightbulb size={16} style={{ marginRight: '8px' }} /> Scan Voice Notes</button>
-          </div>
+        <WidgetCard
+          title="Blog Topic Suggestions"
+          icon={Lightbulb}
+          iconColor="text-violet-400"
+          action={
+            <GlassPill onClick={scanForTopics} className="flex items-center gap-2">
+              <AnimatedIcon Icon={Lightbulb} className={`w-4 h-4 text-violet-400 ${isLoading ? 'animate-pulse' : ''}`} />
+              Scan Voice Notes
+            </GlassPill>
+          }
+        >
           {pendingSuggestions.length === 0 ? (
-            <p style={{ color: '#94a3b8', textAlign: 'center', padding: '40px' }}>No suggestions yet. Click "Scan Voice Notes" to find topics.</p>
+            <div className="text-gray-500 text-center py-12 font-mono uppercase tracking-widest text-sm">
+              No suggestions yet. Click "Scan Voice Notes" to analyze recent transcripts.
+            </div>
           ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+            <div className="flex flex-col gap-4">
               {pendingSuggestions.map(sug => (
-                <div key={sug.id} style={{ padding: '20px', background: 'white', borderRadius: '12px', boxShadow: '0 1px 3px rgba(0,0,0,0.1)', borderLeft: '4px solid #8b5cf6' }}>
-                  <div style={{ fontWeight: 600, marginBottom: '8px' }}>{sug.suggested_topic}</div>
-                  <div style={{ fontSize: '13px', color: '#64748b', marginBottom: '12px' }}>{sug.full_context}</div>
-                  <div style={{ display: 'flex', gap: '8px' }}>
-                    <button className="btn btn-sm" onClick={() => approveSuggestion(sug.id)}><Check size={12} style={{ marginRight: '4px' }} /> Approve</button>
-                    <button className="btn btn-sm btn-primary" onClick={() => expandSuggestion(sug.id)}><Edit2 size={12} style={{ marginRight: '4px' }} /> Expand with AI</button>
+                <div key={sug.id} className="p-6 bg-black/40 border border-violet-500/20 rounded-xl border-l-[4px] hover:bg-black/60 transition-colors">
+                  <div className="font-bold text-lg text-violet-100 mb-2 font-outfit">{sug.suggested_topic}</div>
+                  <div className="text-sm text-gray-400 mb-6 leading-relaxed line-clamp-3">{sug.full_context}</div>
+                  <div className="flex gap-3 mt-auto">
+                    <GlassPill onClick={() => approveSuggestion(sug.id)} className="flex items-center gap-2">
+                      <Check className="w-3 h-3 text-emerald-400" /> Approve
+                    </GlassPill>
+                    <GlassPill variant="primary" onClick={() => expandSuggestion(sug.id)} className="flex items-center gap-2 text-violet-200 border-violet-500/50 bg-violet-500/20 hover:bg-violet-500/30">
+                      <AnimatedIcon Icon={Edit2} className="w-3 h-3" /> Expand with AI
+                    </GlassPill>
                   </div>
                 </div>
               ))}
             </div>
           )}
-        </div>
+        </WidgetCard>
       )}
 
+      {/* New Post Modal */}
       {showNewPost && (
-        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
-          <div style={{ background: 'white', borderRadius: '16px', padding: '24px', width: '600px' }}>
-            <h2>New Blog Post</h2>
-            <input type="text" value={newPostTitle} onChange={e => setNewPostTitle(e.target.value)} placeholder="Post title" style={{ width: '100%', padding: '12px', borderRadius: '8px', border: '1px solid #e2e8f0', marginBottom: '16px' }} />
-            <textarea value={newPostContent} onChange={e => setNewPostContent(e.target.value)} placeholder="Content" rows={10} style={{ width: '100%', padding: '12px', borderRadius: '8px', border: '1px solid #e2e8f0', marginBottom: '16px', fontFamily: 'monospace' }} />
-            <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end' }}>
-              <button className="btn" onClick={() => setShowNewPost(false)}>Cancel</button>
-              <button className="btn btn-primary" onClick={createFromVoiceDrop}>Create</button>
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-xl z-[100] flex items-center justify-center p-4">
+          <WidgetCard className="w-full max-w-2xl bg-[#0a0f18] border-white/10 shadow-2xl relative">
+            <button
+              onClick={() => setShowNewPost(false)}
+              className="absolute top-4 right-4 p-2 text-gray-500 hover:text-white bg-white/5 rounded-full transition-all"
+            >
+              <XCircle className="w-5 h-5" />
+            </button>
+            <h2 className="text-2xl font-outfit font-bold text-white mb-6">Create Blog Post</h2>
+
+            <div className="space-y-4">
+              <div>
+                <label className="block text-[10px] uppercase tracking-widest font-bold text-gray-500 mb-2">Post Title</label>
+                <input
+                  type="text"
+                  value={newPostTitle}
+                  onChange={e => setNewPostTitle(e.target.value)}
+                  placeholder="Enter a captivating title..."
+                  className="w-full bg-black/60 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-gray-600 focus:outline-none focus:border-violet-500/50 focus:ring-1 focus:ring-violet-500/50 transition-all"
+                />
+              </div>
+
+              <div>
+                <label className="block text-[10px] uppercase tracking-widest font-bold text-gray-500 mb-2">Voice Transcript / Content</label>
+                <textarea
+                  value={newPostContent}
+                  onChange={e => setNewPostContent(e.target.value)}
+                  placeholder="Draft your thoughts or drop a transcript..."
+                  rows={12}
+                  className="w-full bg-black/60 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-gray-600 focus:outline-none focus:border-violet-500/50 focus:ring-1 focus:ring-violet-500/50 transition-all resize-none glass-scroll font-mono"
+                />
+              </div>
+
+              <div className="flex gap-3 justify-end pt-4 border-t border-white/5 mt-4">
+                <GlassPill onClick={() => setShowNewPost(false)}>Cancel</GlassPill>
+                <GlassPill
+                  variant="primary"
+                  onClick={createFromVoiceDrop}
+                  className="bg-violet-600 hover:bg-violet-500 border-violet-500 flex items-center gap-2"
+                >
+                  <Send className="w-4 h-4" /> Save Post
+                </GlassPill>
+              </div>
             </div>
-          </div>
+          </WidgetCard>
         </div>
       )}
     </div>
