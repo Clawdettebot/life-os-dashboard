@@ -1344,6 +1344,22 @@ app.post('/api/habits/:id/checkin', async (req, res) => {
 });
 
 // Projects CRUD - Supabase-first
+// Normalize Supabase project fields to match frontend expectations
+function normalizeProject(p) {
+  const priorityMap = { 1: 'high', 2: 'high', 3: 'medium', 4: 'low', 5: 'low' };
+  return {
+    ...p,
+    title: p.title || p.name || 'Untitled Project',      // Supabase uses 'name'
+    priority: typeof p.priority === 'number'
+      ? (priorityMap[p.priority] || 'medium')
+      : (p.priority || 'medium'),
+    status: p.status || 'active',
+    category: p.category || 'Uncategorized',
+    tasks: p.tasks || [],
+    notes: p.notes || ''
+  };
+}
+
 async function sbProjects(filter = {}) {
   if (!lifeos) return null;
   let q = lifeos.from('lifeos_projects').select('*').order('created_at', { ascending: false });
@@ -1352,7 +1368,7 @@ async function sbProjects(filter = {}) {
   if (filter.id) q = q.eq('id', filter.id);
   const { data, error } = await q;
   if (error) throw error;
-  return data;
+  return (data || []).map(normalizeProject);
 }
 
 app.get('/api/projects', async (req, res) => {

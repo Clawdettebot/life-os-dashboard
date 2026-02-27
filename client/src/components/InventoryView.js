@@ -35,12 +35,18 @@ export default function InventoryView({ inventory = [], api }) {
   };
 
   // Filter items based on tab and search
+  // Supabase items use 'type' field for shop/giveaway/personal, 'category' for product category (apparel, etc.)
   const filteredItems = allItems.filter(item => {
-    const matchesTab = item.category === activeTab;
-    const matchesSearch = item.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    const itemType = item.type || item.category || 'shop'; // fallback chain
+    const matchesTab = activeTab === 'shop'
+      ? (itemType === 'shop' || itemType === 'apparel' || !item.type)  // shop is default
+      : itemType === activeTab;
+    const matchesSearch = !searchQuery ||
+      item.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
       item.sku?.toLowerCase().includes(searchQuery.toLowerCase());
     return matchesTab && matchesSearch;
   });
+
 
   // Use fetched stats
   const displayStats = stats || { shop: 0, giveaway: 0, personal: 0, bundles: 0 };
@@ -149,12 +155,12 @@ export default function InventoryView({ inventory = [], api }) {
               `}
             >
               {isSelected && <div className="absolute top-0 left-0 right-0 h-1 bg-amber-500/50 glow-amber-sm"></div>}
-              
+
               // Product image
               {(item.image || item.image_url) && (
                 <div className="w-full h-32 mb-4 rounded-xl overflow-hidden bg-black/40 flex items-center justify-center">
-                  <img 
-                    src={item.image || item.image_url} 
+                  <img
+                    src={item.image || item.image_url}
                     alt={item.name}
                     className="w-full h-full object-contain p-2"
                   />
