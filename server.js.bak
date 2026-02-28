@@ -607,14 +607,6 @@ app.get('/api/streams/upcoming', async (req, res) => {
 });
 
 app.post('/api/tables/:table', async (req, res) => {
-  // Workaround for CHECK constraint on status column for tasks
-  if (req.params.table === 'tasks' && req.body.status) {
-    const allowedStatuses = ['pending', 'in_progress'];
-    if (!allowedStatuses.includes(req.body.status)) {
-      console.warn(`[WORKAROUND] POST: Status ${req.body.status} not allowed, mapping to pending`);
-      req.body.status = 'pending';
-    }
-  }
   const { table } = req.params;
   const sbTable = SUPABASE_TABLE_MAP[table];
 
@@ -628,24 +620,11 @@ app.post('/api/tables/:table', async (req, res) => {
         .from(sbTable)
         .insert({ ...payload, created_at: new Date().toISOString() })
         .select().single();
-      if (error) {
-        console.error(`[FATAL] Supabase insert error on ${sbTable}:`, error.message, req.body);
-        return res.status(500).json({ error: error.message, details: 'Supabase insert failed' });
-      }
-      if (data) {
-        console.log(`[SYNC] Created ${sbTable} item in Supabase:`, data.id);
-        return res.json(data);
-      }
-      console.error(`[FATAL] Supabase insert returned no data on ${sbTable}:`, req.body);
-      return res.status(500).json({ error: 'Supabase insert returned no data' });
-    } catch (e) { 
-      console.error(`[FATAL] Supabase insert ${sbTable} exception:`, e.message); 
-      return res.status(500).json({ error: e.message, details: 'Supabase exception' }); 
-    }
+      if (error) console.error(`[DEBUG] Supabase insert error on ${sbTable}:`, error);
+      if (!error && data) return res.json(data);
+    } catch (e) { console.log(`Supabase insert ${sbTable} error, falling back:`, e.message); }
   }
 
-  // Only fallback if Supabase is NOT configured
-  console.warn(`[FALLBACK] No Supabase config for ${table}, writing to JSON`);
   const items = await jsonDb.read(table);
   const newItem = { id: Date.now().toString(), created_at: Date.now(), status: 'pending', ...req.body };
   items.push(newItem);
@@ -654,14 +633,6 @@ app.post('/api/tables/:table', async (req, res) => {
 });
 
 app.patch('/api/tables/:table/:id', async (req, res) => {
-  // Workaround for CHECK constraint on status column for tasks table
-  if (req.params.table === 'tasks' && req.body.status) {
-    const allowedStatuses = ['pending', 'in_progress'];
-    if (!allowedStatuses.includes(req.body.status)) {
-      console.warn(`[WORKAROUND] Status ${req.body.status} not allowed, mapping to pending`);
-      req.body.status = 'pending';
-    }
-  }
   const { table, id } = req.params;
   const sbTable = SUPABASE_TABLE_MAP[table];
 
@@ -676,24 +647,10 @@ app.patch('/api/tables/:table/:id', async (req, res) => {
         .update({ ...payload, updated_at: new Date().toISOString() })
         .eq('id', id)
         .select().single();
-      if (error) {
-        console.error(`[FATAL] Supabase update error on ${sbTable}:`, error.message, req.body);
-        return res.status(500).json({ error: error.message, details: 'Supabase update failed' });
-      }
-      if (data) {
-        console.log(`[SYNC] Updated ${sbTable} item in Supabase:`, id);
-        return res.json(data);
-      }
-      console.error(`[FATAL] Supabase update returned no data on ${sbTable}:`, id, req.body);
-      return res.status(500).json({ error: 'Supabase update returned no data' });
-    } catch (e) { 
-      console.error(`[FATAL] Supabase update ${sbTable} exception:`, e.message); 
-      return res.status(500).json({ error: e.message, details: 'Supabase exception' }); 
-    }
+      if (!error && data) return res.json(data);
+    } catch (e) { console.log(`Supabase update ${sbTable} error, falling back:`, e.message); }
   }
 
-  // Only fallback if Supabase is NOT configured  
-  console.warn(`[FALLBACK] No Supabase config for ${table}, writing to JSON`);
   const items = await jsonDb.read(table);
   const index = items.findIndex(i => i.id === id);
   if (index !== -1) {
@@ -712,20 +669,10 @@ app.delete('/api/tables/:table/:id', async (req, res) => {
   if (lifeos && sbTable) {
     try {
       const { error } = await lifeos.from(sbTable).delete().eq('id', id);
-      if (error) {
-        console.error(`[FATAL] Supabase delete error on ${sbTable}:`, error.message, id);
-        return res.status(500).json({ error: error.message, details: 'Supabase delete failed' });
-      }
-      console.log(`[SYNC] Deleted ${sbTable} item in Supabase:`, id);
-      return res.json({ success: true });
-    } catch (e) { 
-      console.error(`[FATAL] Supabase delete ${sbTable} exception:`, e.message); 
-      return res.status(500).json({ error: e.message, details: 'Supabase exception' }); 
-    }
+      if (!error) return res.json({ success: true });
+    } catch (e) { console.log(`Supabase delete ${sbTable} error, falling back:`, e.message); }
   }
 
-  // Only fallback if Supabase is NOT configured
-  console.warn(`[FALLBACK] No Supabase config for ${table}, writing to JSON`);
   let items = await jsonDb.read(table);
   items = items.filter(i => i.id !== id);
   await jsonDb.write(table, items);
@@ -755,33 +702,14 @@ app.get('/api/tasks', async (req, res) => {
 
 // Tasks CREATE
 app.post('/api/tasks', async (req, res) => {
-  // Workaround for CHECK constraint on status column
-  if (req.body.status) {
-    const allowedStatuses = ['pending', 'in_progress'];
-    if (!allowedStatuses.includes(req.body.status)) {
-      console.warn(`[WORKAROUND] POST: Status ${req.body.status} not allowed, mapping to pending`);
-      req.body.status = 'pending';
-    }
-  }
   if (lifeos) {
     try {
       const { data, error } = await lifeos.from('lifeos_tasks')
         .insert({ ...req.body, status: req.body.status || 'pending', created_at: new Date().toISOString() })
         .select().single();
-      if (error) {
-        console.error(`[FATAL] Supabase insert error on tasks:`, error.message, req.body);
-        return res.status(500).json({ error: error.message, details: 'Supabase insert failed' });
-      }
-      if (data) {
-        console.log(`[SYNC] Created task in Supabase:`, data.id);
-        return res.json(data);
-      }
-      console.error(`[FATAL] Supabase insert returned no data on tasks:`, req.body);
-      return res.status(500).json({ error: 'Supabase insert returned no data' });
-    } catch (e) { 
-      console.error(`[FATAL] Task create supabase exception:`, e.message); 
-      return res.status(500).json({ error: e.message, details: 'Supabase exception' }); 
-    }
+      if (error) console.error(`[DEBUG] Supabase insert error on tasks:`, error);
+      if (!error && data) return res.json(data);
+    } catch (e) { console.log('Task create supabase error, falling back'); }
   }
   const tasks = await jsonDb.read('tasks');
   const t = { id: Date.now().toString(), created_at: Date.now(), status: 'pending', ...req.body };
@@ -791,33 +719,13 @@ app.post('/api/tasks', async (req, res) => {
 
 // Tasks UPDATE (any field, not just status)
 app.patch('/api/tasks/:id', async (req, res) => {
-  // Workaround for CHECK constraint on status column
-  if (req.body.status) {
-    const allowedStatuses = ['pending', 'in_progress'];
-    if (!allowedStatuses.includes(req.body.status)) {
-      console.warn(`[WORKAROUND] Status ${req.body.status} not allowed, mapping to pending`);
-      req.body.status = 'pending';
-    }
-  }
   if (lifeos) {
     try {
       const { data, error } = await lifeos.from('lifeos_tasks')
         .update({ ...req.body, updated_at: new Date().toISOString() })
         .eq('id', req.params.id).select().single();
-      if (error) {
-        console.error(`[FATAL] Supabase update error on tasks:`, error.message, req.body);
-        return res.status(500).json({ error: error.message, details: 'Supabase update failed' });
-      }
-      if (data) {
-        console.log(`[SYNC] Updated task in Supabase:`, req.params.id);
-        return res.json(data);
-      }
-      console.error(`[FATAL] Supabase update returned no data on tasks:`, req.params.id, req.body);
-      return res.status(500).json({ error: 'Supabase update returned no data' });
-    } catch (e) { 
-      console.error(`[FATAL] Task update supabase exception:`, e.message); 
-      return res.status(500).json({ error: e.message, details: 'Supabase exception' }); 
-    }
+      if (!error && data) return res.json(data);
+    } catch (e) { console.log('Task update supabase error, falling back'); }
   }
   const tasks = await jsonDb.read('tasks');
   const i = tasks.findIndex(t => t.id === req.params.id);
@@ -830,16 +738,8 @@ app.delete('/api/tasks/:id', async (req, res) => {
   if (lifeos) {
     try {
       const { error } = await lifeos.from('lifeos_tasks').delete().eq('id', req.params.id);
-      if (error) {
-        console.error(`[FATAL] Supabase delete error on tasks:`, error.message, req.params.id);
-        return res.status(500).json({ error: error.message, details: 'Supabase delete failed' });
-      }
-      console.log(`[SYNC] Deleted task in Supabase:`, req.params.id);
-      return res.json({ success: true });
-    } catch (e) { 
-      console.error(`[FATAL] Task delete supabase exception:`, e.message); 
-      return res.status(500).json({ error: e.message, details: 'Supabase exception' }); 
-    }
+      if (!error) return res.json({ success: true });
+    } catch (e) { console.log('Task delete supabase error, falling back'); }
   }
   let tasks = await jsonDb.read('tasks');
   tasks = tasks.filter(t => t.id !== req.params.id);
@@ -877,24 +777,13 @@ app.post('/api/habits', async (req, res) => {
           frequency: req.body.frequency || 'daily',
           created_at: new Date().toISOString()
         }).select().single();
-      if (error) {
-        console.error(`[FATAL] Supabase insert error on habits:`, error.message, req.body);
-        return res.status(500).json({ error: error.message, details: 'Supabase insert failed' });
-      }
-      if (data) {
-        console.log(`[SYNC] Created habit in Supabase:`, data.id);
-        return res.json({
-          ...data,
-          streak: { current: data.streak_current || 0, longest: data.streak_longest || 0 },
-          history: []
-        });
-      }
-      console.error(`[FATAL] Supabase insert returned no data on habits:`, req.body);
-      return res.status(500).json({ error: 'Supabase insert returned no data' });
-    } catch (e) { 
-      console.error(`[FATAL] Habit create supabase exception:`, e.message); 
-      return res.status(500).json({ error: e.message, details: 'Supabase exception' }); 
-    }
+      if (error) console.error(`[DEBUG] Supabase insert error on habits:`, error);
+      if (!error && data) return res.json({
+        ...data,
+        streak: { current: data.streak_current || 0, longest: data.streak_longest || 0 },
+        history: []
+      });
+    } catch (e) { console.log('Habit create supabase error, falling back'); }
   }
   const habits = await jsonDb.read('habits');
   const h = { id: Date.now().toString(), created_at: Date.now(), streak: { current: 0, longest: 0 }, history: [], ...req.body };
@@ -909,23 +798,11 @@ app.patch('/api/habits/:id', async (req, res) => {
       const { data, error } = await lifeos.from('lifeos_habits')
         .update({ ...req.body, updated_at: new Date().toISOString() })
         .eq('id', req.params.id).select().single();
-      if (error) {
-        console.error(`[FATAL] Supabase update error on habits:`, error.message, req.body);
-        return res.status(500).json({ error: error.message, details: 'Supabase update failed' });
-      }
-      if (data) {
-        console.log(`[SYNC] Updated habit in Supabase:`, req.params.id);
-        return res.json({
-          ...data,
-          streak: { current: data.streak_current || 0, longest: data.streak_longest || 0 }
-        });
-      }
-      console.error(`[FATAL] Supabase update returned no data on habits:`, req.params.id, req.body);
-      return res.status(500).json({ error: 'Supabase update returned no data' });
-    } catch (e) { 
-      console.error(`[FATAL] Habit update supabase exception:`, e.message); 
-      return res.status(500).json({ error: e.message, details: 'Supabase exception' }); 
-    }
+      if (!error && data) return res.json({
+        ...data,
+        streak: { current: data.streak_current || 0, longest: data.streak_longest || 0 }
+      });
+    } catch (e) { console.log('Habit update supabase error, falling back'); }
   }
   const habits = await jsonDb.read('habits');
   const i = habits.findIndex(h => h.id === req.params.id);
@@ -982,16 +859,7 @@ app.post('/api/tasks/:id/move', async (req, res) => {
     'backlog': 'pending', 'todo': 'pending',
     'in_progress': 'in_progress', 'review': 'review', 'done': 'completed'
   };
-  let newStatus = columnToStatus[column] || column;
-
-  // Workaround: Map blocked statuses to allowed ones due to Supabase CHECK constraint
-  // TODO: Fix constraint in Supabase to allow all statuses
-  const allowedStatuses = ['pending', 'in_progress'];
-  if (!allowedStatuses.includes(newStatus)) {
-    console.warn(`[WORKAROUND] Status '${newStatus}' not allowed by constraint, using fallback`);
-    if (newStatus === 'completed') newStatus = 'pending'; // done → pending
-    else if (newStatus === 'review') newStatus = 'in_progress'; // review → in_progress
-  }
+  const newStatus = columnToStatus[column] || column;
 
   if (lifeos) {
     try {
@@ -1000,20 +868,8 @@ app.post('/api/tasks/:id/move', async (req, res) => {
         .update({ status: newStatus, updated_at: new Date().toISOString() })
         .eq('id', id)
         .select().single();
-      if (error) {
-        console.error(`[FATAL] Supabase move error on tasks:`, error.message, id, req.body);
-        return res.status(500).json({ error: error.message, details: 'Supabase move failed' });
-      }
-      if (data) {
-        console.log(`[SYNC] Moved task in Supabase:`, id, 'to', newStatus);
-        return res.json({ success: true, task: data });
-      }
-      console.error(`[FATAL] Supabase move returned no data:`, id);
-      return res.status(500).json({ error: 'Supabase move returned no data' });
-    } catch (e) { 
-      console.error(`[FATAL] Tasks move supabase exception:`, e.message); 
-      return res.status(500).json({ error: e.message, details: 'Supabase exception' }); 
-    }
+      if (!error && data) return res.json({ success: true, task: data });
+    } catch (e) { console.log('Tasks move supabase error, falling back'); }
   }
 
   try {
