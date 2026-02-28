@@ -402,10 +402,23 @@ app.get('/api/tables/:table', async (req, res) => {
         if (table === 'finances') {
           normalized = normalized.map(f => ({
             ...f,
+            title: f.description || 'Unknown',
             amount: Number(f.amount) || 0,
             type: f.type || 'expense',
             category: f.category || 'Other'
           }));
+        }
+
+        // Normalize notes: infer title from content
+        if (table === 'notes') {
+          normalized = normalized.map(n => {
+            let inferTitle = 'Untitled Note';
+            if (n.content) {
+              const firstLine = n.content.split('\n')[0];
+              inferTitle = firstLine.replace(/^#\s*/, '').substring(0, 40);
+            }
+            return { ...n, title: inferTitle };
+          });
         }
 
         return res.json({ data: normalized, source: 'supabase' });
@@ -599,10 +612,15 @@ app.post('/api/tables/:table', async (req, res) => {
 
   if (lifeos && sbTable) {
     try {
+      let payload = { ...req.body };
+      if (table === 'finances' && payload.title !== undefined) { payload.description = payload.title; delete payload.title; }
+      if (table === 'notes' && payload.title !== undefined) { delete payload.title; }
+      if (table === 'projects' && payload.title !== undefined) { payload.name = payload.title; delete payload.title; }
       const { data, error } = await lifeos
         .from(sbTable)
-        .insert({ ...req.body, created_at: new Date().toISOString() })
+        .insert({ ...payload, created_at: new Date().toISOString() })
         .select().single();
+      if (error) console.error(`[DEBUG] Supabase insert error on ${sbTable}:`, error);
       if (!error && data) return res.json(data);
     } catch (e) { console.log(`Supabase insert ${sbTable} error, falling back:`, e.message); }
   }
@@ -620,9 +638,13 @@ app.patch('/api/tables/:table/:id', async (req, res) => {
 
   if (lifeos && sbTable) {
     try {
+      let payload = { ...req.body };
+      if (table === 'finances' && payload.title !== undefined) { payload.description = payload.title; delete payload.title; }
+      if (table === 'notes' && payload.title !== undefined) { delete payload.title; }
+      if (table === 'projects' && payload.title !== undefined) { payload.name = payload.title; delete payload.title; }
       const { data, error } = await lifeos
         .from(sbTable)
-        .update({ ...req.body, updated_at: new Date().toISOString() })
+        .update({ ...payload, updated_at: new Date().toISOString() })
         .eq('id', id)
         .select().single();
       if (!error && data) return res.json(data);
@@ -685,6 +707,7 @@ app.post('/api/tasks', async (req, res) => {
       const { data, error } = await lifeos.from('lifeos_tasks')
         .insert({ ...req.body, status: req.body.status || 'pending', created_at: new Date().toISOString() })
         .select().single();
+      if (error) console.error(`[DEBUG] Supabase insert error on tasks:`, error);
       if (!error && data) return res.json(data);
     } catch (e) { console.log('Task create supabase error, falling back'); }
   }
@@ -754,6 +777,7 @@ app.post('/api/habits', async (req, res) => {
           frequency: req.body.frequency || 'daily',
           created_at: new Date().toISOString()
         }).select().single();
+      if (error) console.error(`[DEBUG] Supabase insert error on habits:`, error);
       if (!error && data) return res.json({
         ...data,
         streak: { current: data.streak_current || 0, longest: data.streak_longest || 0 },
@@ -1428,9 +1452,13 @@ app.get('/api/projects/:id', async (req, res) => {
 app.post('/api/projects', async (req, res) => {
   if (lifeos) {
     try {
+      let payload = { ...req.body };
+      if (payload.title !== undefined) { payload.name = payload.title; delete payload.title; }
+      if (payload.priority) { const pMap = { high: 2, medium: 3, low: 4 }; payload.priority = pMap[payload.priority] || 3; }
       const { data, error } = await lifeos.from('lifeos_projects')
-        .insert({ ...req.body, created_at: new Date().toISOString(), updated_at: new Date().toISOString() })
+        .insert({ ...payload, created_at: new Date().toISOString(), updated_at: new Date().toISOString() })
         .select().single();
+      if (error) console.error(`[DEBUG] Supabase insert error on projects:`, error);
       if (!error && data) return res.json({ project: data, source: 'supabase' });
     } catch (e) { console.log('Project create supabase error, falling back'); }
   }
@@ -1445,8 +1473,11 @@ app.post('/api/projects', async (req, res) => {
 app.patch('/api/projects/:id', async (req, res) => {
   if (lifeos) {
     try {
+      let payload = { ...req.body };
+      if (payload.title !== undefined) { payload.name = payload.title; delete payload.title; }
+      if (payload.priority) { const pMap = { high: 2, medium: 3, low: 4 }; payload.priority = pMap[payload.priority] || 3; }
       const { data, error } = await lifeos.from('lifeos_projects')
-        .update({ ...req.body, updated_at: new Date().toISOString() })
+        .update({ ...payload, updated_at: new Date().toISOString() })
         .eq('id', req.params.id).select().single();
       if (!error && data) return res.json({ project: data, source: 'supabase' });
     } catch (e) { console.log('Project patch supabase error, falling back'); }
@@ -1585,7 +1616,7 @@ app.post('/api/google-calendar/auth-callback', async (req, res) => {
   try {
     const { code } = req.body;
     if (!code) return res.status(400).json({ error: 'Missing code' });
-    
+
     const calendarClient = require('./google-calendar-client.js');
     await calendarClient.exchangeCode(code);
     res.json({ success: true, message: 'Google Calendar re-authenticated!' });

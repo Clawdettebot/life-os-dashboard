@@ -13,7 +13,8 @@ const agentAvatars = {
   'clawthchilds': '/avatars/99f2a89b-8c51-4078-af63-10046a333434.png',
   'claudnelius': '/avatars/c44a0f21-6530-4e4b-8eb7-a27c8674299b.png',
   'labrina': '/avatars/6f9d0fbf-6011-471b-8740-397b7eeb708f.png',
-  soldier: '/avatars/a3010206-b78c-4da9-8971-f83294efe9a6.png'
+  soldier: '/avatars/a3010206-b78c-4da9-8971-f83294efe9a6.png',
+  'shrimp-soldier': '/avatars/a3010206-b78c-4da9-8971-f83294efe9a6.png'
 };
 
 const agentThemes = {
@@ -24,7 +25,8 @@ const agentThemes = {
   'claudnelius': { glow: 'bg-green-500/20', border: 'border-green-500/30', gradient: 'from-green-400 to-emerald-600' },
   'labrina': { glow: 'bg-pink-500/20', border: 'border-pink-500/30', gradient: 'from-pink-500 to-rose-500' },
   default: { glow: 'bg-white/10', border: 'border-white/20', gradient: 'from-gray-400 to-gray-600' },
-  soldier: { glow: 'bg-cyan-500/10', border: 'border-cyan-500/20', gradient: 'from-cyan-600 to-blue-800' }
+  soldier: { glow: 'bg-cyan-500/10', border: 'border-cyan-500/20', gradient: 'from-cyan-600 to-blue-800' },
+  'shrimp-soldier': { glow: 'bg-cyan-500/10', border: 'border-cyan-500/20', gradient: 'from-cyan-600 to-blue-800' }
 };
 
 const AgentAvatar = ({ agentId, size = 64, className = "" }) => {
@@ -115,6 +117,14 @@ export default function RoundTableView() {
       status: 'active',
       lastActivity: new Date(Date.now() - 1000 * 60 * 45).toISOString(),
       specialty: 'Social media post planning, deployment scheduling, analytics ingestion'
+    },
+    {
+      id: 'shrimp-soldier',
+      name: 'Shrimp Soldier',
+      role: 'Soldier',
+      status: 'active',
+      lastActivity: new Date().toISOString(),
+      specialty: 'Tactical operations, swarm coordination, front-line task execution'
     }
   ]);
 
