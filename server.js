@@ -1263,6 +1263,117 @@ app.post('/api/agents/heartbeat', async (req, res) => {
   } catch (e) {
     res.status(500).json({ error: e.message });
   }
+
+// ============================================
+// AGENTS API - Aliases for /api/agents/*
+// ============================================
+
+// GET /api/agents - Get all agent statuses (alias for /api/agents/status)
+app.get('/api/agents', async (req, res) => {
+  try {
+    let agents = { ...DEFAULT_AGENTS };
+    try {
+      const saved = JSON.parse(await fs.readFile(AGENTS_FILE, 'utf8'));
+      agents = { ...agents, ...saved };
+    } catch (e) { }
+    res.json({ agents, timestamp: Date.now() });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// POST /api/agents - Register/update agent (alias for /api/agents/status)
+app.post('/api/agents', async (req, res) => {
+  const { agentId, status, task, location } = req.body;
+
+  try {
+    let agents = { ...DEFAULT_AGENTS };
+    try {
+      const saved = JSON.parse(await fs.readFile(AGENTS_FILE, 'utf8'));
+      agents = { ...agents, ...saved };
+    } catch (e) { }
+
+    if (!agents[agentId]) {
+      agents[agentId] = {
+        name: agentId,
+        title: 'Agent',
+        emoji: '🤖',
+        status: 'unknown',
+        location: 'unknown',
+        task: 'Unknown',
+        color: '#6b7280'
+      };
+    }
+
+    if (status) agents[agentId].status = status;
+    if (task) agents[agentId].task = task;
+    if (location) agents[agentId].location = location;
+    agents[agentId].lastSeen = Date.now();
+
+    await fs.writeFile(AGENTS_FILE, JSON.stringify(agents, null, 2));
+    res.json({ success: true, agent: agents[agentId] });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+
+// PATCH /api/agents/:id - Update agent status
+app.patch('/api/agents/:id', async (req, res) => {
+  const agentId = req.params.id;
+  const updates = req.body;
+
+  try {
+    let agents = { ...DEFAULT_AGENTS };
+    try {
+      const saved = JSON.parse(await fs.readFile(AGENTS_FILE, 'utf8'));
+      agents = { ...agents, ...saved };
+    } catch (e) { }
+
+    if (!agents[agentId]) {
+      return res.status(404).json({ error: 'Agent not found' });
+    }
+
+    // Update allowed fields
+    if (updates.status) agents[agentId].status = updates.status;
+    if (updates.task) agents[agentId].task = updates.task;
+    if (updates.location) agents[agentId].location = updates.location;
+    if (updates.title) agents[agentId].title = updates.title;
+    if (updates.emoji) agents[agentId].emoji = updates.emoji;
+    if (updates.color) agents[agentId].color = updates.color;
+    agents[agentId].lastSeen = Date.now();
+
+    await fs.writeFile(AGENTS_FILE, JSON.stringify(agents, null, 2));
+    res.json({ success: true, agent: agents[agentId] });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// DELETE /api/agents/:id - Remove/unregister agent
+app.delete('/api/agents/:id', async (req, res) => {
+  const agentId = req.params.id;
+
+  try {
+    let agents = { ...DEFAULT_AGENTS };
+    try {
+      const saved = JSON.parse(await fs.readFile(AGENTS_FILE, 'utf8'));
+      agents = { ...agents, ...saved };
+    } catch (e) { }
+
+    if (!agents[agentId]) {
+      return res.status(404).json({ error: 'Agent not found' });
+    }
+
+    delete agents[agentId];
+
+    await fs.writeFile(AGENTS_FILE, JSON.stringify(agents, null, 2));
+    res.json({ success: true, message: `Agent ${agentId} removed` });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
 });
 
 // Agent auto-reply endpoint - triggered by watcher

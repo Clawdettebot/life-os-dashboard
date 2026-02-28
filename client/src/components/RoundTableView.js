@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import RoundTableBackground from './RoundTableBackground';
 import { Crown, Clock, Shield, Activity, Command, Cpu, X, Bot } from 'lucide-react';
 import { WidgetCard } from './ui/WidgetCard';
@@ -137,6 +137,40 @@ export default function RoundTableView() {
 
   const [selectedAgent, setSelectedAgent] = useState(null);
 
+  // Chat bubble state for agent messages
+  const [agentMessages, setAgentMessages] = useState({
+    claudnelius: '',
+    clawdette: '',
+    'knowledge-knaight': ''
+  });
+
+  // Fetch messages from API on mount
+  useEffect(() => {
+    const fetchAgentMessages = async () => {
+      const agents = ['claudnelius', 'clawdette', 'knowledge-knaight'];
+      const messages = {};
+      
+      for (const agent of agents) {
+        try {
+          const res = await fetch(`/api/messages?agent=${agent}`);
+          if (res.ok) {
+            const data = await res.json();
+            messages[agent] = data.message || data.content || data.text || data.messages?.[0] || '';
+          }
+        } catch (e) {
+          console.log(`Failed to fetch message for ${agent}`);
+        }
+      }
+      
+      setAgentMessages(prev => ({ ...prev, ...messages }));
+    };
+    
+    fetchAgentMessages();
+    // Poll every 30 seconds for new messages
+    const interval = setInterval(fetchAgentMessages, 30000);
+    return () => clearInterval(interval);
+  }, []);
+
   const formatLastActivity = (isoString) => {
     if (!isoString) return 'Not started';
     const date = new Date(isoString);
@@ -196,8 +230,39 @@ export default function RoundTableView() {
 
                 <div className="p-8 relative z-10 flex flex-col h-full justify-between">
                   <div>
-                    <div className="flex justify-between items-start mb-4">
-                      <AgentAvatar agentId={agent.id} size={64} />
+                    <div className="flex justify-between items-start mb-4 gap-3">
+                      <div className="relative">
+                        <AgentAvatar agentId={agent.id} size={64} />
+                        {agentMessages[agent.id] && (
+                          <div className={`absolute top-full mt-2 left-0 right-0 animate-in-fade-slide`}>
+                            <div className={`relative px-3 py-2 rounded-2xl text-xs text-white font-medium backdrop-blur-md border shadow-lg
+                              ${agent.id === 'claudnelius' ? 'bg-green-500/20 border-green-500/30' : 
+                                agent.id === 'clawdette' ? 'bg-pink-500/20 border-pink-500/30' : 
+                                agent.id === 'knowledge-knaight' ? 'bg-purple-500/20 border-purple-500/30' : 
+                                'bg-white/10 border-white/20'}
+                              `}>
+                              {/* Tail pointer */}
+                              <div className={`absolute -top-1.5 left-4 w-3 h-3 rotate-45 rounded-sm backdrop-blur-md
+                                ${agent.id === 'claudnelius' ? 'bg-green-500/30' : 
+                                  agent.id === 'clawdette' ? 'bg-pink-500/30' : 
+                                  agent.id === 'knowledge-knaight' ? 'bg-purple-500/30' : 
+                                  'bg-white/20'}
+                              `}></div>
+                              <div className="text-[10px] font-bold uppercase tracking-wider opacity-60 mb-1">
+                                {agent.id === 'claudnelius' ? '👑 Claudnelius' : 
+                                 agent.id === 'clawdette' ? '💜 Clawdette' : 
+                                 agent.id === 'knowledge-knaight' ? '📚 Knowledge Knaight' : 
+                                 agent.name}
+                              </div>
+                              <div className="line-clamp-2 leading-snug">
+                                {agentMessages[agent.id].length > 80 
+                                  ? agentMessages[agent.id].substring(0, 80) + '...' 
+                                  : agentMessages[agent.id]}
+                              </div>
+                            </div>
+                          </div>
+                        )}
+                      </div>
                       <div className="flex flex-col items-end pt-1">
                         <span className={`px-2 py-1 rounded-full text-[8px] font-black tracking-[0.2em] uppercase border ${isActive ? 'bg-green-500/10 text-green-400 border-green-500/30 shadow-[0_0_10px_rgba(34,197,94,0.15)]' :
                           isComingSoon ? 'bg-slate-500/10 text-slate-400 border-slate-500/30' :
