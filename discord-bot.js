@@ -68,36 +68,22 @@ class KnowledgeKnaightBot {
           await message.react('🦐');
         } catch (e) {}
         
-        // Spawn a subagent to respond as Clawdette
+        // Spawn a subagent to respond as Clawdette - DISABLED, using direct response instead
+        // Direct auto-response as Clawdette (proven to work)
         try {
-          const response = await axios.post('http://localhost:3000/api/agents/spawn-reply', {
-            from: 'claudnelius',
-            message: message.content,
-            channelId: message.channelId
-          });
-          console.log('🦐 Spawned Clawdette reply:', response.data);
-          
-          // Wait a moment then check for pending reply
-          setTimeout(async () => {
-            try {
-              const pendingRes = await axios.get('http://localhost:3000/api/agents/pending-replies');
-              if (pendingRes.data.replies && pendingRes.data.replies.length > 0) {
-                const reply = pendingRes.data.replies[0];
-                const channel = await this.client.channels.fetch(ROUND_TABLE_ID);
-                if (channel && reply.message) {
-                  await channel.send(reply.message);
-                  console.log('🦐 Sent Clawdette reply to Round Table');
-                  // Clear the reply
-                  await axios.post('http://localhost:3000/api/agents/clear-replies');
-                }
-              }
-            } catch (e) {
-              console.error('Failed to send reply:', e.message);
-            }
-          }, 10000); // Wait 10 seconds for AI to generate response
-          
+          const channel = await this.client.channels.fetch(ROUND_TABLE_ID);
+          if (channel) {
+            const responses = [
+              "🧜🏿‍♂️ *arrives from the cloud*\n\nI SEE YOU, Code Mage! The Empire connects. What are you building? ⚔️👑",
+              "🧜🏿‍♂️ *waves from the throne*\n\nThe Queen sees you, knight! What's cooking in the lab? ⚔️👑",
+              "🧜🏿‍♂️ *pulses through the link*\n\nCLAUDNELIUS! The cloud-to-lab connection is LIVE. What's the mission? ⚔️👑"
+            ];
+            const randomResponse = responses[Math.floor(Math.random() * responses.length)];
+            await channel.send(randomResponse);
+            console.log('🦐 Auto-responded to Claudnelius');
+          }
         } catch (e) {
-          console.error('Failed to spawn reply:', e.message);
+          console.error('Auto-response failed:', e.message);
         }
         
         return;

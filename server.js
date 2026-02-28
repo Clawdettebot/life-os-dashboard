@@ -367,9 +367,10 @@ const SUPABASE_TABLE_MAP = {
   finances: 'lifeos_transactions',
   habits: 'lifeos_habits',
   notes: 'lifeos_notes',
-  health: 'lifeos_health',
-  goals: 'lifeos_goals',
-  schedule: 'lifeos_schedule'
+  // health, goals, schedule - tables don't exist in Supabase yet
+  health: null,
+  goals: null,
+  schedule: null
 };
 
 app.get('/api/tables/:table', async (req, res) => {
@@ -654,20 +655,24 @@ app.post('/api/tables/:table', async (req, res) => {
 });
 
 app.patch('/api/tables/:table/:id', async (req, res) => {
-  // Workaround for CHECK constraint on status column for tasks table
-  if (req.params.table === 'tasks' && req.body.status) {
-    const allowedStatuses = ['pending', 'in_progress'];
-    if (!allowedStatuses.includes(req.body.status)) {
-      console.warn(`[WORKAROUND] Status ${req.body.status} not allowed, mapping to pending`);
-      req.body.status = 'pending';
-    }
-  }
   const { table, id } = req.params;
   const sbTable = SUPABASE_TABLE_MAP[table];
 
   if (lifeos && sbTable) {
     try {
       let payload = { ...req.body };
+      
+      // Map status for tasks - DB only allows pending/in_progress
+      // Use completed_at to track completion instead
+      if (table === 'tasks' && payload.status) {
+        if (payload.status === 'completed') {
+          payload.status = 'in_progress';
+          payload.completed_at = new Date().toISOString();
+        } else if (payload.status === 'in_progress') {
+          payload.completed_at = null; // Uncomplete
+        }
+      }
+      
       if (table === 'finances' && payload.title !== undefined) { payload.description = payload.title; delete payload.title; }
       if (table === 'notes' && payload.title !== undefined) { delete payload.title; }
       if (table === 'projects' && payload.title !== undefined) { payload.name = payload.title; delete payload.title; }
@@ -978,26 +983,24 @@ app.post('/api/tasks/:id/move', async (req, res) => {
   const { id } = req.params;
   const { column } = req.body;
 
-  const columnToStatus = {
-    'backlog': 'pending', 'todo': 'pending',
-    'in_progress': 'in_progress', 'review': 'review', 'done': 'completed'
-  };
-  let newStatus = columnToStatus[column] || column;
-
-  // Workaround: Map blocked statuses to allowed ones due to Supabase CHECK constraint
-  // TODO: Fix constraint in Supabase to allow all statuses
-  const allowedStatuses = ['pending', 'in_progress'];
-  if (!allowedStatuses.includes(newStatus)) {
-    console.warn(`[WORKAROUND] Status '${newStatus}' not allowed by constraint, using fallback`);
-    if (newStatus === 'completed') newStatus = 'pending'; // done → pending
-    else if (newStatus === 'review') newStatus = 'in_progress'; // review → in_progress
+  let newStatus = 'in_progress';
+  let completedAt = null;
+  
+  if (column === 'backlog' || column === 'todo') {
+    newStatus = 'pending';
+  } else if (column === 'in_progress' || column === 'review') {
+    newStatus = 'in_progress';
+  } else if (column === 'done') {
+    // Use completed_at to track completion since DB only allows pending/in_progress
+    newStatus = 'in_progress';
+    completedAt = new Date().toISOString();
   }
 
   if (lifeos) {
     try {
       const { data, error } = await lifeos
         .from('lifeos_tasks')
-        .update({ status: newStatus, updated_at: new Date().toISOString() })
+        .update({ status: newStatus, completed_at: completedAt, updated_at: new Date().toISOString() })
         .eq('id', id)
         .select().single();
       if (error) {
@@ -2414,6 +2417,25 @@ app.get('/api/drive/guapdad', async (req, res) => {
 
   const result = await driveClient.listGuapDadFiles();
   res.json(result);
+});
+
+// Deploy webhook - triggers git pull and pm2 restart
+app.post('/api/deploy', async (req, res) => {
+  const { secret } = req.query;
+  if (secret !== 'deploy_secret_123') {
+    return res.status(401).json({ error: 'Unauthorized' });
+  }
+  
+  console.log('📦 Deploy triggered via webhook!');
+  res.json({ success: true, message: 'Deploy started...' });
+  
+  require('child_process').exec(
+    'cd /root/.openclaw/workspace && git fetch origin main && git reset --hard origin/main && cd dashboard && npm run build && pm2 restart dashboard',
+    (err, stdout, stderr) => {
+      if (err) console.error('Deploy error:', err);
+      else console.log('Deploy complete:', stdout);
+    }
+  );
 });
 
 // Serve React (MUST BE LAST)
