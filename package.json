@@ -7,7 +7,9 @@
     "start": "node server.js",
     "dev": "nodemon server.js",
     "build": "cd client && npm run build",
-    "install-client": "cd client && npm install"
+    "install-client": "cd client && npm install",
+    "research": "node scraper.js",
+    "researchHn": "node scraper.js hn"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.96.0",
@@ -25,6 +27,7 @@
     "imap": "^0.8.19",
     "multer": "^2.0.2",
     "nodemailer": "^8.0.1",
+    "puppeteer": "^24.37.5",
     "socket.io": "^4.7.2",
     "sqlite3": "^5.1.7",
     "stripe": "^20.3.1"
