@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import {
   BookOpen, Flame, ChefHat, History, Search, Plus,
   Filter, Clock, Tag, ExternalLink, Star, CheckCircle,
@@ -21,6 +22,7 @@ const renderItem = (item) => {
   if (typeof item === 'object') return JSON.stringify(item);
   return String(item);
 };
+// ============================================// ANIMATION VARIANTS FOR CORTEX VIEW// ============================================// Header fade-in with stagger for tabsconst headerVariants = {  initial: { opacity: 0, y: -20 },  animate: { opacity: 1, y: 0, transition: { duration: 0.4, ease: 'easeOut' } }};// Section content scroll revealconst contentVariants = {  initial: { opacity: 0, y: 30 },  animate: { opacity: 1, y: 0, transition: { duration: 0.5, ease: 'easeOut' } }};// Section tab staggerconst tabVariants = {  initial: { opacity: 0, scale: 0.8 },  animate: (i) => ({ opacity: 1, scale: 1, transition: { delay: i * 0.08, type: 'spring', stiffness: 300 } })};// Pill button hoverconst pillHoverVariants = {  rest: { scale: 1 },  hover: { scale: 1.05 }};
 
 // Helper to render objects with common fields
 const renderObj = (obj, field) => {
@@ -30,6 +32,7 @@ const renderObj = (obj, field) => {
   if (typeof obj[field] === 'object') return JSON.stringify(obj[field]);
   return String(obj[field] || '');
 };
+// ============================================// ANIMATION VARIANTS FOR CORTEX VIEW// ============================================// Header fade-in with stagger for tabsconst headerVariants = {  initial: { opacity: 0, y: -20 },  animate: { opacity: 1, y: 0, transition: { duration: 0.4, ease: 'easeOut' } }};// Section content scroll revealconst contentVariants = {  initial: { opacity: 0, y: 30 },  animate: { opacity: 1, y: 0, transition: { duration: 0.5, ease: 'easeOut' } }};// Section tab staggerconst tabVariants = {  initial: { opacity: 0, scale: 0.8 },  animate: (i) => ({ opacity: 1, scale: 1, transition: { delay: i * 0.08, type: 'spring', stiffness: 300 } })};// Pill button hoverconst pillHoverVariants = {  rest: { scale: 1 },  hover: { scale: 1.05 }};
 
 const SECTIONS = {
   emerald_tablets: {
@@ -57,6 +60,7 @@ const SECTIONS = {
     categories: ['vegan', 'beef', 'fish', 'poultry', 'quick', 'cheap', 'dessert']
   }
 };
+// ============================================// ANIMATION VARIANTS FOR CORTEX VIEW// ============================================// Header fade-in with stagger for tabsconst headerVariants = {  initial: { opacity: 0, y: -20 },  animate: { opacity: 1, y: 0, transition: { duration: 0.4, ease: 'easeOut' } }};// Section content scroll revealconst contentVariants = {  initial: { opacity: 0, y: 30 },  animate: { opacity: 1, y: 0, transition: { duration: 0.5, ease: 'easeOut' } }};// Section tab staggerconst tabVariants = {  initial: { opacity: 0, scale: 0.8 },  animate: (i) => ({ opacity: 1, scale: 1, transition: { delay: i * 0.08, type: 'spring', stiffness: 300 } })};// Pill button hoverconst pillHoverVariants = {  rest: { scale: 1 },  hover: { scale: 1.05 }};
 
 export default function CortexView() {
   const [activeSection, setActiveSection] = useState('all_spark');
@@ -66,10 +70,13 @@ export default function CortexView() {
   const [stats, setStats] = useState({});
   const [viewMode, setViewMode] = useState('grid'); // grid, list, timeline
   const [selectedEntry, setSelectedEntry] = useState(null);
+  const [sectionTags, setSectionTags] = useState([]);
+  const [selectedTags, setSelectedTags] = useState([]);
 
   useEffect(() => {
     fetchEntries();
     fetchStats();
+    fetchTags();
   }, [activeSection]);
 
   const fetchEntries = async () => {
@@ -92,6 +99,19 @@ export default function CortexView() {
     }
   };
 
+  const fetchTags = async () => {
+    try {
+      const res = await fetch(`/api/cortex/tags?section=${activeSection}`);
+      const data = await res.json();
+      // data is { section: [tags] }
+      const tagsArray = data[activeSection] || [];
+      setSectionTags(tagsArray);
+      setSelectedTags([]); // Reset selected tags when section changes
+    } catch (e) {
+      console.error('Failed to fetch tags:', e);
+    }
+  };
+
   const handleQuickAdd = async (e) => {
     e.preventDefault();
     const form = e.target;
@@ -99,7 +119,7 @@ export default function CortexView() {
       title: form.title.value,
       content: form.content.value,
       section: activeSection,
-      category: form.category.value
+      category: selectedTags.length > 0 ? selectedTags.join(',') : form.category?.value || ''
     };
 
     try {
@@ -220,7 +240,7 @@ export default function CortexView() {
 
       {/* Add Modal */}
       {showAddModal && (
-        <div className="modal-overlay" onClick={() => setShowAddModal(false)}>
+        <div className={`modal-overlay ${showAddModal ? 'active' : ''}`} onClick={() => setShowAddModal(false)}>
           <div className="modal" onClick={e => e.stopPropagation()}>
             <div className="modal-header">
               <h3>Add to {SECTIONS[activeSection].label}</h3>
@@ -232,12 +252,42 @@ export default function CortexView() {
                 <input type="text" name="title" className="form-input" required />
               </div>
               <div className="form-group">
-                <label>Category</label>
-                <select name="category" className="form-select">
-                  {SECTIONS[activeSection].categories.map(cat => (
-                    <option key={cat} value={cat}>{cat.replace(/_/g, ' ')}</option>
+                <label>Tags (select multiple)</label>
+                <div className="tags-selector" style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', padding: '10px', background: '#252540', borderRadius: '8px', maxHeight: '150px', overflowY: 'auto' }}>
+                  {sectionTags.map(({ tag, color, description }) => (
+                    <button
+                      key={tag}
+                      type="button"
+                      className={`tag-pill ${selectedTags.includes(tag) ? 'selected' : ''}`}
+                      onClick={() => {
+                        setSelectedTags(prev => 
+                          prev.includes(tag) 
+                            ? prev.filter(t => t !== tag)
+                            : [...prev, tag]
+                        );
+                      }}
+                      style={{ 
+                        '--tag-color': color,
+                        background: selectedTags.includes(tag) ? color : 'transparent',
+                        border: `1px solid ${color}`,
+                        color: selectedTags.includes(tag) ? '#000' : color,
+                        padding: '4px 12px',
+                        borderRadius: '20px',
+                        cursor: 'pointer',
+                        fontSize: '0.85rem',
+                        transition: 'all 0.2s ease'
+                      }}
+                      title={description}
+                    >
+                      {tag.replace(/_/g, ' ')}
+                    </button>
                   ))}
-                </select>
+                </div>
+                {selectedTags.length > 0 && (
+                  <div style={{ marginTop: '8px', fontSize: '0.8rem', color: '#888' }}>
+                    Selected: {selectedTags.map(t => t.replace(/_/g, ' ')).join(', ')}
+                  </div>
+                )}
               </div>
               <div className="form-group">
                 <label>Content</label>

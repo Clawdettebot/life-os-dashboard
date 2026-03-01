@@ -191,6 +191,58 @@ async function createCortexEntry(entry) {
   return data;
 }
 
+// Predefined tags organized by section (from cortex-tags-map.md)
+const CORTEX_TAGS = {
+  emerald_tablets: [
+    { tag: 'history', color: 'gold', description: 'Historical events, timelines' },
+    { tag: 'culture', color: 'purple', description: 'Cultural traditions' },
+    { tag: 'timeline', color: 'blue', description: 'Chronological data' },
+    { tag: 'person', color: 'pink', description: 'Notable individuals' },
+    { tag: 'event', color: 'green', description: 'Happenings' },
+    { tag: 'african_american', color: 'amber', description: 'African American history' },
+    { tag: 'filipino', color: 'teal', description: 'Filipino heritage' },
+    { tag: 'oakland', color: 'violet', description: 'Oakland-specific' },
+    { tag: 'hip_hop', color: 'rose', description: 'Hip-hop culture' },
+    { tag: 'family', color: 'fuchsia', description: 'Family history' }
+  ],
+  all_spark: [
+    { tag: 'idea', color: 'cyan', description: 'Raw ideas' },
+    { tag: 'project', color: 'purple', description: 'Projects in progress' },
+    { tag: 'creative', color: 'rose', description: 'Creative works' },
+    { tag: 'content', color: 'orange', description: 'Content ideas' },
+    { tag: 'merch', color: 'lime', description: 'Merchandise' },
+    { tag: 'startup', color: 'teal', description: 'Business ideas' },
+    { tag: 'app', color: 'blue', description: 'App concepts' },
+    { tag: 'brand', color: 'amber', description: 'Brand ideas' }
+  ],
+  howls_kitchen: [
+    { tag: 'recipe', color: 'red', description: 'Recipes' },
+    { tag: 'review', color: 'teal', description: 'Restaurant reviews' },
+    { tag: 'technique', color: 'purple', description: 'Cooking techniques' },
+    { tag: 'restaurant', color: 'yellow', description: 'Restaurant info' },
+    { tag: 'breakfast', color: 'amber', description: 'Breakfast' },
+    { tag: 'dinner', color: 'red', description: 'Dinner' },
+    { tag: 'cocktail', color: 'rose', description: 'Cocktails' }
+  ],
+  hitchhiker_guide: [
+    { tag: 'survival', color: 'green', description: 'Survival skills' },
+    { tag: 'diy', color: 'blue', description: 'DIY projects' },
+    { tag: 'tech', color: 'purple', description: 'Tech knowledge' },
+    { tag: 'lifehack', color: 'rose', description: 'Life hacks' },
+    { tag: 'outdoor', color: 'green', description: 'Outdoor skills' },
+    { tag: 'coding', color: 'purple', description: 'Coding tips' },
+    { tag: 'fitness', color: 'red', description: 'Fitness tips' }
+  ]
+};
+
+async function getCortexTags(section = null) {
+  // Return tags for a specific section or all tags
+  if (section && CORTEX_TAGS[section]) {
+    return { [section]: CORTEX_TAGS[section] };
+  }
+  return CORTEX_TAGS;
+}
+
 // ============================================
 // AGENTS
 // ============================================
@@ -332,6 +384,8 @@ module.exports = {
   // Cortex
   getCortexEntries,
   createCortexEntry,
+  getCortexTags,
+  CORTEX_TAGS,
   // Agents
   getAgentStatus,
   updateAgentStatus,

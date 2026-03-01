@@ -7,9 +7,8 @@ const path = require('path');
 const fs = require('fs').promises;
 const axios = require('axios');
 const multer = require('multer');
-require("dotenv").config();
-const { lifeos, getCortexEntries } = require('./lifeos-supabase.js');
-
+const { lifeos, getCortexEntries, getCortexTags, CORTEX_TAGS } = require('./lifeos-supabase.js');
+require('dotenv').config();
 
 // Configure multer for file uploads
 const upload = multer({
@@ -373,6 +372,325 @@ const SUPABASE_TABLE_MAP = {
   schedule: 'lifeos_schedule'
 };
 
+// ══════════════════════════════════════════════════════════════
+// TWITCH OAUTH API
+// ══════════════════════════════════════════════════════════════
+const TWITCH_REDIRECT_URI = process.env.TWITCH_REDIRECT_URI || 'http://localhost:3000/api/twitch/callback';
+const TWITCH_CLIENT_ID = process.env.TWITCH_CLIENT_ID || (() => { try { return require("./data/twitch-credentials.json").client_id; } catch(e) { return null; } })();
+const TWITCH_CLIENT_SECRET = process.env.TWITCH_CLIENT_SECRET || (() => { try { return require("./data/twitch-credentials.json").client_secret; } catch(e) { return null; } })();
+
+// Store tokens in memory (for production, use a database)
+let twitchTokens = {
+  accessToken: null,
+  refreshToken: null,
+  expiresAt: null
+};
+
+// Load saved token if exists
+(async () => {
+  try {
+    const tokenData = await fs.readFile(path.join(__dirname, 'data', 'twitch-token.json'), 'utf8');
+    const saved = JSON.parse(tokenData);
+    twitchTokens = {
+      accessToken: saved.access_token,
+      refreshToken: saved.refresh_token,
+      expiresAt: saved.expires_at
+    };
+    console.log('✓ Twitch token loaded');
+  } catch (e) { /* No token saved yet */ }
+})();
+
+// Get OAuth authorization URL
+app.get('/api/twitch/auth-url', (req, res) => {
+  if (!TWITCH_CLIENT_ID) {
+    return res.status(500).json({ error: 'Twitch Client ID not configured' });
+  }
+
+  const scopes = [
+    'user:read:email',
+    'channel:read:subscriptions',
+    'channel:manage:schedule',
+    'user:manage:whispers'
+  ].join(' ');
+
+  const authUrl = `https://id.twitch.tv/oauth2/authorize?client_id=${TWITCH_CLIENT_ID}&redirect_uri=${encodeURIComponent(TWITCH_REDIRECT_URI)}&response_type=code&scope=${encodeURIComponent(scopes)}`;
+
+  res.json({ authUrl });
+});
+
+// OAuth callback - exchange code for token (redirect version)
+app.get('/api/twitch/callback', async (req, res) => {
+  const { code } = req.query;
+  if (!code) return res.redirect('/?twitch=error');
+
+  if (!TWITCH_CLIENT_ID || !TWITCH_CLIENT_SECRET) {
+    return res.redirect('/?twitch=error');
+  }
+
+  try {
+    const tokenResponse = await axios.post('https://id.twitch.tv/oauth2/token', null, {
+      params: {
+        client_id: TWITCH_CLIENT_ID,
+        client_secret: TWITCH_CLIENT_SECRET,
+        code: code,
+        grant_type: 'authorization_code',
+        redirect_uri: TWITCH_REDIRECT_URI
+      }
+    });
+
+    const { access_token, refresh_token, expires_in } = tokenResponse.data;
+
+    twitchTokens = {
+      accessToken: access_token,
+      refreshToken: refresh_token,
+      expiresAt: Date.now() + (expires_in * 1000)
+    };
+
+    // Save token to file
+    await fs.writeFile(path.join(__dirname, 'data', 'twitch-token.json'), JSON.stringify({
+      access_token,
+      refresh_token,
+      expires_at: twitchTokens.expiresAt
+    }, null, 2));
+
+    res.redirect('/?twitch=connected');
+  } catch (error) {
+    console.error('Twitch auth error:', error.message);
+    res.redirect('/?twitch=error');
+  }
+});
+
+// OAuth callback - exchange code for token (API version)
+app.post('/api/twitch/auth-callback', async (req, res) => {
+  const { code } = req.body;
+
+  if (!code) {
+    return res.status(400).json({ error: 'Authorization code required' });
+  }
+
+  if (!TWITCH_CLIENT_ID || !TWITCH_CLIENT_SECRET) {
+    return res.status(500).json({ error: 'Twitch credentials not configured' });
+  }
+
+  try {
+    const tokenResponse = await axios.post('https://id.twitch.tv/oauth2/token', null, {
+      params: {
+        client_id: TWITCH_CLIENT_ID,
+        client_secret: TWITCH_CLIENT_SECRET,
+        code: code,
+        grant_type: 'authorization_code',
+        redirect_uri: TWITCH_REDIRECT_URI
+      }
+    });
+
+    const { access_token, refresh_token, expires_in } = tokenResponse.data;
+
+    twitchTokens = {
+      accessToken: access_token,
+      refreshToken: refresh_token,
+      expiresAt: Date.now() + (expires_in * 1000)
+    };
+
+    // Save token
+    await fs.writeFile(path.join(__dirname, 'data', 'twitch-token.json'), JSON.stringify({
+      access_token,
+      refresh_token,
+      expires_at: twitchTokens.expiresAt
+    }, null, 2));
+
+    res.json({ success: true, expiresIn: expires_in });
+  } catch (error) {
+    console.error('Twitch token exchange error:', error.response?.data || error.message);
+    res.status(500).json({ error: 'Failed to exchange authorization code' });
+  }
+});
+
+// Get Twitch connection status
+app.get('/api/twitch/status', async (req, res) => {
+  if (!twitchTokens.accessToken || !twitchTokens.expiresAt || twitchTokens.expiresAt < Date.now()) {
+    // Try to refresh
+    if (twitchTokens.refreshToken) {
+      const refreshed = await refreshTwitchToken();
+      if (!refreshed) {
+        return res.json({ connected: false });
+      }
+    } else {
+      return res.json({ connected: false });
+    }
+  }
+
+  try {
+    const userResponse = await axios.get('https://api.twitch.tv/helix/users', {
+      headers: {
+        'Client-ID': TWITCH_CLIENT_ID,
+        'Authorization': `Bearer ${twitchTokens.accessToken}`
+      }
+    });
+
+    res.json({ 
+      connected: true, 
+      user: userResponse.data.data?.[0] || null 
+    });
+  } catch (error) {
+    console.error('Twitch status error:', error.message);
+    res.json({ connected: false });
+  }
+});
+
+// Refresh token if needed
+async function refreshTwitchToken() {
+  if (!twitchTokens.refreshToken || !TWITCH_CLIENT_ID || !TWITCH_CLIENT_SECRET) {
+    return false;
+  }
+
+  try {
+    const response = await axios.post('https://id.twitch.tv/oauth2/token', null, {
+      params: {
+        client_id: TWITCH_CLIENT_ID,
+        client_secret: TWITCH_CLIENT_SECRET,
+        refresh_token: twitchTokens.refreshToken,
+        grant_type: 'refresh_token'
+      }
+    });
+
+    const { access_token, refresh_token, expires_in } = response.data;
+
+    twitchTokens = {
+      accessToken: access_token,
+      refreshToken: refresh_token,
+      expiresAt: Date.now() + (expires_in * 1000)
+    };
+
+    // Save refreshed token
+    await fs.writeFile(path.join(__dirname, 'data', 'twitch-token.json'), JSON.stringify({
+      access_token,
+      refresh_token,
+      expires_at: twitchTokens.expiresAt
+    }, null, 2));
+
+    return true;
+  } catch (error) {
+    console.error('Twitch token refresh error:', error.message);
+    return false;
+  }
+}
+
+// Get scheduled streams from Twitch
+app.get('/api/twitch/schedule', async (req, res) => {
+  if (!twitchTokens.accessToken) {
+    return res.status(401).json({ error: 'Not authenticated with Twitch' });
+  }
+
+  try {
+    if (twitchTokens.expiresAt < Date.now()) {
+      const refreshed = await refreshTwitchToken();
+      if (!refreshed) {
+        return res.status(401).json({ error: 'Twitch session expired' });
+      }
+    }
+
+    const userResponse = await axios.get('https://api.twitch.tv/helix/users', {
+      headers: {
+        'Client-ID': TWITCH_CLIENT_ID,
+        'Authorization': `Bearer ${twitchTokens.accessToken}`
+      }
+    });
+
+    if (!userResponse.data.data || userResponse.data.data.length === 0) {
+      return res.json({ schedule: [], broadcaster: null });
+    }
+
+    const broadcaster = userResponse.data.data[0];
+    const broadcasterId = broadcaster.id;
+
+    // Get schedule
+    const scheduleResponse = await axios.get('https://api.twitch.tv/helix/schedule', {
+      headers: {
+        'Client-ID': TWITCH_CLIENT_ID,
+        'Authorization': `Bearer ${twitchTokens.accessToken}`
+      },
+      params: {
+        broadcaster_id: broadcasterId
+      }
+    });
+
+    res.json({
+      schedule: scheduleResponse.data.data?.segments || [],
+      broadcaster: broadcaster
+    });
+  } catch (error) {
+    console.error('Twitch schedule error:', error.response?.data || error.message);
+    res.status(500).json({ error: 'Failed to fetch Twitch schedule' });
+  }
+});
+
+// Create scheduled stream on Twitch
+app.post('/api/twitch/schedule', async (req, res) => {
+  if (!twitchTokens.accessToken) {
+    return res.status(401).json({ error: 'Not authenticated with Twitch' });
+  }
+
+  const { title, startTime, endTime, categoryId } = req.body;
+
+  if (!title || !startTime) {
+    return res.status(400).json({ error: 'Title and start time are required' });
+  }
+
+  try {
+    if (twitchTokens.expiresAt < Date.now()) {
+      const refreshed = await refreshTwitchToken();
+      if (!refreshed) {
+        return res.status(401).json({ error: 'Twitch session expired' });
+      }
+    }
+
+    const userResponse = await axios.get('https://api.twitch.tv/helix/users', {
+      headers: {
+        'Client-ID': TWITCH_CLIENT_ID,
+        'Authorization': `Bearer ${twitchTokens.accessToken}`
+      }
+    });
+
+    const broadcasterId = userResponse.data.data[0]?.id;
+
+    // Create scheduled stream
+    const response = await axios.post('https://api.twitch.tv/helix/schedule/segment', {
+      broadcaster_id: broadcasterId,
+      title: title,
+      start_time: startTime,
+      duration: endTime ? Math.round((new Date(endTime) - new Date(startTime)) / 60000) + 'm' : '60m',
+      category_id: categoryId
+    }, {
+      headers: {
+        'Client-ID': TWITCH_CLIENT_ID,
+        'Authorization': `Bearer ${twitchTokens.accessToken}`,
+        'Content-Type': 'application/json'
+      }
+    });
+
+    res.json({ success: true, segment: response.data.data });
+  } catch (error) {
+    console.error('Twitch schedule create error:', error.response?.data || error.message);
+    res.status(500).json({ error: 'Failed to create scheduled stream' });
+  }
+});
+
+// Disconnect Twitch
+app.post('/api/twitch/disconnect', async (req, res) => {
+  twitchTokens = {
+    accessToken: null,
+    refreshToken: null,
+    expiresAt: null
+  };
+  try {
+    await fs.unlink(path.join(__dirname, 'data', 'twitch-token.json'));
+  } catch (e) { /* ignore */ }
+  res.json({ success: true });
+});
+
+// ══════════════════════════════════════════════════════════════
+// END TWITCH OAUTH API
+// ══════════════════════════════════════════════════════════════
 app.get('/api/tables/:table', async (req, res) => {
   const table = req.params.table;
   const sbTable = SUPABASE_TABLE_MAP[table];
@@ -608,6 +926,25 @@ app.get('/api/streams/upcoming', async (req, res) => {
 });
 
 app.post('/api/tables/:table', async (req, res) => {
+// ══════════════════════════════════════════════════════════════
+// TWITCH OAUTH API
+// ══════════════════════════════════════════════════════════════
+// Disconnect Twitch
+app.post('/api/twitch/disconnect', async (req, res) => {
+  twitchTokens = {
+    accessToken: null,
+    refreshToken: null,
+    expiresAt: null
+  };
+  try {
+    await fs.unlink(path.join(__dirname, 'data', 'twitch-token.json'));
+  } catch (e) { /* ignore */ }
+  res.json({ success: true });
+});
+
+// ══════════════════════════════════════════════════════════════
+// END TWITCH OAUTH API
+// ══════════════════════════════════════════════════════════════
   const { table } = req.params;
   const sbTable = SUPABASE_TABLE_MAP[table];
 
@@ -756,30 +1093,11 @@ app.get('/api/habits', async (req, res) => {
         .from('lifeos_habits')
         .select('*')
         .order('created_at', { ascending: true });
-
-      if (!error && habits) {
-        // Fetch checkins for the last 28 days for history
-        const twentyEightDaysAgo = new Date();
-        twentyEightDaysAgo.setDate(twentyEightDaysAgo.getDate() - 28);
-        const { data: checkins } = await lifeos
-          .from('lifeos_habit_checkins')
-          .select('*')
-          .gte('date', twentyEightDaysAgo.toISOString().split('T')[0]);
-
-        const checkinsByHabit = {};
-        if (checkins) {
-          checkins.forEach(c => {
-            if (!checkinsByHabit[c.habit_id]) checkinsByHabit[c.habit_id] = [];
-            checkinsByHabit[c.habit_id].push(c);
-          });
-        }
-
-        return res.json(habits.map(h => ({
-          ...h,
-          streak: { current: h.streak_current || 0, longest: h.streak_longest || 0 },
-          history: checkinsByHabit[h.id] || []
-        })));
-      }
+      if (!error && habits) return res.json(habits.map(h => ({
+        ...h,
+        streak: { current: h.streak_current || 0, longest: h.streak_longest || 0 },
+        history: []
+      })));
     } catch (e) { console.log('Habits supabase error, falling back'); }
   }
   const habits = await jsonDb.read('habits');
@@ -790,14 +1108,11 @@ app.get('/api/habits', async (req, res) => {
 app.post('/api/habits', async (req, res) => {
   if (lifeos) {
     try {
-      const payload = { ...req.body };
-      delete payload.streak; // remove streak object from frontend
-
       const { data, error } = await lifeos.from('lifeos_habits')
         .insert({
-          ...payload,
+          ...req.body,
           streak_current: 0, streak_longest: 0,
-          frequency: payload.frequency || 'daily',
+          frequency: req.body.frequency || 'daily',
           created_at: new Date().toISOString()
         }).select().single();
       if (error) console.error(`[DEBUG] Supabase insert error on habits:`, error);
@@ -874,39 +1189,21 @@ app.delete('/api/journal/:id', async (req, res) => {
 
 
 // Move task (change status/column) - Supabase-first
-// Note: Supabase has a status CHECK constraint allowing only 'pending' and 'in_progress'
-// So we use completed_at to mark done tasks instead of changing status
 app.post('/api/tasks/:id/move', async (req, res) => {
   const { id } = req.params;
   const { column } = req.body;
 
   const columnToStatus = {
     'backlog': 'pending', 'todo': 'pending',
-    'in_progress': 'in_progress', 'review': 'in_progress', 'done': 'completed'
+    'in_progress': 'in_progress', 'review': 'review', 'done': 'completed'
   };
-  const newStatus = columnToStatus[column] || 'pending';
-
-  // When moving to done, set completed_at. When moving away from done, clear it.
-  const isDone = column === 'done';
-  const updateData = {
-    status: newStatus,
-    updated_at: new Date().toISOString(),
-    completed_at: isDone ? new Date().toISOString() : null
-  };
+  const newStatus = columnToStatus[column] || column;
 
   if (lifeos) {
     try {
-      const { data: existing } = await lifeos.from('lifeos_tasks').select('tags').eq('id', id).single();
-      if (existing) {
-        const tags = existing.tags || [];
-        const newTags = tags.filter(t => !t.startsWith('kanban:'));
-        newTags.push(`kanban:${column}`);
-        updateData.tags = newTags;
-      }
-
       const { data, error } = await lifeos
         .from('lifeos_tasks')
-        .update(updateData)
+        .update({ status: newStatus, updated_at: new Date().toISOString() })
         .eq('id', id)
         .select().single();
       if (!error && data) return res.json({ success: true, task: data });
@@ -918,9 +1215,6 @@ app.post('/api/tasks/:id/move', async (req, res) => {
     const taskIndex = tasks.findIndex(t => t.id === id);
     if (taskIndex === -1) return res.status(404).json({ error: 'Task not found' });
     tasks[taskIndex].status = newStatus;
-    tasks[taskIndex].completed_at = isDone ? new Date().toISOString() : null;
-    const tags = tasks[taskIndex].tags || [];
-    tasks[taskIndex].tags = [...tags.filter(t => !t.startsWith('kanban:')), `kanban:${column}`];
     await jsonDb.write('tasks', tasks);
     res.json({ success: true, task: tasks[taskIndex] });
   } catch (err) {
@@ -1308,115 +1602,115 @@ app.post('/api/agents/heartbeat', async (req, res) => {
     res.status(500).json({ error: e.message });
   }
 
-  // ============================================
-  // AGENTS API - Aliases for /api/agents/*
-  // ============================================
+// ============================================
+// AGENTS API - Aliases for /api/agents/*
+// ============================================
 
-  // GET /api/agents - Get all agent statuses (alias for /api/agents/status)
-  app.get('/api/agents', async (req, res) => {
+// GET /api/agents - Get all agent statuses (alias for /api/agents/status)
+app.get('/api/agents', async (req, res) => {
+  try {
+    let agents = { ...DEFAULT_AGENTS };
     try {
-      let agents = { ...DEFAULT_AGENTS };
-      try {
-        const saved = JSON.parse(await fs.readFile(AGENTS_FILE, 'utf8'));
-        agents = { ...agents, ...saved };
-      } catch (e) { }
-      res.json({ agents, timestamp: Date.now() });
-    } catch (e) {
-      res.status(500).json({ error: e.message });
-    }
-  });
+      const saved = JSON.parse(await fs.readFile(AGENTS_FILE, 'utf8'));
+      agents = { ...agents, ...saved };
+    } catch (e) { }
+    res.json({ agents, timestamp: Date.now() });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
 
-  // POST /api/agents - Register/update agent (alias for /api/agents/status)
-  app.post('/api/agents', async (req, res) => {
-    const { agentId, status, task, location } = req.body;
+// POST /api/agents - Register/update agent (alias for /api/agents/status)
+app.post('/api/agents', async (req, res) => {
+  const { agentId, status, task, location } = req.body;
 
+  try {
+    let agents = { ...DEFAULT_AGENTS };
     try {
-      let agents = { ...DEFAULT_AGENTS };
-      try {
-        const saved = JSON.parse(await fs.readFile(AGENTS_FILE, 'utf8'));
-        agents = { ...agents, ...saved };
-      } catch (e) { }
+      const saved = JSON.parse(await fs.readFile(AGENTS_FILE, 'utf8'));
+      agents = { ...agents, ...saved };
+    } catch (e) { }
 
-      if (!agents[agentId]) {
-        agents[agentId] = {
-          name: agentId,
-          title: 'Agent',
-          emoji: '🤖',
-          status: 'unknown',
-          location: 'unknown',
-          task: 'Unknown',
-          color: '#6b7280'
-        };
-      }
-
-      if (status) agents[agentId].status = status;
-      if (task) agents[agentId].task = task;
-      if (location) agents[agentId].location = location;
-      agents[agentId].lastSeen = Date.now();
-
-      await fs.writeFile(AGENTS_FILE, JSON.stringify(agents, null, 2));
-      res.json({ success: true, agent: agents[agentId] });
-    } catch (e) {
-      res.status(500).json({ error: e.message });
+    if (!agents[agentId]) {
+      agents[agentId] = {
+        name: agentId,
+        title: 'Agent',
+        emoji: '🤖',
+        status: 'unknown',
+        location: 'unknown',
+        task: 'Unknown',
+        color: '#6b7280'
+      };
     }
-  });
+
+    if (status) agents[agentId].status = status;
+    if (task) agents[agentId].task = task;
+    if (location) agents[agentId].location = location;
+    agents[agentId].lastSeen = Date.now();
+
+    await fs.writeFile(AGENTS_FILE, JSON.stringify(agents, null, 2));
+    res.json({ success: true, agent: agents[agentId] });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
 
 
-  // PATCH /api/agents/:id - Update agent status
-  app.patch('/api/agents/:id', async (req, res) => {
-    const agentId = req.params.id;
-    const updates = req.body;
+// PATCH /api/agents/:id - Update agent status
+app.patch('/api/agents/:id', async (req, res) => {
+  const agentId = req.params.id;
+  const updates = req.body;
 
+  try {
+    let agents = { ...DEFAULT_AGENTS };
     try {
-      let agents = { ...DEFAULT_AGENTS };
-      try {
-        const saved = JSON.parse(await fs.readFile(AGENTS_FILE, 'utf8'));
-        agents = { ...agents, ...saved };
-      } catch (e) { }
+      const saved = JSON.parse(await fs.readFile(AGENTS_FILE, 'utf8'));
+      agents = { ...agents, ...saved };
+    } catch (e) { }
 
-      if (!agents[agentId]) {
-        return res.status(404).json({ error: 'Agent not found' });
-      }
-
-      // Update allowed fields
-      if (updates.status) agents[agentId].status = updates.status;
-      if (updates.task) agents[agentId].task = updates.task;
-      if (updates.location) agents[agentId].location = updates.location;
-      if (updates.title) agents[agentId].title = updates.title;
-      if (updates.emoji) agents[agentId].emoji = updates.emoji;
-      if (updates.color) agents[agentId].color = updates.color;
-      agents[agentId].lastSeen = Date.now();
-
-      await fs.writeFile(AGENTS_FILE, JSON.stringify(agents, null, 2));
-      res.json({ success: true, agent: agents[agentId] });
-    } catch (e) {
-      res.status(500).json({ error: e.message });
+    if (!agents[agentId]) {
+      return res.status(404).json({ error: 'Agent not found' });
     }
-  });
 
-  // DELETE /api/agents/:id - Remove/unregister agent
-  app.delete('/api/agents/:id', async (req, res) => {
-    const agentId = req.params.id;
+    // Update allowed fields
+    if (updates.status) agents[agentId].status = updates.status;
+    if (updates.task) agents[agentId].task = updates.task;
+    if (updates.location) agents[agentId].location = updates.location;
+    if (updates.title) agents[agentId].title = updates.title;
+    if (updates.emoji) agents[agentId].emoji = updates.emoji;
+    if (updates.color) agents[agentId].color = updates.color;
+    agents[agentId].lastSeen = Date.now();
 
+    await fs.writeFile(AGENTS_FILE, JSON.stringify(agents, null, 2));
+    res.json({ success: true, agent: agents[agentId] });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// DELETE /api/agents/:id - Remove/unregister agent
+app.delete('/api/agents/:id', async (req, res) => {
+  const agentId = req.params.id;
+
+  try {
+    let agents = { ...DEFAULT_AGENTS };
     try {
-      let agents = { ...DEFAULT_AGENTS };
-      try {
-        const saved = JSON.parse(await fs.readFile(AGENTS_FILE, 'utf8'));
-        agents = { ...agents, ...saved };
-      } catch (e) { }
+      const saved = JSON.parse(await fs.readFile(AGENTS_FILE, 'utf8'));
+      agents = { ...agents, ...saved };
+    } catch (e) { }
 
-      if (!agents[agentId]) {
-        return res.status(404).json({ error: 'Agent not found' });
-      }
-
-      delete agents[agentId];
-
-      await fs.writeFile(AGENTS_FILE, JSON.stringify(agents, null, 2));
-      res.json({ success: true, message: `Agent ${agentId} removed` });
-    } catch (e) {
-      res.status(500).json({ error: e.message });
+    if (!agents[agentId]) {
+      return res.status(404).json({ error: 'Agent not found' });
     }
-  });
+
+    delete agents[agentId];
+
+    await fs.writeFile(AGENTS_FILE, JSON.stringify(agents, null, 2));
+    res.json({ success: true, message: `Agent ${agentId} removed` });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
 
 });
 
@@ -1569,24 +1863,7 @@ async function sbProjects(filter = {}) {
   if (filter.id) q = q.eq('id', filter.id);
   const { data, error } = await q;
   if (error) throw error;
-
-  // Merge tasks and notes from local JSON DB since they are not in the Supabase schema
-  let dbProjects = [];
-  try {
-    dbProjects = await jsonDb.read('projects');
-  } catch (e) {
-    dbProjects = [];
-  }
-
-  return (data || []).map(p => {
-    const norm = normalizeProject(p);
-    const localProj = dbProjects.find(dp => dp.id === p.id);
-    if (localProj) {
-      if (localProj.tasks) norm.tasks = localProj.tasks;
-      if (localProj.notes) norm.notes = localProj.notes;
-    }
-    return norm;
-  });
+  return (data || []).map(normalizeProject);
 }
 
 app.get('/api/projects', async (req, res) => {
@@ -1680,15 +1957,10 @@ app.post('/api/projects/:id/archive', async (req, res) => {
   if (lifeos) {
     try {
       const { data, error } = await lifeos.from('lifeos_projects')
-        .update({ status: 'archived', updated_at: new Date().toISOString() })
+        .update({ status: 'archived', archived_at: new Date().toISOString(), updated_at: new Date().toISOString() })
         .eq('id', req.params.id).select().single();
-      if (!error && data) {
-        const fullProj = await sbProjects({ id: req.params.id });
-        return res.json({ project: fullProj ? fullProj[0] : data });
-      } else {
-        console.error('Archive Supabase error (not exception):', error);
-      }
-    } catch (e) { console.error('Project archive supabase error exception, falling back:', e); }
+      if (!error && data) return res.json({ project: data });
+    } catch (e) { console.log('Project archive supabase error, falling back'); }
   }
   try {
     const projects = await jsonDb.read('projects');
@@ -1702,12 +1974,9 @@ app.post('/api/projects/:id/unarchive', async (req, res) => {
   if (lifeos) {
     try {
       const { data, error } = await lifeos.from('lifeos_projects')
-        .update({ status: 'active', updated_at: new Date().toISOString() })
+        .update({ status: 'active', archived_at: null, updated_at: new Date().toISOString() })
         .eq('id', req.params.id).select().single();
-      if (!error && data) {
-        const fullProj = await sbProjects({ id: req.params.id });
-        return res.json({ project: fullProj ? fullProj[0] : data });
-      }
+      if (!error && data) return res.json({ project: data });
     } catch (e) { console.log('Project unarchive supabase error, falling back'); }
   }
   try {
@@ -1719,61 +1988,65 @@ app.post('/api/projects/:id/unarchive', async (req, res) => {
 });
 
 // Project tasks & notes (these remain as sub-documents within lifeos_projects jsonb column)
-// Since 'tasks' and 'notes' don't exist in Supabase schema, we only update the local JSON db
 app.post('/api/projects/:id/tasks', async (req, res) => {
+  if (lifeos) {
+    try {
+      const { data: proj } = await lifeos.from('lifeos_projects').select('tasks').eq('id', req.params.id).single();
+      if (proj) {
+        const tasks = (proj.tasks || []);
+        tasks.push({ id: Date.now().toString(), title: req.body.title, completed: false });
+        const { data, error } = await lifeos.from('lifeos_projects').update({ tasks, updated_at: new Date().toISOString() }).eq('id', req.params.id).select().single();
+        if (!error && data) return res.json({ project: data });
+      }
+    } catch (e) { console.log('Project tasks supabase error, falling back'); }
+  }
   try {
     const projects = await jsonDb.read('projects');
-    let index = projects.findIndex(p => p.id === req.params.id);
-    if (index === -1) {
-      projects.push({ id: req.params.id, tasks: [], notes: '', created_at: Date.now(), updated_at: Date.now() });
-      index = projects.length - 1;
-    }
-    if (!projects[index].tasks) projects[index].tasks = [];
-    projects[index].tasks.push({ id: Date.now().toString(), title: req.body.title, completed: false });
-    projects[index].updated_at = Date.now();
-    await jsonDb.write('projects', projects);
-    // Re-fetch from sbProjects to return full merged object
-    const fullProj = await sbProjects({ id: req.params.id });
-    res.json({ project: fullProj ? fullProj[0] : projects[index] });
+    const index = projects.findIndex(p => p.id === req.params.id);
+    if (index !== -1) { if (!projects[index].tasks) projects[index].tasks = []; projects[index].tasks.push({ id: Date.now().toString(), title: req.body.title, completed: false }); projects[index].updated_at = Date.now(); await jsonDb.write('projects', projects); res.json({ project: projects[index] }); }
+    else res.status(404).json({ error: 'Not found' });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
 app.patch('/api/projects/:id/tasks/:taskId', async (req, res) => {
+  if (lifeos) {
+    try {
+      const { data: proj } = await lifeos.from('lifeos_projects').select('tasks').eq('id', req.params.id).single();
+      if (proj) {
+        const tasks = (proj.tasks || []).map(t => t.id === req.params.taskId ? { ...t, completed: !t.completed } : t);
+        const { data, error } = await lifeos.from('lifeos_projects').update({ tasks, updated_at: new Date().toISOString() }).eq('id', req.params.id).select().single();
+        if (!error && data) return res.json({ project: data });
+      }
+    } catch (e) { console.log('Project task patch supabase error, falling back'); }
+  }
   try {
     const projects = await jsonDb.read('projects');
     const index = projects.findIndex(p => p.id === req.params.id);
     if (index !== -1 && projects[index].tasks) {
       const task = projects[index].tasks.find(t => t.id === req.params.taskId);
-      if (task) {
-        task.completed = !task.completed;
-        projects[index].updated_at = Date.now();
-        await jsonDb.write('projects', projects);
-        // Re-fetch from sbProjects to return full merged object
-        const fullProj = await sbProjects({ id: req.params.id });
-        res.json({ project: fullProj ? fullProj[0] : projects[index] });
-      }
+      if (task) { task.completed = !task.completed; projects[index].updated_at = Date.now(); await jsonDb.write('projects', projects); res.json({ project: projects[index] }); }
       else res.status(404).json({ error: 'Task not found' });
     } else res.status(404).json({ error: 'Project not found' });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
 app.post('/api/projects/:id/notes', async (req, res) => {
+  if (lifeos) {
+    try {
+      const { data: proj } = await lifeos.from('lifeos_projects').select('notes').eq('id', req.params.id).single();
+      if (proj !== null) {
+        const existingNotes = proj.notes || '';
+        const newNotes = existingNotes ? existingNotes + '\n\n' + req.body.content : req.body.content;
+        const { data, error } = await lifeos.from('lifeos_projects').update({ notes: newNotes, updated_at: new Date().toISOString() }).eq('id', req.params.id).select().single();
+        if (!error && data) return res.json({ project: data });
+      }
+    } catch (e) { console.log('Project notes supabase error, falling back'); }
+  }
   try {
     const projects = await jsonDb.read('projects');
-    let index = projects.findIndex(p => p.id === req.params.id);
-    if (index === -1) {
-      // Create stub if missing in local db
-      projects.push({ id: req.params.id, tasks: [], notes: '', created_at: Date.now(), updated_at: Date.now() });
-      index = projects.length - 1;
-    }
-    // Simply overwrite with the sent content rather than appending
-    // The frontend sends the entire note content on save
-    projects[index].notes = req.body.content;
-    projects[index].updated_at = Date.now();
-    await jsonDb.write('projects', projects);
-    // Re-fetch from sbProjects to return full merged object
-    const fullProj = await sbProjects({ id: req.params.id });
-    res.json({ project: fullProj ? fullProj[0] : projects[index] });
+    const index = projects.findIndex(p => p.id === req.params.id);
+    if (index !== -1) { const currentNotes = projects[index].notes || ''; projects[index].notes = currentNotes ? currentNotes + '\n\n' + req.body.content : req.body.content; projects[index].updated_at = Date.now(); await jsonDb.write('projects', projects); res.json({ project: projects[index] }); }
+    else res.status(404).json({ error: 'Not found' });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
@@ -1854,6 +2127,17 @@ app.get('/api/cortex/stats', async (req, res) => {
     }
     res.json({ total: entries.length, bySection: Object.entries(bySection).map(([section, count]) => ({ section, count })) });
   } catch (error) { res.json({ total: 0, bySection: [] }); }
+});
+
+// Cortex tags endpoint - returns all predefined tags organized by section
+app.get('/api/cortex/tags', async (req, res) => {
+  const { section } = req.query;
+  try {
+    const tags = await getCortexTags(section);
+    res.json(tags);
+  } catch (error) { 
+    res.json({ error: error.message }); 
+  }
 });
 
 // Contacts CRM

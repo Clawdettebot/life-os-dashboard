@@ -24,6 +24,7 @@ import ProjectsView from './components/ProjectsView';
 import ContactsView from './components/ContactsView';
 import RoundTableView from './components/RoundTableView';
 import StreamsView from './components/StreamsView';
+import TwitchWidget from './components/TwitchWidget';
 import LanyardLogin from './components/LanyardLogin';
 import DashboardView from './components/DashboardView';
 
@@ -729,7 +730,14 @@ function App() {
           )}
 
           {activePage === 'streams' && (
-            <StreamsView streams={streams} setActiveModal={setActiveModal} api={API} triggerSFX={triggerSFX} />
+            <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+              <div className="lg:col-span-3">
+                <StreamsView streams={streams} setActiveModal={setActiveModal} api={API} triggerSFX={triggerSFX} />
+              </div>
+              <div className="lg:col-span-1">
+                <TwitchWidget API={API} />
+              </div>
+            </div>
           )}
 
           {activePage === 'subagents' && (
