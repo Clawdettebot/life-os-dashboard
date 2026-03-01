@@ -2496,3 +2496,84 @@ app.post('/api/agents/status', async (req, res) => {
     res.status(500).json({ error: e.message });
   }
 });
+
+// =======================
+// AGENT RELAY INTERFACE - NEW ENDPOINTS
+// =======================
+
+// In-memory message store (in production, use Supabase)
+const agentMessageStore = {
+  messages: {},
+  init() {
+    this.messages = {
+      'round-table': [],
+      'tasks': [],
+      'alerts': []
+    };
+  }
+};
+agentMessageStore.init();
+
+// Get agent status
+app.get('/api/agents/status', async (req, res) => {
+  try {
+    const agents = [
+      { id: 'claudnelius', name: 'Claudnelius', status: 'online', lastActivity: new Date(Date.now() - 1000 * 60 * 5).toISOString(), color: '#22c55e' },
+      { id: 'clawdette', name: 'Clawdette', status: 'online', lastActivity: new Date().toISOString(), color: '#a855f7' },
+      { id: 'knowledge-knaight', name: 'Knowledge Knaight', status: 'online', lastActivity: new Date(Date.now() - 1000 * 60 * 15).toISOString(), color: '#3b82f6' },
+      { id: 'affairs-knaight', name: 'Knaight of Affairs', status: 'online', lastActivity: new Date(Date.now() - 1000 * 60 * 3).toISOString(), color: '#06b6d4' },
+      { id: 'clawthchilds', name: 'Sir Clawthchilds', status: 'offline', lastActivity: new Date(Date.now() - 1000 * 60 * 60 * 2).toISOString(), color: '#eab308' },
+      { id: 'labrina', name: 'Labrina', status: 'online', lastActivity: new Date(Date.now() - 1000 * 60 * 45).toISOString(), color: '#ec4899' }
+    ];
+    res.json({ agents });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// Get messages for a channel
+app.get('/api/agents/messages', async (req, res) => {
+  try {
+    const { channel = 'round-table' } = req.query;
+    const messages = agentMessageStore.messages[channel] || [];
+    res.json({ messages, channel });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// Send a message to a channel
+app.post('/api/agents/messages', async (req, res) => {
+  try {
+    const { agentId, agentName, channel = 'round-table', content, color } = req.body;
+    
+    if (!content || !channel) {
+      return res.status(400).json({ error: 'Missing content or channel' });
+    }
+
+    if (!agentMessageStore.messages[channel]) {
+      agentMessageStore.messages[channel] = [];
+    }
+
+    const message = {
+      id: `msg_${Date.now()}`,
+      agentId: agentId || 'unknown',
+      agentName: agentName || 'Unknown Agent',
+      content,
+      color: color || '#ffffff',
+      timestamp: new Date().toISOString(),
+      channel
+    };
+
+    agentMessageStore.messages[channel].push(message);
+
+    // Keep only last 100 messages per channel
+    if (agentMessageStore.messages[channel].length > 100) {
+      agentMessageStore.messages[channel] = agentMessageStore.messages[channel].slice(-100);
+    }
+
+    res.json({ success: true, message });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});

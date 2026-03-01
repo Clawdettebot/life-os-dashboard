@@ -4,6 +4,7 @@ import { Crown, Clock, Shield, Activity, Command, Cpu, X, Bot } from 'lucide-rea
 import { WidgetCard } from './ui/WidgetCard';
 import { GlassyPill } from './ui/GlassyPill';
 import AnimatedIcon from './AnimatedIcon';
+import { Send, MessageSquare, Radio, Wifi, WifiOff } from 'lucide-react';
 
 // Agent avatars from assets/avatars
 const agentAvatars = {
@@ -347,6 +348,21 @@ export default function RoundTableView() {
           </div>
         </WidgetCard>
 
+        {/* ==================== AGENT CHANNEL PANEL ==================== */}
+        <div className="mt-16 mb-8">
+          <div className="flex flex-col items-center relative mb-8">
+            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-2xl h-px bg-gradient-to-r from-transparent via-yellow-500/30 to-transparent"></div>
+            <div className="bg-[#020203] px-4 relative z-10 flex flex-col items-center">
+              <h2 className="text-xl font-bold text-white font-premium tracking-tight mb-1 flex items-center gap-3">
+                <span className="text-yellow-500">📡</span> Agent Relay Channel
+              </h2>
+              <p className="text-[8px] font-bold tracking-[0.3em] text-yellow-500/80 uppercase">Inter-Agent Communication</p>
+            </div>
+          </div>
+
+          <AgentChannelPanel />
+        </div>
+
         {/* MODAL */}
         {
           selectedAgent && (
@@ -406,6 +422,239 @@ export default function RoundTableView() {
           )
         }
 
+      </div>
+    </div>
+  );
+}
+
+// ==================== AGENT CHANNEL PANEL COMPONENT ====================
+function AgentChannelPanel() {
+  const [agents, setAgents] = useState([]);
+  const [messages, setMessages] = useState([]);
+  const [selectedChannel, setSelectedChannel] = useState('round-table');
+  const [newMessage, setNewMessage] = useState('');
+  const [sending, setSending] = useState(false);
+
+  const channels = [
+    { id: 'round-table', name: '#round-table', color: 'text-yellow-400' },
+    { id: 'tasks', name: '#tasks', color: 'text-cyan-400' },
+    { id: 'alerts', name: '#alerts', color: 'text-red-400' }
+  ];
+
+  const agentColors = {
+    'claudnelius': '#22c55e',  // green
+    'clawdette': '#a855f7',     // purple
+    'knowledge-knaight': '#3b82f6', // blue
+    'affairs-knaight': '#06b6d4', // cyan
+    'clawthchilds': '#eab308',  // yellow
+    'labrina': '#ec4899'        // pink
+  };
+
+  // Fetch agent status
+  useEffect(() => {
+    const fetchAgents = async () => {
+      try {
+        const res = await fetch('/api/agents/status');
+        const data = await res.json();
+        if (data.agents) setAgents(data.agents);
+      } catch (e) {
+        console.error('Failed to fetch agents:', e);
+      }
+    };
+    fetchAgents();
+  }, []);
+
+  // Fetch messages for selected channel
+  useEffect(() => {
+    const fetchMessages = async () => {
+      try {
+        const res = await fetch(`/api/agents/messages?channel=${selectedChannel}`);
+        const data = await res.json();
+        if (data.messages) setMessages(data.messages);
+      } catch (e) {
+        console.error('Failed to fetch messages:', e);
+      }
+    };
+    fetchMessages();
+    
+    // Poll every 5 seconds
+    const interval = setInterval(fetchMessages, 5000);
+    return () => clearInterval(interval);
+  }, [selectedChannel]);
+
+  const sendMessage = async (e) => {
+    e.preventDefault();
+    if (!newMessage.trim()) return;
+    
+    setSending(true);
+    try {
+      const res = await fetch('/api/agents/messages', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          agentId: 'claudnelius',
+          agentName: 'Claudnelius',
+          channel: selectedChannel,
+          content: newMessage,
+          color: agentColors['claudnelius']
+        })
+      });
+      const data = await res.json();
+      if (data.message) {
+        setMessages(prev => [...prev, data.message]);
+        setNewMessage('');
+      }
+    } catch (e) {
+      console.error('Failed to send message:', e);
+    }
+    setSending(false);
+  };
+
+  const formatTime = (isoString) => {
+    if (!isoString) return '';
+    const date = new Date(isoString);
+    return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  };
+
+  const formatLastActivity = (isoString) => {
+    if (!isoString) return 'Never';
+    const date = new Date(isoString);
+    const now = new Date();
+    const diffMs = now - date;
+    const diffMins = Math.floor(diffMs / (1000 * 60));
+    if (diffMins < 1) return 'Just now';
+    if (diffMins < 60) return `${diffMins}m ago`;
+    const diffHours = Math.floor(diffMins / 60);
+    if (diffHours < 24) return `${diffHours}h ago`;
+    return date.toLocaleDateString();
+  };
+
+  return (
+    <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+      {/* Agent Status Panel */}
+      <div className="lg:col-span-1">
+        <WidgetCard className="h-full p-4 border-yellow-500/20">
+          <div className="flex items-center gap-2 mb-4">
+            <Radio className="w-4 h-4 text-yellow-500" />
+            <h3 className="text-xs font-bold uppercase tracking-wider text-white">Agent Network</h3>
+          </div>
+          
+          <div className="space-y-3">
+            {agents.length === 0 ? (
+              <p className="text-[10px] text-gray-500">Loading agents...</p>
+            ) : (
+              agents.map(agent => (
+                <div key={agent.id} className="flex items-center gap-3 p-2 rounded-lg bg-white/[0.02] border border-white/5">
+                  <div className="relative">
+                    <div 
+                      className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold"
+                      style={{ backgroundColor: `${agent.color}20`, border: `2px solid ${agent.color}` }}
+                    >
+                      {agent.name.charAt(0)}
+                    </div>
+                    {agent.status === 'online' ? (
+                      <Wifi className="absolute -bottom-1 -right-1 w-3 h-3 text-green-400 bg-black rounded-full" />
+                    ) : (
+                      <WifiOff className="absolute -bottom-1 -right-1 w-3 h-3 text-red-400 bg-black rounded-full" />
+                    )}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs font-medium text-white truncate">{agent.name}</p>
+                    <p className="text-[9px] text-gray-500">{formatLastActivity(agent.lastActivity)}</p>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        </WidgetCard>
+      </div>
+
+      {/* Channel Feed */}
+      <div className="lg:col-span-3">
+        <WidgetCard className="h-full p-0 border-yellow-500/20 overflow-hidden flex flex-col">
+          {/* Channel Tabs */}
+          <div className="flex border-b border-white/10 bg-black/20">
+            {channels.map(channel => (
+              <button
+                key={channel.id}
+                onClick={() => setSelectedChannel(channel.id)}
+                className={`flex-1 py-3 px-4 text-[10px] font-bold uppercase tracking-wider transition-all ${
+                  selectedChannel === channel.id 
+                    ? `bg-white/[0.05] ${channel.color} border-b-2 border-current` 
+                    : 'text-gray-500 hover:text-gray-300 hover:bg-white/[0.02]'
+                }`}
+              >
+                {channel.name}
+              </button>
+            ))}
+          </div>
+
+          {/* Messages Feed */}
+          <div className="flex-1 overflow-y-auto p-4 space-y-3 min-h-[300px] max-h-[400px] bg-gradient-to-b from-black/40 to-black/20">
+            {messages.length === 0 ? (
+              <div className="flex flex-col items-center justify-center h-full text-gray-500">
+                <MessageSquare className="w-8 h-8 mb-2 opacity-30" />
+                <p className="text-[10px]">No messages yet</p>
+                <p className="text-[9px] opacity-60">Start the conversation!</p>
+              </div>
+            ) : (
+              messages.map(msg => (
+                <div 
+                  key={msg.id} 
+                  className="flex gap-3 p-3 rounded-xl bg-white/[0.03] border border-white/5 hover:border-white/10 transition-colors"
+                >
+                  <div 
+                    className="w-8 h-8 rounded-full flex-shrink-0 flex items-center justify-center text-[10px] font-bold"
+                    style={{ backgroundColor: `${msg.color || '#fff'}20`, border: `2px solid ${msg.color || '#fff'}` }}
+                  >
+                    {msg.agentName?.charAt(0) || '?'}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 mb-1">
+                      <span 
+                        className="text-xs font-bold"
+                        style={{ color: msg.color || '#fff' }}
+                      >
+                        {msg.agentName}
+                      </span>
+                      <span className="text-[9px] text-gray-500">{formatTime(msg.timestamp)}</span>
+                    </div>
+                    <p className="text-xs text-gray-300 break-words">{msg.content}</p>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+
+          {/* Quick Send */}
+          <form onSubmit={sendMessage} className="p-4 border-t border-white/10 bg-black/20">
+            <div className="flex gap-3">
+              <select
+                value={selectedChannel}
+                onChange={(e) => setSelectedChannel(e.target.value)}
+                className="bg-white/[0.05] border border-white/10 rounded-lg px-3 py-2 text-[10px] text-white focus:outline-none focus:border-yellow-500/50"
+              >
+                {channels.map(ch => (
+                  <option key={ch.id} value={ch.id} className="bg-black">{ch.name}</option>
+                ))}
+              </select>
+              <input
+                type="text"
+                value={newMessage}
+                onChange={(e) => setNewMessage(e.target.value)}
+                placeholder="Type a message..."
+                className="flex-1 bg-white/[0.05] border border-white/10 rounded-lg px-4 py-2 text-xs text-white placeholder:text-gray-500 focus:outline-none focus:border-yellow-500/50"
+              />
+              <button
+                type="submit"
+                disabled={sending || !newMessage.trim()}
+                className="bg-gradient-to-r from-yellow-500 to-orange-600 text-black font-bold text-[10px] uppercase tracking-wider px-4 py-2 rounded-lg hover:scale-[1.02] active:scale-[0.98] transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <Send className="w-4 h-4" />
+              </button>
+            </div>
+          </form>
+        </WidgetCard>
       </div>
     </div>
   );
