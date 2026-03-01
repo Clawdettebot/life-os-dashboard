@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import io from 'socket.io-client';
 import Chart from 'chart.js/auto';
-import { Timer, BarChart3, CalendarDays, PenTool, Coins, BrainCircuit, Users, Package, Zap, BookOpen, Footprints, Waves, Music, Book, Plus } from 'lucide-react';
+import { Timer, BarChart3, CalendarDays, PenTool, Coins, BrainCircuit, Users, Package, Zap, BookOpen, Footprints, Waves, Music, Book, Plus, Lightbulb } from 'lucide-react';
 import AnimatedIcon from './components/AnimatedIcon';
 import './App.css';
 
@@ -19,6 +19,7 @@ import ExpensesView from './components/ExpensesView';
 import NotesView from './components/NotesView';
 import ContentSchedulerView from './components/ContentSchedulerView';
 import BlogVoiceView from './components/BlogVoiceView';
+import IdeaBankView from './components/IdeaBankView';
 import ProjectsView from './components/ProjectsView';
 import ContactsView from './components/ContactsView';
 import RoundTableView from './components/RoundTableView';
@@ -569,6 +570,9 @@ function App() {
               <div className={`flex items-center gap-3 px-4 py-2.5 rounded-xl cursor-pointer transition-all duration-300 ${activePage === 'blog' ? 'bg-white/10 text-white shadow-[0_4px_12px_rgba(0,0,0,0.2)] border border-white/[0.15]' : 'text-gray-400 hover:text-white hover:bg-white/[0.05] border border-transparent'}`} onClick={() => navigateTo('blog')}>
                 <span className="text-xs font-bold tracking-wide">📝 Blog & Voice</span>
               </div>
+              <div className={`flex items-center gap-3 px-4 py-2.5 rounded-xl cursor-pointer transition-all duration-300 ${activePage === 'ideas' ? 'bg-white/10 text-white shadow-[0_4px_12px_rgba(0,0,0,0.2)] border border-white/[0.15]' : 'text-gray-400 hover:text-white hover:bg-white/[0.05] border border-transparent'}`} onClick={() => navigateTo('ideas')}>
+                <span className="text-xs font-bold tracking-wide">💡 Ideas</span>
+              </div>
             </div>
           </div>
 
@@ -753,6 +757,10 @@ function App() {
 
           {activePage === 'blog' && (
             <BlogVoiceView api={API} />
+          )}
+
+          {activePage === 'ideas' && (
+            <IdeaBankView api={API} />
           )}
 
 

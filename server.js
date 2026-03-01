@@ -331,19 +331,28 @@ app.delete('/api/blog/ideas/:id', async (req, res) => {
   }
 });
 
-// SHRIMP - AI Writing Agent (expands idea to draft)
+// SHRIMP - AI Writing Agent (uses Minimax API)
 app.post('/api/blog/shrimp', async (req, res) => {
-  try {
-    const { idea_id, idea_title, idea_brief } = req.body;
-    if (!idea_id || !idea_brief) {
-      return res.json({ success: false, error: 'Missing idea_id or idea_brief' });
-    }
+  const { idea_id, idea_title, idea_brief } = req.body;
+  if (!idea_id || !idea_brief) {
+    return res.json({ success: false, error: 'Missing idea_id or idea_brief' });
+  }
 
-    // Read writing style profile using require inline
-    const fsSync = require('fs');
-    const styleProfile = fsSync.readFileSync('/root/.openclaw/workspace/akims-writing-style.md', 'utf-8');
+  res.json({ success: true, message: '🦐 Shrimp is cooking with Minimax...' });
 
-    const prompt = `You are writing a blog post for Akim (GuapDad). Use his writing style below.
+  (async () => {
+    try {
+      console.log('🦐 Shrimp starting for idea:', idea_id);
+      
+      const styleProfile = require('fs').readFileSync('/root/.openclaw/workspace/akims-writing-style.md', 'utf-8');
+      
+      const apiKey = process.env.MINIMAX_API_KEY;
+      if (!apiKey) {
+        console.error('🦐 No MINIMAX_API_KEY found');
+        return;
+      }
+      
+      const prompt = `You are writing a blog post for Akim (GuapDad). Use his writing style below.
 
 WRITING STYLE:
 ${styleProfile}
@@ -353,15 +362,62 @@ Title: ${idea_title}
 Brief: ${idea_brief}
 
 TASK:
-Expand this idea into a full blog post draft in Akim's voice. 1500-2500 words. Raw, conversational, authentic. Include personal anecdotes. Use ALL CAPS for emphasis, blockquotes for tangents. End with resolution.`;
+Expand this idea into a full blog post draft in Akim's voice. 1500-2500 words. Raw, conversational, authentic. Include personal anecdotes. Use ALL CAPS for emphasis, blockquotes for tangents. End with resolution. Return ONLY the blog post content in HTML format (with <h2>, <p>, <blockquote>, etc).`;
 
-    // Mark as expanding
-    await supabase.from('blog_idea').update({ status: 'expanding' }).eq('id', idea_id);
+      const requestData = {
+        model: 'MiniMax-Text-01',
+        messages: [{ role: 'user', content: prompt }],
+        temperature: 0.7
+      };
 
-    res.json({ success: true, prompt, message: 'Shrimp is cooking... Check back for your draft!' });
-  } catch (e) {
-    res.json({ success: false, error: e.message });
-  }
+      const { spawn } = require('child_process');
+      const curl = spawn('curl', [
+        '-s', '-X', 'POST',
+        'https://api.minimax.chat/v1/text/chatcompletion_pro',
+        '-H', 'Content-Type: application/json',
+        '-H', `Authorization: Bearer ${apiKey}`,
+        '-d', JSON.stringify(requestData),
+        '--max-time', '180'
+      ]);
+
+      let output = '';
+      curl.stdout.on('data', (data) => { output += data; });
+      
+      curl.on('close', async (code) => {
+        try {
+          const result = JSON.parse(output);
+          let generatedContent = '';
+          
+          if (result.choices && result.choices[0] && result.choices[0].message) {
+            generatedContent = result.choices[0].message.content;
+          } else if (result.base_resp && result.base_resp.status_code === 0) {
+            generatedContent = result.choices[0].message.content;
+          } else {
+            console.error('🦐 MinMax error:', JSON.stringify(result).substring(0, 200));
+            generatedContent = `<h2>${idea_title}</h2><p>${idea_brief}</p><p><em>AI generation placeholder</em></p>`;
+          }
+          
+          // Save to JSON file
+          const ideasFile = '/root/.openclaw/workspace/dashboard/data/blog-ideas.json';
+          const ideasData = JSON.parse(require('fs').readFileSync(ideasFile, 'utf-8'));
+          const ideaIndex = ideasData.ideas.findIndex(i => i.id === idea_id);
+          if (ideaIndex >= 0) {
+            ideasData.ideas[ideaIndex].status = 'drafting';
+            ideasData.ideas[ideaIndex].expanded_content = generatedContent;
+            ideasData.ideas[ideaIndex].updated_at = new Date().toISOString();
+            require('fs').writeFileSync(ideasFile, JSON.stringify(ideasData, null, 2));
+          }
+          
+          console.log('🦐 Shrimp completed for idea:', idea_id);
+        } catch (e) {
+          console.error('🦐 Shrimp parse error:', e.message);
+        }
+      });
+      
+    } catch (e) {
+      console.error('🦐 Shrimp error:', e.message);
+    }
+  })();
 });
 
 // Voice drop → creates idea
