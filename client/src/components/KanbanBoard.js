@@ -25,7 +25,9 @@ export default function KanbanBoard({ tasks = [], api }) {
   const [draggedTask, setDraggedTask] = useState(null);
   const [dragOverColumn, setDragOverColumn] = useState(null);
   const [showAddForm, setShowAddForm] = useState(null);
-  const [newTask, setNewTask] = useState({ title: '', priority: 'medium', dueDate: '', tags: [] });
+  const [newTask, setNewTask] = useState({ title: '', description: '', priority: 'medium', dueDate: '', tags: [] });
+  const [editingTask, setEditingTask] = useState(null);
+  const [editFormData, setEditFormData] = useState({});
 
   const getColumnForStatus = (status) => {
     const statusToColumn = {
@@ -38,6 +40,15 @@ export default function KanbanBoard({ tasks = [], api }) {
   const getColumnForTask = (task) => {
     // Check completed_at for completion
     if (task.completed_at || task.status === 'completed') return 'done';
+
+    // Check for explicit kanban column in tags
+    if (task.tags && Array.isArray(task.tags)) {
+      const kanbanTag = task.tags.find(t => typeof t === 'string' && t.startsWith('kanban:'));
+      if (kanbanTag) {
+        return kanbanTag.split(':')[1];
+      }
+    }
+
     return getColumnForStatus(task.status);
   };
 
@@ -83,9 +94,49 @@ export default function KanbanBoard({ tasks = [], api }) {
 
   const handleAddTask = async (columnId) => {
     if (!newTask.title.trim()) return;
-    await api.create('tasks', { title: newTask.title, description: newTask.title, status: columnId, priority: newTask.priority, dueDate: newTask.dueDate, tags: newTask.tags });
+    const taskData = {
+      title: newTask.title,
+      description: newTask.description || newTask.title,
+      status: columnId,
+      priority: newTask.priority,
+      due_date: newTask.dueDate || null,
+      tags: [...(newTask.tags || []), `kanban:${columnId}`]
+    };
+    await api.create('tasks', taskData);
     setShowAddForm(null);
-    setNewTask({ title: '', priority: 'medium', dueDate: '', tags: [] });
+    setNewTask({ title: '', description: '', priority: 'medium', dueDate: '', tags: [] });
+  };
+
+  const startEdit = (task) => {
+    setEditingTask(task.id);
+    setEditFormData({
+      title: task.title || '',
+      description: task.description || '',
+      priority: task.priority || 'medium',
+      dueDate: task.dueDate ? new Date(task.dueDate).toISOString().split('T')[0] : '',
+      tags: task.tags ? task.tags.filter(t => !t.startsWith('kanban:')).join(', ') : ''
+    });
+  };
+
+  const handleUpdateTask = async (taskId) => {
+    if (!editFormData.title.trim()) return;
+
+    // Process tags string back to array, preserving the kanban tag if it exists
+    const task = tasks.find(t => t.id === taskId);
+    const existingKanbanTag = task?.tags?.find(t => t.startsWith('kanban:'));
+    let newTags = editFormData.tags.split(',').map(t => t.trim()).filter(t => t);
+    if (existingKanbanTag) newTags.push(existingKanbanTag);
+
+    const updates = {
+      title: editFormData.title,
+      description: editFormData.description,
+      priority: editFormData.priority,
+      due_date: editFormData.dueDate || null,
+      tags: newTags
+    };
+
+    await api.update('tasks', taskId, updates);
+    setEditingTask(null);
   };
 
   const formatDueDate = (date) => {
@@ -126,10 +177,10 @@ export default function KanbanBoard({ tasks = [], api }) {
                   </span>
                 </div>
                 <button
-                  onClick={() => setShowAddForm(column.id)}
+                  onClick={() => setShowAddForm(showAddForm === column.id ? null : column.id)}
                   className="w-8 h-8 rounded-full bg-white/5 hover:bg-white/15 flex items-center justify-center transition-colors border border-white/5 hover:border-white/20"
                 >
-                  <Plus className="w-4 h-4 text-white" />
+                  <Plus className={`w-4 h-4 text-white transition-transform ${showAddForm === column.id ? 'rotate-45' : ''}`} />
                 </button>
               </div>
 
@@ -174,6 +225,47 @@ export default function KanbanBoard({ tasks = [], api }) {
                   const prior = priorityConfig[task.priority] || priorityConfig.medium;
                   const PIcon = prior.icon;
 
+                  if (editingTask === task.id) {
+                    return (
+                      <div key={task.id} className="bg-white/[0.05] border border-white/20 rounded-[24px] p-4 relative overflow-hidden">
+                        <input
+                          className="w-full bg-black/40 border border-white/10 rounded-xl p-2.5 text-sm text-white font-medium mb-3 outline-none focus:border-white/30"
+                          placeholder="Task title..."
+                          value={editFormData.title}
+                          onChange={e => setEditFormData({ ...editFormData, title: e.target.value })}
+                          autoFocus
+                        />
+                        <div className="flex gap-2 mb-3">
+                          <select
+                            className="flex-1 bg-black/40 border border-white/10 rounded-xl p-2.5 text-xs text-gray-300 font-bold uppercase outline-none focus:border-white/30"
+                            value={editFormData.priority}
+                            onChange={e => setEditFormData({ ...editFormData, priority: e.target.value })}
+                          >
+                            <option value="high">High</option>
+                            <option value="medium">Medium</option>
+                            <option value="low">Low</option>
+                          </select>
+                          <input
+                            type="date"
+                            className="flex-1 bg-black/40 border border-white/10 rounded-xl p-2.5 text-xs text-gray-300 font-bold uppercase outline-none focus:border-white/30"
+                            value={editFormData.dueDate}
+                            onChange={e => setEditFormData({ ...editFormData, dueDate: e.target.value })}
+                          />
+                        </div>
+                        <input
+                          className="w-full bg-black/40 border border-white/10 rounded-xl p-2.5 text-xs text-gray-300 mb-4 outline-none focus:border-white/30"
+                          placeholder="Tags (comma separated)..."
+                          value={editFormData.tags}
+                          onChange={e => setEditFormData({ ...editFormData, tags: e.target.value })}
+                        />
+                        <div className="flex justify-end gap-2">
+                          <GlassyPill className="!py-1.5 !px-4" onClick={() => setEditingTask(null)}>Cancel</GlassyPill>
+                          <GlassyPill variant="primary" className="!py-1.5 !px-4" onClick={() => handleUpdateTask(task.id)}>Save</GlassyPill>
+                        </div>
+                      </div>
+                    );
+                  }
+
                   return (
                     <div
                       key={task.id}
@@ -188,7 +280,7 @@ export default function KanbanBoard({ tasks = [], api }) {
                           <span className={`text-[9px] font-bold uppercase tracking-widest ${prior.color}`}>{prior.label}</span>
                         </div>
                         <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                          <button className="text-gray-500 hover:text-white"><Edit2 className="w-3.5 h-3.5" /></button>
+                          <button onClick={() => startEdit(task)} className="text-gray-500 hover:text-white"><Edit2 className="w-3.5 h-3.5" /></button>
                           <button onClick={() => api.delete('tasks', task.id)} className="text-gray-500 hover:text-red-400"><Trash2 className="w-3.5 h-3.5" /></button>
                         </div>
                       </div>
@@ -204,7 +296,7 @@ export default function KanbanBoard({ tasks = [], api }) {
                             {dueInfo.text}
                           </div>
                         )}
-                        {task.tags && task.tags.map(tag => (
+                        {task.tags && task.tags.filter(t => !t.startsWith('kanban:')).map(tag => (
                           <span key={tag} className="px-1.5 py-0.5 bg-white/10 rounded text-[9px] font-mono text-gray-400 uppercase tracking-tighter">#{tag}</span>
                         ))}
                       </div>

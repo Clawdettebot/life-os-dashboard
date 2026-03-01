@@ -1,0 +1,35 @@
+
+> openclaw-dashboard@1.0.0 start
+> node server.js
+
+[dotenv@17.3.1] injecting env (0) from .env -- tip: ⚙️  load multiple .env files with { path: ['.env.local', '.env'] }
+🎨 Life OS Dashboard running on port 3000
+Dashboard client connected
+Archive Supabase error (not exception): {
+  code: 'PGRST116',
+  details: 'The result contains 0 rows',
+  hint: null,
+  message: 'Cannot coerce the result to a single JSON object'
+}
+Supabase table lifeos_health error, falling back to JSON: Could not find the table 'public.lifeos_health' in the schema cache
+Supabase table lifeos_goals error, falling back to JSON: Could not find the table 'public.lifeos_goals' in the schema cache
+Dashboard client connected
+Supabase table lifeos_schedule error, falling back to JSON: Could not find the table 'public.lifeos_schedule' in the schema cache
+Subagents endpoint error: Command failed: cd /root/.openclaw/workspace && openclaw cron list --json
+/bin/sh: 1: cd: can't cd to /root/.openclaw/workspace
+
+✅ Google Calendar: Tokens loaded from storage
+Supabase table lifeos_health error, falling back to JSON: Could not find the table 'public.lifeos_health' in the schema cache
+Supabase table lifeos_goals error, falling back to JSON: Could not find the table 'public.lifeos_goals' in the schema cache
+Supabase table lifeos_schedule error, falling back to JSON: Could not find the table 'public.lifeos_schedule' in the schema cache
+Dashboard client connected
+Subagents endpoint error: Command failed: cd /root/.openclaw/workspace && openclaw cron list --json
+/bin/sh: 1: cd: can't cd to /root/.openclaw/workspace
+
+Supabase table lifeos_health error, falling back to JSON: Could not find the table 'public.lifeos_health' in the schema cache
+Supabase table lifeos_schedule error, falling back to JSON: Could not find the table 'public.lifeos_schedule' in the schema cache
+Supabase table lifeos_goals error, falling back to JSON: Could not find the table 'public.lifeos_goals' in the schema cache
+Subagents endpoint error: Command failed: cd /root/.openclaw/workspace && openclaw cron list --json
+/bin/sh: 1: cd: can't cd to /root/.openclaw/workspace
+
+Dashboard client connected

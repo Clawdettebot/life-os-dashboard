@@ -243,181 +243,6 @@ app.get('/api/releases/upcoming', async (req, res) => {
   }
 });
 
-// ============================================
-// BLOG PIPELINE v2 - Ideas, Shrimp, Voice Drop
-// ============================================
-
-// Get all blog ideas
-app.get('/api/blog/ideas', async (req, res) => {
-  // Try Supabase first
-  try {
-    const { data, error } = await supabase
-      .from('blog_idea')
-      .select('*')
-      .order('created_at', { ascending: false });
-    if (data) return res.json({ ideas: data });
-  } catch (e) { console.log('Ideas: Supabase not available, using JSON'); }
-  
-  // Fallback to JSON
-  try {
-    const data = JSON.parse(await fs.readFile(path.join(DATA_DIR, 'blog-ideas.json'), 'utf-8'));
-    return res.json({ ideas: data.ideas || [] });
-  } catch (err) {
-    return res.json({ ideas: [] });
-  }
-});
-
-// Create new blog idea
-app.post('/api/blog/ideas', async (req, res) => {
-  const { title, brief, tags = [], priority = 'medium', status = 'raw' } = req.body;
-  const newIdea = {
-    id: 'idea_' + Date.now(),
-    title: title || 'Untitled Idea',
-    brief: brief || '',
-    tags,
-    priority,
-    status,
-    created_at: new Date().toISOString()
-  };
-  
-  // Try Supabase first
-  try {
-    const { data, error } = await supabase
-      .from('blog_idea')
-      .insert(newIdea)
-      .select()
-      .single();
-    if (data) return res.json({ success: true, idea: data });
-  } catch (e) { console.log('Create: Supabase failed, using JSON'); }
-  
-  // Fallback to JSON
-  try {
-    const data = JSON.parse(await fs.readFile(path.join(DATA_DIR, 'blog-ideas.json'), 'utf-8'));
-    data.ideas = data.ideas || [];
-    data.ideas.unshift(newIdea);
-    await fs.writeFile(path.join(DATA_DIR, 'blog-ideas.json'), JSON.stringify(data, null, 2));
-    return res.json({ success: true, idea: newIdea });
-  } catch (err) {
-    return res.json({ success: false, error: err.message });
-  }
-});
-
-// Update blog idea
-app.patch('/api/blog/ideas/:id', async (req, res) => {
-  try {
-    const { id } = req.params;
-    const { title, brief, tags, priority, status, expanded_content } = req.body;
-    const { data, error } = await supabase
-      .from('blog_idea')
-      .update({ title, brief, tags, priority, status, expanded_content, updated_at: new Date().toISOString() })
-      .eq('id', id)
-      .select()
-      .single();
-    if (error) throw error;
-    res.json({ success: true, idea: data });
-  } catch (e) {
-    res.json({ success: false, error: e.message });
-  }
-});
-
-// Delete blog idea
-app.delete('/api/blog/ideas/:id', async (req, res) => {
-  try {
-    const { error } = await supabase.from('blog_idea').delete().eq('id', req.params.id);
-    if (error) throw error;
-    res.json({ success: true });
-  } catch (e) {
-    res.json({ success: false, error: e.message });
-  }
-});
-
-// SHRIMP - AI Writing Agent (messages main session to generate content)
-app.post('/api/blog/shrimp', async (req, res) => {
-  const { idea_id, idea_title, idea_brief } = req.body;
-  if (!idea_id || !idea_brief) {
-    return res.json({ success: false, error: 'Missing idea_id or idea_brief' });
-  }
-
-  res.json({ success: true, message: '🦐 Notifying OpenClaw...' });
-
-  (async () => {
-    try {
-      console.log('🦐 Shrimp starting for idea:', idea_id);
-      
-      // Read writing style
-      const styleProfile = require('fs').readFileSync('/root/.openclaw/workspace/akims-writing-style.md', 'utf-8');
-      
-      const prompt = `Generate a blog post draft:
-
-**Title:** ${idea_title}
-**Brief:** ${idea_brief}
-
-Write in Akim's voice (conversational, raw, with anecdotes). 1500-2500 words. HTML format. Use this style:
-${styleProfile.substring(0, 500)}...
-
-After generating, save it to the idea "${idea_id}" using the /api/blog/ideas PATCH endpoint.`;
-
-      // Try to send to main session via sessions_send
-      const { spawn } = require('child_process');
-      const curl = spawn('curl', [
-        '-s', '-X', 'POST',
-        'http://localhost:18789/api/sessions_send',
-        '-H', 'Content-Type: application/json',
-        '-d', JSON.stringify({ message: prompt }),
-        '--max-time', '10'
-      ]);
-      
-      let output = '';
-      curl.stdout.on('data', (data) => { output += data; });
-      curl.on('close', () => {
-        console.log('🦐 Notified main session');
-      });
-      
-      // Update idea status
-      const ideasFile = '/root/.openclaw/workspace/dashboard/data/blog-ideas.json';
-      try {
-        const ideasData = JSON.parse(require('fs').readFileSync(ideasFile, 'utf-8'));
-        const ideaIndex = ideasData.ideas.findIndex(i => i.id === idea_id);
-        if (ideaIndex >= 0) {
-          ideasData.ideas[ideaIndex].status = 'expanding';
-          ideasData.ideas[ideaIndex].updated_at = new Date().toISOString();
-          require('fs').writeFileSync(ideasFile, JSON.stringify(ideasData, null, 2));
-        }
-      } catch (e) {}
-      
-    } catch (e) {
-      console.error('🦐 Shrimp error:', e.message);
-    }
-  })();
-});
-
-// Voice drop → creates idea
-app.post('/api/blog/voice-drop', async (req, res) => {
-  try {
-    const { transcript, title } = req.body;
-    if (!transcript) return res.json({ success: false, error: 'No transcript' });
-
-    const { data, error } = await supabase
-      .from('blog_idea')
-      .insert({
-        title: title || 'Voice Drop ' + new Date().toLocaleDateString(),
-        brief: transcript.substring(0, 500),
-        tags: ['voice-drop'],
-        priority: 'medium',
-        status: 'raw',
-        expanded_content: transcript,
-        created_at: new Date().toISOString()
-      })
-      .select()
-      .single();
-
-    if (error) throw error;
-    res.json({ success: true, idea: data });
-  } catch (e) {
-    res.json({ success: false, error: e.message });
-  }
-});
-
 app.use(express.static(path.join(__dirname, 'client/build')));
 
 // OpenClaw command wrapper
@@ -930,11 +755,30 @@ app.get('/api/habits', async (req, res) => {
         .from('lifeos_habits')
         .select('*')
         .order('created_at', { ascending: true });
-      if (!error && habits) return res.json(habits.map(h => ({
-        ...h,
-        streak: { current: h.streak_current || 0, longest: h.streak_longest || 0 },
-        history: []
-      })));
+
+      if (!error && habits) {
+        // Fetch checkins for the last 28 days for history
+        const twentyEightDaysAgo = new Date();
+        twentyEightDaysAgo.setDate(twentyEightDaysAgo.getDate() - 28);
+        const { data: checkins } = await lifeos
+          .from('lifeos_habit_checkins')
+          .select('*')
+          .gte('date', twentyEightDaysAgo.toISOString().split('T')[0]);
+
+        const checkinsByHabit = {};
+        if (checkins) {
+          checkins.forEach(c => {
+            if (!checkinsByHabit[c.habit_id]) checkinsByHabit[c.habit_id] = [];
+            checkinsByHabit[c.habit_id].push(c);
+          });
+        }
+
+        return res.json(habits.map(h => ({
+          ...h,
+          streak: { current: h.streak_current || 0, longest: h.streak_longest || 0 },
+          history: checkinsByHabit[h.id] || []
+        })));
+      }
     } catch (e) { console.log('Habits supabase error, falling back'); }
   }
   const habits = await jsonDb.read('habits');
@@ -945,11 +789,14 @@ app.get('/api/habits', async (req, res) => {
 app.post('/api/habits', async (req, res) => {
   if (lifeos) {
     try {
+      const payload = { ...req.body };
+      delete payload.streak; // remove streak object from frontend
+
       const { data, error } = await lifeos.from('lifeos_habits')
         .insert({
-          ...req.body,
+          ...payload,
           streak_current: 0, streak_longest: 0,
-          frequency: req.body.frequency || 'daily',
+          frequency: payload.frequency || 'daily',
           created_at: new Date().toISOString()
         }).select().single();
       if (error) console.error(`[DEBUG] Supabase insert error on habits:`, error);
@@ -1026,21 +873,39 @@ app.delete('/api/journal/:id', async (req, res) => {
 
 
 // Move task (change status/column) - Supabase-first
+// Note: Supabase has a status CHECK constraint allowing only 'pending' and 'in_progress'
+// So we use completed_at to mark done tasks instead of changing status
 app.post('/api/tasks/:id/move', async (req, res) => {
   const { id } = req.params;
   const { column } = req.body;
 
   const columnToStatus = {
     'backlog': 'pending', 'todo': 'pending',
-    'in_progress': 'in_progress', 'review': 'review', 'done': 'completed'
+    'in_progress': 'in_progress', 'review': 'in_progress', 'done': 'completed'
   };
-  const newStatus = columnToStatus[column] || column;
+  const newStatus = columnToStatus[column] || 'pending';
+
+  // When moving to done, set completed_at. When moving away from done, clear it.
+  const isDone = column === 'done';
+  const updateData = {
+    status: newStatus,
+    updated_at: new Date().toISOString(),
+    completed_at: isDone ? new Date().toISOString() : null
+  };
 
   if (lifeos) {
     try {
+      const { data: existing } = await lifeos.from('lifeos_tasks').select('tags').eq('id', id).single();
+      if (existing) {
+        const tags = existing.tags || [];
+        const newTags = tags.filter(t => !t.startsWith('kanban:'));
+        newTags.push(`kanban:${column}`);
+        updateData.tags = newTags;
+      }
+
       const { data, error } = await lifeos
         .from('lifeos_tasks')
-        .update({ status: newStatus, updated_at: new Date().toISOString() })
+        .update(updateData)
         .eq('id', id)
         .select().single();
       if (!error && data) return res.json({ success: true, task: data });
@@ -1052,6 +917,9 @@ app.post('/api/tasks/:id/move', async (req, res) => {
     const taskIndex = tasks.findIndex(t => t.id === id);
     if (taskIndex === -1) return res.status(404).json({ error: 'Task not found' });
     tasks[taskIndex].status = newStatus;
+    tasks[taskIndex].completed_at = isDone ? new Date().toISOString() : null;
+    const tags = tasks[taskIndex].tags || [];
+    tasks[taskIndex].tags = [...tags.filter(t => !t.startsWith('kanban:')), `kanban:${column}`];
     await jsonDb.write('tasks', tasks);
     res.json({ success: true, task: tasks[taskIndex] });
   } catch (err) {
@@ -1438,200 +1306,117 @@ app.post('/api/agents/heartbeat', async (req, res) => {
   } catch (e) {
     res.status(500).json({ error: e.message });
   }
-});
 
-// ============================================
-// AGENT MESSAGES API - For Round Table Agent Channel
-// ============================================
+  // ============================================
+  // AGENTS API - Aliases for /api/agents/*
+  // ============================================
 
-const MESSAGES_FILE = path.join(__dirname, 'data', 'agent-messages.json');
-
-// Initialize messages file if needed
-async function getMessages() {
-  try {
-    const data = await fs.readFile(MESSAGES_FILE, 'utf8');
-    return JSON.parse(data);
-  } catch (e) {
-    return { messages: [] };
-  }
-}
-
-async function saveMessages(data) {
-  await fs.writeFile(MESSAGES_FILE, JSON.stringify(data, null, 2));
-}
-
-// GET /api/agents/messages - Get messages for a channel
-app.get('/api/agents/messages', async (req, res) => {
-  const { channel = 'round-table', limit = 50 } = req.query;
-  
-  try {
-    const data = await getMessages();
-    const messages = data.messages
-      .filter(m => m.channel === channel)
-      .slice(-parseInt(limit));
-    res.json({ messages, channel });
-  } catch (e) {
-    res.status(500).json({ error: e.message });
-  }
-});
-
-// POST /api/agents/messages - Send a message to a channel
-app.post('/api/agents/messages', async (req, res) => {
-  const { agentId, agentName, channel = 'round-table', content, color = '#fff' } = req.body;
-  
-  if (!content) {
-    return res.status(400).json({ error: 'Content required' });
-  }
-
-  try {
-    const data = await getMessages();
-    const message = {
-      id: `msg_${Date.now()}`,
-      agentId,
-      agentName: agentName || agentId,
-      channel,
-      content,
-      color,
-      timestamp: new Date().toISOString()
-    };
-    
-    data.messages.push(message);
-    await saveMessages(data);
-    
-    res.json({ success: true, message });
-  } catch (e) {
-    res.status(500).json({ error: e.message });
-  }
-});
-
-// Also handle GET /api/messages for agent-specific messages
-app.get('/api/messages', async (req, res) => {
-  const { agent } = req.query;
-  
-  try {
-    const data = await getMessages();
-    let messages = data.messages;
-    
-    if (agent) {
-      messages = messages.filter(m => m.agentId === agent);
-    }
-    
-    // Return most recent message
-    const lastMsg = messages[messages.length - 1];
-    res.json({ message: lastMsg?.content || '', messages });
-  } catch (e) {
-    res.status(500).json({ error: e.message });
-  }
-});
-
-// ============================================
-// AGENTS API - Aliases for /api/agents/*
-// ============================================
-
-// GET /api/agents - Get all agent statuses (alias for /api/agents/status)
-app.get('/api/agents', async (req, res) => {
-  try {
-    let agents = { ...DEFAULT_AGENTS };
+  // GET /api/agents - Get all agent statuses (alias for /api/agents/status)
+  app.get('/api/agents', async (req, res) => {
     try {
-      const saved = JSON.parse(await fs.readFile(AGENTS_FILE, 'utf8'));
-      agents = { ...agents, ...saved };
-    } catch (e) { }
-    res.json({ agents, timestamp: Date.now() });
-  } catch (e) {
-    res.status(500).json({ error: e.message });
-  }
-});
-
-// POST /api/agents - Register/update agent (alias for /api/agents/status)
-app.post('/api/agents', async (req, res) => {
-  const { agentId, status, task, location } = req.body;
-
-  try {
-    let agents = { ...DEFAULT_AGENTS };
-    try {
-      const saved = JSON.parse(await fs.readFile(AGENTS_FILE, 'utf8'));
-      agents = { ...agents, ...saved };
-    } catch (e) { }
-
-    if (!agents[agentId]) {
-      agents[agentId] = {
-        name: agentId,
-        title: 'Agent',
-        emoji: '🤖',
-        status: 'unknown',
-        location: 'unknown',
-        task: 'Unknown',
-        color: '#6b7280'
-      };
+      let agents = { ...DEFAULT_AGENTS };
+      try {
+        const saved = JSON.parse(await fs.readFile(AGENTS_FILE, 'utf8'));
+        agents = { ...agents, ...saved };
+      } catch (e) { }
+      res.json({ agents, timestamp: Date.now() });
+    } catch (e) {
+      res.status(500).json({ error: e.message });
     }
+  });
 
-    if (status) agents[agentId].status = status;
-    if (task) agents[agentId].task = task;
-    if (location) agents[agentId].location = location;
-    agents[agentId].lastSeen = Date.now();
+  // POST /api/agents - Register/update agent (alias for /api/agents/status)
+  app.post('/api/agents', async (req, res) => {
+    const { agentId, status, task, location } = req.body;
 
-    await fs.writeFile(AGENTS_FILE, JSON.stringify(agents, null, 2));
-    res.json({ success: true, agent: agents[agentId] });
-  } catch (e) {
-    res.status(500).json({ error: e.message });
-  }
-});
-
-
-// PATCH /api/agents/:id - Update agent status
-app.patch('/api/agents/:id', async (req, res) => {
-  const agentId = req.params.id;
-  const updates = req.body;
-
-  try {
-    let agents = { ...DEFAULT_AGENTS };
     try {
-      const saved = JSON.parse(await fs.readFile(AGENTS_FILE, 'utf8'));
-      agents = { ...agents, ...saved };
-    } catch (e) { }
+      let agents = { ...DEFAULT_AGENTS };
+      try {
+        const saved = JSON.parse(await fs.readFile(AGENTS_FILE, 'utf8'));
+        agents = { ...agents, ...saved };
+      } catch (e) { }
 
-    if (!agents[agentId]) {
-      return res.status(404).json({ error: 'Agent not found' });
+      if (!agents[agentId]) {
+        agents[agentId] = {
+          name: agentId,
+          title: 'Agent',
+          emoji: '🤖',
+          status: 'unknown',
+          location: 'unknown',
+          task: 'Unknown',
+          color: '#6b7280'
+        };
+      }
+
+      if (status) agents[agentId].status = status;
+      if (task) agents[agentId].task = task;
+      if (location) agents[agentId].location = location;
+      agents[agentId].lastSeen = Date.now();
+
+      await fs.writeFile(AGENTS_FILE, JSON.stringify(agents, null, 2));
+      res.json({ success: true, agent: agents[agentId] });
+    } catch (e) {
+      res.status(500).json({ error: e.message });
     }
+  });
 
-    // Update allowed fields
-    if (updates.status) agents[agentId].status = updates.status;
-    if (updates.task) agents[agentId].task = updates.task;
-    if (updates.location) agents[agentId].location = updates.location;
-    if (updates.title) agents[agentId].title = updates.title;
-    if (updates.emoji) agents[agentId].emoji = updates.emoji;
-    if (updates.color) agents[agentId].color = updates.color;
-    agents[agentId].lastSeen = Date.now();
 
-    await fs.writeFile(AGENTS_FILE, JSON.stringify(agents, null, 2));
-    res.json({ success: true, agent: agents[agentId] });
-  } catch (e) {
-    res.status(500).json({ error: e.message });
-  }
-});
+  // PATCH /api/agents/:id - Update agent status
+  app.patch('/api/agents/:id', async (req, res) => {
+    const agentId = req.params.id;
+    const updates = req.body;
 
-// DELETE /api/agents/:id - Remove/unregister agent
-app.delete('/api/agents/:id', async (req, res) => {
-  const agentId = req.params.id;
-
-  try {
-    let agents = { ...DEFAULT_AGENTS };
     try {
-      const saved = JSON.parse(await fs.readFile(AGENTS_FILE, 'utf8'));
-      agents = { ...agents, ...saved };
-    } catch (e) { }
+      let agents = { ...DEFAULT_AGENTS };
+      try {
+        const saved = JSON.parse(await fs.readFile(AGENTS_FILE, 'utf8'));
+        agents = { ...agents, ...saved };
+      } catch (e) { }
 
-    if (!agents[agentId]) {
-      return res.status(404).json({ error: 'Agent not found' });
+      if (!agents[agentId]) {
+        return res.status(404).json({ error: 'Agent not found' });
+      }
+
+      // Update allowed fields
+      if (updates.status) agents[agentId].status = updates.status;
+      if (updates.task) agents[agentId].task = updates.task;
+      if (updates.location) agents[agentId].location = updates.location;
+      if (updates.title) agents[agentId].title = updates.title;
+      if (updates.emoji) agents[agentId].emoji = updates.emoji;
+      if (updates.color) agents[agentId].color = updates.color;
+      agents[agentId].lastSeen = Date.now();
+
+      await fs.writeFile(AGENTS_FILE, JSON.stringify(agents, null, 2));
+      res.json({ success: true, agent: agents[agentId] });
+    } catch (e) {
+      res.status(500).json({ error: e.message });
     }
+  });
 
-    delete agents[agentId];
+  // DELETE /api/agents/:id - Remove/unregister agent
+  app.delete('/api/agents/:id', async (req, res) => {
+    const agentId = req.params.id;
 
-    await fs.writeFile(AGENTS_FILE, JSON.stringify(agents, null, 2));
-    res.json({ success: true, message: `Agent ${agentId} removed` });
-  } catch (e) {
-    res.status(500).json({ error: e.message });
-  }
+    try {
+      let agents = { ...DEFAULT_AGENTS };
+      try {
+        const saved = JSON.parse(await fs.readFile(AGENTS_FILE, 'utf8'));
+        agents = { ...agents, ...saved };
+      } catch (e) { }
+
+      if (!agents[agentId]) {
+        return res.status(404).json({ error: 'Agent not found' });
+      }
+
+      delete agents[agentId];
+
+      await fs.writeFile(AGENTS_FILE, JSON.stringify(agents, null, 2));
+      res.json({ success: true, message: `Agent ${agentId} removed` });
+    } catch (e) {
+      res.status(500).json({ error: e.message });
+    }
+  });
+
 });
 
 // Agent auto-reply endpoint - triggered by watcher
@@ -1783,7 +1568,24 @@ async function sbProjects(filter = {}) {
   if (filter.id) q = q.eq('id', filter.id);
   const { data, error } = await q;
   if (error) throw error;
-  return (data || []).map(normalizeProject);
+
+  // Merge tasks and notes from local JSON DB since they are not in the Supabase schema
+  let dbProjects = [];
+  try {
+    dbProjects = await jsonDb.read('projects');
+  } catch (e) {
+    dbProjects = [];
+  }
+
+  return (data || []).map(p => {
+    const norm = normalizeProject(p);
+    const localProj = dbProjects.find(dp => dp.id === p.id);
+    if (localProj) {
+      if (localProj.tasks) norm.tasks = localProj.tasks;
+      if (localProj.notes) norm.notes = localProj.notes;
+    }
+    return norm;
+  });
 }
 
 app.get('/api/projects', async (req, res) => {
@@ -1877,10 +1679,15 @@ app.post('/api/projects/:id/archive', async (req, res) => {
   if (lifeos) {
     try {
       const { data, error } = await lifeos.from('lifeos_projects')
-        .update({ status: 'archived', archived_at: new Date().toISOString(), updated_at: new Date().toISOString() })
+        .update({ status: 'archived', updated_at: new Date().toISOString() })
         .eq('id', req.params.id).select().single();
-      if (!error && data) return res.json({ project: data });
-    } catch (e) { console.log('Project archive supabase error, falling back'); }
+      if (!error && data) {
+        const fullProj = await sbProjects({ id: req.params.id });
+        return res.json({ project: fullProj ? fullProj[0] : data });
+      } else {
+        console.error('Archive Supabase error (not exception):', error);
+      }
+    } catch (e) { console.error('Project archive supabase error exception, falling back:', e); }
   }
   try {
     const projects = await jsonDb.read('projects');
@@ -1894,9 +1701,12 @@ app.post('/api/projects/:id/unarchive', async (req, res) => {
   if (lifeos) {
     try {
       const { data, error } = await lifeos.from('lifeos_projects')
-        .update({ status: 'active', archived_at: null, updated_at: new Date().toISOString() })
+        .update({ status: 'active', updated_at: new Date().toISOString() })
         .eq('id', req.params.id).select().single();
-      if (!error && data) return res.json({ project: data });
+      if (!error && data) {
+        const fullProj = await sbProjects({ id: req.params.id });
+        return res.json({ project: fullProj ? fullProj[0] : data });
+      }
     } catch (e) { console.log('Project unarchive supabase error, falling back'); }
   }
   try {
@@ -1908,65 +1718,61 @@ app.post('/api/projects/:id/unarchive', async (req, res) => {
 });
 
 // Project tasks & notes (these remain as sub-documents within lifeos_projects jsonb column)
+// Since 'tasks' and 'notes' don't exist in Supabase schema, we only update the local JSON db
 app.post('/api/projects/:id/tasks', async (req, res) => {
-  if (lifeos) {
-    try {
-      const { data: proj } = await lifeos.from('lifeos_projects').select('tasks').eq('id', req.params.id).single();
-      if (proj) {
-        const tasks = (proj.tasks || []);
-        tasks.push({ id: Date.now().toString(), title: req.body.title, completed: false });
-        const { data, error } = await lifeos.from('lifeos_projects').update({ tasks, updated_at: new Date().toISOString() }).eq('id', req.params.id).select().single();
-        if (!error && data) return res.json({ project: data });
-      }
-    } catch (e) { console.log('Project tasks supabase error, falling back'); }
-  }
   try {
     const projects = await jsonDb.read('projects');
-    const index = projects.findIndex(p => p.id === req.params.id);
-    if (index !== -1) { if (!projects[index].tasks) projects[index].tasks = []; projects[index].tasks.push({ id: Date.now().toString(), title: req.body.title, completed: false }); projects[index].updated_at = Date.now(); await jsonDb.write('projects', projects); res.json({ project: projects[index] }); }
-    else res.status(404).json({ error: 'Not found' });
+    let index = projects.findIndex(p => p.id === req.params.id);
+    if (index === -1) {
+      projects.push({ id: req.params.id, tasks: [], notes: '', created_at: Date.now(), updated_at: Date.now() });
+      index = projects.length - 1;
+    }
+    if (!projects[index].tasks) projects[index].tasks = [];
+    projects[index].tasks.push({ id: Date.now().toString(), title: req.body.title, completed: false });
+    projects[index].updated_at = Date.now();
+    await jsonDb.write('projects', projects);
+    // Re-fetch from sbProjects to return full merged object
+    const fullProj = await sbProjects({ id: req.params.id });
+    res.json({ project: fullProj ? fullProj[0] : projects[index] });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
 app.patch('/api/projects/:id/tasks/:taskId', async (req, res) => {
-  if (lifeos) {
-    try {
-      const { data: proj } = await lifeos.from('lifeos_projects').select('tasks').eq('id', req.params.id).single();
-      if (proj) {
-        const tasks = (proj.tasks || []).map(t => t.id === req.params.taskId ? { ...t, completed: !t.completed } : t);
-        const { data, error } = await lifeos.from('lifeos_projects').update({ tasks, updated_at: new Date().toISOString() }).eq('id', req.params.id).select().single();
-        if (!error && data) return res.json({ project: data });
-      }
-    } catch (e) { console.log('Project task patch supabase error, falling back'); }
-  }
   try {
     const projects = await jsonDb.read('projects');
     const index = projects.findIndex(p => p.id === req.params.id);
     if (index !== -1 && projects[index].tasks) {
       const task = projects[index].tasks.find(t => t.id === req.params.taskId);
-      if (task) { task.completed = !task.completed; projects[index].updated_at = Date.now(); await jsonDb.write('projects', projects); res.json({ project: projects[index] }); }
+      if (task) {
+        task.completed = !task.completed;
+        projects[index].updated_at = Date.now();
+        await jsonDb.write('projects', projects);
+        // Re-fetch from sbProjects to return full merged object
+        const fullProj = await sbProjects({ id: req.params.id });
+        res.json({ project: fullProj ? fullProj[0] : projects[index] });
+      }
       else res.status(404).json({ error: 'Task not found' });
     } else res.status(404).json({ error: 'Project not found' });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
 app.post('/api/projects/:id/notes', async (req, res) => {
-  if (lifeos) {
-    try {
-      const { data: proj } = await lifeos.from('lifeos_projects').select('notes').eq('id', req.params.id).single();
-      if (proj !== null) {
-        const existingNotes = proj.notes || '';
-        const newNotes = existingNotes ? existingNotes + '\n\n' + req.body.content : req.body.content;
-        const { data, error } = await lifeos.from('lifeos_projects').update({ notes: newNotes, updated_at: new Date().toISOString() }).eq('id', req.params.id).select().single();
-        if (!error && data) return res.json({ project: data });
-      }
-    } catch (e) { console.log('Project notes supabase error, falling back'); }
-  }
   try {
     const projects = await jsonDb.read('projects');
-    const index = projects.findIndex(p => p.id === req.params.id);
-    if (index !== -1) { const currentNotes = projects[index].notes || ''; projects[index].notes = currentNotes ? currentNotes + '\n\n' + req.body.content : req.body.content; projects[index].updated_at = Date.now(); await jsonDb.write('projects', projects); res.json({ project: projects[index] }); }
-    else res.status(404).json({ error: 'Not found' });
+    let index = projects.findIndex(p => p.id === req.params.id);
+    if (index === -1) {
+      // Create stub if missing in local db
+      projects.push({ id: req.params.id, tasks: [], notes: '', created_at: Date.now(), updated_at: Date.now() });
+      index = projects.length - 1;
+    }
+    // Simply overwrite with the sent content rather than appending
+    // The frontend sends the entire note content on save
+    projects[index].notes = req.body.content;
+    projects[index].updated_at = Date.now();
+    await jsonDb.write('projects', projects);
+    // Re-fetch from sbProjects to return full merged object
+    const fullProj = await sbProjects({ id: req.params.id });
+    res.json({ project: fullProj ? fullProj[0] : projects[index] });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
@@ -1987,19 +1793,8 @@ app.post('/api/google-calendar/auth-callback', async (req, res) => {
     if (!code) return res.status(400).json({ error: 'Missing code' });
 
     const calendarClient = require('./google-calendar-client.js');
-    const result = await calendarClient.exchangeCode(code);
-    if (!result.success) {
-      return res.status(500).json({ error: result.error || 'Token exchange failed' });
-    }
-    
-    // Verify token file was created
-    const fs = require('fs');
-    const tokenPath = require('path').join(__dirname, 'data', 'google-calendar-token.json');
-    if (!fs.existsSync(tokenPath)) {
-      return res.status(500).json({ error: 'Token file was not created' });
-    }
-    
-    res.json({ success: true, message: 'Google Calendar authenticated and tokens saved!' });
+    await calendarClient.exchangeCode(code);
+    res.json({ success: true, message: 'Google Calendar re-authenticated!' });
   } catch (error) { res.status(500).json({ error: error.message }); }
 });
 
@@ -2043,59 +1838,20 @@ app.get('/api/google-calendar/calendars', async (req, res) => {
 // Cortex endpoints (Supabase)
 app.get('/api/cortex', async (req, res) => {
   const { section, limit = 50 } = req.query;
-  
-  // Try Supabase first
   try {
     const entries = await lifeos.getCortexEntries(section, parseInt(limit));
-    if (entries && entries.length > 0) return res.json(entries);
-  } catch (e) { console.log('Cortex Supabase error:', e.message); }
-  
-  // Fallback to SQLite
-  try {
-    const SQLite = require('better-sqlite3');
-    const db = new SQLite(path.join(DATA_DIR, 'cortex.db'));
-    let query = 'SELECT * FROM cortex_entries';
-    const params = [];
-    if (section) { query += ' WHERE section = ?'; params.push(section); }
-    query += ' ORDER BY created_at DESC LIMIT ?';
-    params.push(parseInt(limit));
-    const entries = db.prepare(query).all(...params);
-    db.close();
-    
-    const normalized = entries.map(e => ({
-      ...e,
-      tags: e.tags ? JSON.parse(e.tags) : [],
-      entities: e.entities ? JSON.parse(e.entities) : [],
-      metadata: e.metadata ? JSON.parse(e.metadata) : {}
-    }));
-    return res.json(normalized);
-  } catch (error) { 
-    console.error('Cortex SQLite error:', error); 
-    res.json([]); 
-  }
+    res.json(entries);
+  } catch (error) { res.json([]); }
 });
 
 app.get('/api/cortex/stats', async (req, res) => {
   try {
-    // Try Supabase first
-    try {
-      const entries = await lifeos.getCortexEntries(null, 1000);
-      if (entries && entries.length > 0) {
-        const bySection = {};
-        for (const e of entries) {
-          bySection[e.section] = (bySection[e.section] || 0) + 1;
-        }
-        return res.json({ total: entries.length, bySection: Object.entries(bySection).map(([section, count]) => ({ section, count })) });
-      }
-    } catch (e) { console.log('Cortex stats Supabase error:', e.message); }
-    
-    // Fallback to SQLite
-    const SQLite = require('better-sqlite3');
-    const db = new SQLite(path.join(DATA_DIR, 'cortex.db'));
-    const entries = db.prepare('SELECT section, COUNT(*) as count FROM cortex_entries GROUP BY section').all();
-    db.close();
-    const total = entries.reduce((sum, row) => sum + row.count, 0);
-    res.json({ total, bySection: entries.map(r => ({ section: r.section, count: r.count })) });
+    const entries = await lifeos.getCortexEntries(null, 1000);
+    const bySection = {};
+    for (const e of entries) {
+      bySection[e.section] = (bySection[e.section] || 0) + 1;
+    }
+    res.json({ total: entries.length, bySection: Object.entries(bySection).map(([section, count]) => ({ section, count })) });
   } catch (error) { res.json({ total: 0, bySection: [] }); }
 });
 

@@ -1,12 +1,19 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import AnimatedIcon from '../AnimatedIcon';
 import { Film, Smile, Flame, FileText, Music, Users, Lightbulb, Mic, Folder, ClipboardList, Sparkles } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
 
 const typeIconMap = { film: Film, skit: Smile, joke: Smile, rant: Flame, blog: FileText, music: Music, character: Users, idea: Lightbulb, voice_note: Mic };
 
 export default function LayoutSplitView({ entries, color }) {
-    const [selectedEntry, setSelectedEntry] = useState(entries[0] || null);
+    const [selectedEntry, setSelectedEntry] = useState(null);
     const [filter, setFilter] = useState('all');
+
+    useEffect(() => {
+        if (entries.length > 0 && (!selectedEntry || !entries.find(e => e.id === selectedEntry.id))) {
+            setSelectedEntry(entries[0]);
+        }
+    }, [entries, selectedEntry]);
 
     const categories = ['all', ...new Set(entries.map(e => e.content_type || e.category || 'idea'))];
 
@@ -29,19 +36,54 @@ export default function LayoutSplitView({ entries, color }) {
                     ))}
                 </div>
 
-                {filteredEntries.map(entry => (
-                    <CardMisso
-                        key={entry.id}
-                        entry={entry}
-                        color={color}
-                        isActive={selectedEntry?.id === entry.id}
-                        onClick={() => setSelectedEntry(entry)}
-                    />
-                ))}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                    <AnimatePresence>
+                        {filteredEntries.map(entry => (
+                            <motion.div
+                                key={entry.id}
+                                layout="position"
+                                initial={{ opacity: 0, x: -20, scale: 0.95 }}
+                                animate={{ opacity: 1, x: 0, scale: 1 }}
+                                exit={{ opacity: 0, scale: 0.9, transition: { duration: 0.2 } }}
+                                transition={{ type: 'spring', stiffness: 300, damping: 24 }}
+                            >
+                                <CardMisso
+                                    entry={entry}
+                                    color={color}
+                                    isActive={selectedEntry?.id === entry.id}
+                                    onClick={() => setSelectedEntry(entry)}
+                                />
+                            </motion.div>
+                        ))}
+                    </AnimatePresence>
+                </div>
             </div>
 
             <div className="splitview-detail glass-scroll">
-                {selectedEntry ? <DetailMisso entry={selectedEntry} color={color} /> : <div style={{ opacity: 0.5, textAlign: 'center' }}>Select an entry to view details</div>}
+                <AnimatePresence mode="wait">
+                    {selectedEntry ? (
+                        <motion.div
+                            key={selectedEntry.id}
+                            initial={{ opacity: 0, y: 20 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            exit={{ opacity: 0, y: -20 }}
+                            transition={{ duration: 0.2, ease: "easeOut" }}
+                            style={{ height: '100%' }}
+                        >
+                            <DetailMisso entry={selectedEntry} color={color} />
+                        </motion.div>
+                    ) : (
+                        <motion.div
+                            key="empty"
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            exit={{ opacity: 0 }}
+                            style={{ opacity: 0.5, textAlign: 'center', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                        >
+                            Select an entry to view details
+                        </motion.div>
+                    )}
+                </AnimatePresence>
             </div>
         </div>
     );
@@ -59,7 +101,13 @@ function CardMisso({ entry, color, isActive, onClick }) {
     const TypeIcon = typeIconMap[type] || Lightbulb;
 
     return (
-        <div className={`misso-card ${isActive ? 'active' : ''}`} onClick={onClick}>
+        <motion.div
+            className={`misso-card ${isActive ? 'active' : ''}`}
+            onClick={onClick}
+            whileHover={{ scale: isActive ? 1.02 : 1.01 }}
+            whileTap={{ scale: 0.98 }}
+            style={isActive ? { borderColor: color, boxShadow: `0 8px 32px ${color}20` } : {}}
+        >
             <div className="misso-card-header">
                 <span style={{ fontSize: '0.8rem', color: color, display: 'flex', alignItems: 'center', gap: '4px', textTransform: 'uppercase', fontWeight: 'bold' }}>
                     <AnimatedIcon Icon={TypeIcon} size={14} /> {type.replace(/_/g, ' ')}
@@ -70,7 +118,7 @@ function CardMisso({ entry, color, isActive, onClick }) {
             <p style={{ margin: 0, fontSize: '0.85rem', color: 'rgba(255,255,255,0.6)', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
                 {parsedContent.summary || parsedContent.core_idea || entry.content?.substring(0, 100)}
             </p>
-        </div>
+        </motion.div>
     );
 }
 
@@ -93,8 +141,13 @@ function DetailMisso({ entry, color }) {
 
     return (
         <div style={{ color: '#fff' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '24px' }}>
-                <div style={{ background: color, padding: '12px', borderRadius: '16px', color: '#000', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <motion.div
+                initial={{ opacity: 0, x: -20 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ delay: 0.1 }}
+                style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '24px' }}
+            >
+                <div style={{ background: color, padding: '12px', borderRadius: '16px', color: '#000', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: `0 8px 24px ${color}40` }}>
                     <TypeIcon size={24} />
                 </div>
                 <div>
@@ -104,9 +157,14 @@ function DetailMisso({ entry, color }) {
                         {parsedContent.status && <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}><ClipboardList size={14} /> {parsedContent.status}</span>}
                     </div>
                 </div>
-            </div>
+            </motion.div>
 
-            <div style={{ background: 'rgba(255,255,255,0.03)', borderRadius: '16px', padding: '24px', marginBottom: '24px', border: '1px solid rgba(255,255,255,0.05)' }}>
+            <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.2 }}
+                style={{ background: 'rgba(255,255,255,0.03)', borderRadius: '16px', padding: '24px', marginBottom: '24px', border: '1px solid rgba(255,255,255,0.05)' }}
+            >
                 <h3 style={{ margin: '0 0 16px 0', display: 'flex', alignItems: 'center', gap: '8px', color: color }}>
                     <Sparkles size={18} /> Overview
                 </h3>
@@ -145,7 +203,7 @@ function DetailMisso({ entry, color }) {
                 </div>}
 
                 {(!parsedContent.core_idea && !parsedContent.transcript && !parsedContent.logline) && <p style={{ whiteSpace: 'pre-wrap', lineHeight: '1.6' }}>{entry.content}</p>}
-            </div>
+            </motion.div>
         </div>
     );
 }
