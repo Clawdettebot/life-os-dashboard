@@ -33,3 +33,17 @@ Subagents endpoint error: Command failed: cd /root/.openclaw/workspace && opencl
 /bin/sh: 1: cd: can't cd to /root/.openclaw/workspace
 
 Dashboard client connected
+Supabase table lifeos_health error, falling back to JSON: Could not find the table 'public.lifeos_health' in the schema cache
+Supabase table lifeos_goals error, falling back to JSON: Could not find the table 'public.lifeos_goals' in the schema cache
+Supabase table lifeos_schedule error, falling back to JSON: Could not find the table 'public.lifeos_schedule' in the schema cache
+Subagents endpoint error: Command failed: cd /root/.openclaw/workspace && openclaw cron list --json
+/bin/sh: 1: cd: can't cd to /root/.openclaw/workspace
+
+Dashboard client connected
+Supabase table lifeos_health error, falling back to JSON: Could not find the table 'public.lifeos_health' in the schema cache
+Supabase table lifeos_goals error, falling back to JSON: Could not find the table 'public.lifeos_goals' in the schema cache
+Supabase table lifeos_schedule error, falling back to JSON: Could not find the table 'public.lifeos_schedule' in the schema cache
+Subagents endpoint error: Command failed: cd /root/.openclaw/workspace && openclaw cron list --json
+/bin/sh: 1: cd: can't cd to /root/.openclaw/workspace
+
+Dashboard client connected

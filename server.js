@@ -7,8 +7,9 @@ const path = require('path');
 const fs = require('fs').promises;
 const axios = require('axios');
 const multer = require('multer');
-const { lifeos } = require('./lifeos-supabase.js');
-require('dotenv').config();
+require("dotenv").config();
+const { lifeos, getCortexEntries } = require('./lifeos-supabase.js');
+
 
 // Configure multer for file uploads
 const upload = multer({
@@ -1839,14 +1840,14 @@ app.get('/api/google-calendar/calendars', async (req, res) => {
 app.get('/api/cortex', async (req, res) => {
   const { section, limit = 50 } = req.query;
   try {
-    const entries = await lifeos.getCortexEntries(section, parseInt(limit));
+    const entries = await getCortexEntries(section, parseInt(limit));
     res.json(entries);
   } catch (error) { res.json([]); }
 });
 
 app.get('/api/cortex/stats', async (req, res) => {
   try {
-    const entries = await lifeos.getCortexEntries(null, 1000);
+    const entries = await getCortexEntries(null, 1000);
     const bySection = {};
     for (const e of entries) {
       bySection[e.section] = (bySection[e.section] || 0) + 1;
