@@ -455,8 +455,16 @@ function AgentChannelPanel() {
     const fetchAgents = async () => {
       try {
         const res = await fetch('/api/agents/status');
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const data = await res.json();
-        if (data.agents) setAgents(data.agents);
+        if (data.agents) {
+          // Convert object to array
+          const agentsArray = Object.entries(data.agents).map(([id, agent]) => ({
+            id,
+            ...agent
+          }));
+          setAgents(agentsArray);
+        }
       } catch (e) {
         console.error('Failed to fetch agents:', e);
       }
@@ -469,6 +477,7 @@ function AgentChannelPanel() {
     const fetchMessages = async () => {
       try {
         const res = await fetch(`/api/agents/messages?channel=${selectedChannel}`);
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const data = await res.json();
         if (data.messages) setMessages(data.messages);
       } catch (e) {
@@ -499,6 +508,7 @@ function AgentChannelPanel() {
           color: agentColors['claudnelius']
         })
       });
+      if (!res.ok) throw new Error(`HTTP ` + res.status);
       const data = await res.json();
       if (data.message) {
         setMessages(prev => [...prev, data.message]);
