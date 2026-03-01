@@ -3,9 +3,9 @@ import React from 'react';
 export default function RoundTableBackground() {
   return (
     <div
-      className="fixed inset-0 -z-10 overflow-hidden"
+      className="fixed inset-0 z-0 overflow-hidden flex items-center justify-center"
       style={{
-        background: 'linear-gradient(180deg, #082026 0%, #0d2e33 50%, #082026 100%)',
+        background: 'linear-gradient(180deg, #082026 0%, #0d2e33 50%, #082026 100%)'
       }}
     >
       {/* Ocean gradient overlay */}
@@ -32,10 +32,10 @@ export default function RoundTableBackground() {
             style={{
               left: `${Math.random() * 100}%`,
               top: `${Math.random() * 100}%`,
-              width: `${Math.random() * 3 + 1.5}px`,
-              height: `${Math.random() * 3 + 1.5}px`,
+              width: `${Math.random() * 2 + 1}px`,
+              height: `${Math.random() * 2 + 1}px`,
               background: i % 3 === 0 ? '#ffd166' : i % 3 === 1 ? '#8affda' : '#4dbab5',
-              opacity: Math.random() * 0.4 + 0.2,
+              opacity: Math.random() * 0.3 + 0.1,
               animationDelay: `${Math.random() * 5}s`,
               animationDuration: `${Math.random() * 6 + 4}s`
             }}
@@ -43,36 +43,36 @@ export default function RoundTableBackground() {
         ))}
       </div>
 
-      {/* Underwater landscape (Full scene end-to-end) */}
-      <div className="absolute bottom-0 left-0 right-0 h-48 pointer-events-none">
+      {/* Underwater landscape (Full scene end-to-end) - sized to fit */}
+      <div className="absolute bottom-0 left-0 right-0 h-20 pointer-events-none">
         {/* Deep background corals */}
-        <svg viewBox="0 0 100 50" className="absolute bottom-0 left-0 w-[25%] h-32 opacity-20 transform translate-x-[-5%]" preserveAspectRatio="none">
+        <svg viewBox="0 0 100 50" className="absolute bottom-0 left-0 w-[25%] h-16 opacity-20 transform translate-x-[-5%]" preserveAspectRatio="none">
           <path d="M0,50 Q15,20 30,35 Q45,10 60,30 Q75,15 90,40 Q100,25 100,50 Z" fill="#13363d" />
         </svg>
-        <svg viewBox="0 0 100 50" className="absolute bottom-0 right-0 w-[30%] h-36 opacity-15 transform translate-x-[10%]" preserveAspectRatio="none">
+        <svg viewBox="0 0 100 50" className="absolute bottom-0 right-0 w-[30%] h-18 opacity-15 transform translate-x-[10%]" preserveAspectRatio="none">
           <path d="M0,50 Q20,15 40,35 Q60,5 80,30 Q100,10 100,50 Z" fill="#0e2a30" />
         </svg>
 
         {/* Midground corals */}
-        <svg viewBox="0 0 100 50" className="absolute bottom-0 left-[15%] w-[35%] h-40 opacity-30" preserveAspectRatio="none">
+        <svg viewBox="0 0 100 50" className="absolute bottom-0 left-[15%] w-[35%] h-20 opacity-30" preserveAspectRatio="none">
           <path d="M0,50 Q25,10 50,35 Q75,5 100,30 Q100,50 100,50 L0,50 Z" fill="#143e4a" />
         </svg>
-        <svg viewBox="0 0 100 50" className="absolute bottom-0 right-[10%] w-[40%] h-32 opacity-25" preserveAspectRatio="none">
+        <svg viewBox="0 0 100 50" className="absolute bottom-0 right-[10%] w-[40%] h-16 opacity-25" preserveAspectRatio="none">
           <path d="M0,50 Q20,25 40,40 Q60,15 85,35 Q100,20 100,50 Z" fill="#1b4d5c" />
         </svg>
 
         {/* Foreground prominent corals */}
-        <svg viewBox="0 0 100 50" className="absolute bottom-[-10px] left-[-3%] w-[45%] h-44 opacity-40 filter drop-shadow-[0_20px_20px_rgba(0,0,0,0.8)]" preserveAspectRatio="none">
+        <svg viewBox="0 0 100 50" className="absolute bottom-[-5px] left-[-3%] w-[45%] h-24 opacity-40 filter drop-shadow-[0_20px_20px_rgba(0,0,0,0.8)]" preserveAspectRatio="none">
           <path d="M0,50 Q15,5 35,35 Q55,-10 75,30 Q90,5 100,50 Z" fill="#0a1d21" />
         </svg>
-        <svg viewBox="0 0 100 50" className="absolute bottom-[-15px] right-[-5%] w-[50%] h-48 opacity-45 transform scale-x-[-1]" preserveAspectRatio="none">
+        <svg viewBox="0 0 100 50" className="absolute bottom-[-8px] right-[-5%] w-[50%] h-28 opacity-45 transform scale-x-[-1]" preserveAspectRatio="none">
           <path d="M0,50 Q20,10 40,40 Q60,-5 85,30 Q100,15 100,50 Z" fill="#08181b" />
         </svg>
       </div>
 
       {/* Surface caustic shimmer effect */}
       <div
-        className="absolute bottom-0 left-0 right-0 h-64 opacity-20 pointer-events-none"
+        className="absolute bottom-0 left-0 right-0 h-32 opacity-20 pointer-events-none"
         style={{
           background: 'linear-gradient(0deg, #0a1d21 0%, rgba(77,186,181,0.2) 50%, transparent 100%)',
           mixBlendMode: 'screen'
