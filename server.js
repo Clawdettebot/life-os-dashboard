@@ -1904,8 +1904,19 @@ app.post('/api/google-calendar/auth-callback', async (req, res) => {
     if (!code) return res.status(400).json({ error: 'Missing code' });
 
     const calendarClient = require('./google-calendar-client.js');
-    await calendarClient.exchangeCode(code);
-    res.json({ success: true, message: 'Google Calendar re-authenticated!' });
+    const result = await calendarClient.exchangeCode(code);
+    if (!result.success) {
+      return res.status(500).json({ error: result.error || 'Token exchange failed' });
+    }
+    
+    // Verify token file was created
+    const fs = require('fs');
+    const tokenPath = require('path').join(__dirname, 'data', 'google-calendar-token.json');
+    if (!fs.existsSync(tokenPath)) {
+      return res.status(500).json({ error: 'Token file was not created' });
+    }
+    
+    res.json({ success: true, message: 'Google Calendar authenticated and tokens saved!' });
   } catch (error) { res.status(500).json({ error: error.message }); }
 });
 
@@ -1983,12 +1994,25 @@ app.get('/api/cortex', async (req, res) => {
 
 app.get('/api/cortex/stats', async (req, res) => {
   try {
-    const entries = await lifeos.getCortexEntries(null, 1000);
-    const bySection = {};
-    for (const e of entries) {
-      bySection[e.section] = (bySection[e.section] || 0) + 1;
-    }
-    res.json({ total: entries.length, bySection: Object.entries(bySection).map(([section, count]) => ({ section, count })) });
+    // Try Supabase first
+    try {
+      const entries = await lifeos.getCortexEntries(null, 1000);
+      if (entries && entries.length > 0) {
+        const bySection = {};
+        for (const e of entries) {
+          bySection[e.section] = (bySection[e.section] || 0) + 1;
+        }
+        return res.json({ total: entries.length, bySection: Object.entries(bySection).map(([section, count]) => ({ section, count })) });
+      }
+    } catch (e) { console.log('Cortex stats Supabase error:', e.message); }
+    
+    // Fallback to SQLite
+    const SQLite = require('better-sqlite3');
+    const db = new SQLite(path.join(DATA_DIR, 'cortex.db'));
+    const entries = db.prepare('SELECT section, COUNT(*) as count FROM cortex_entries GROUP BY section').all();
+    db.close();
+    const total = entries.reduce((sum, row) => sum + row.count, 0);
+    res.json({ total, bySection: entries.map(r => ({ section: r.section, count: r.count })) });
   } catch (error) { res.json({ total: 0, bySection: [] }); }
 });
 

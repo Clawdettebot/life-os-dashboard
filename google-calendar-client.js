@@ -4,6 +4,8 @@ const path = require('path');
 
 // OAuth2 client
 let oauth2Client;
+let initializationPromise = null;
+let isInitialized = false;
 
 // Token storage path
 const TOKEN_PATH = path.join(__dirname, 'data', 'google-calendar-token.json');
@@ -11,6 +13,14 @@ const CREDENTIALS_PATH = path.join(__dirname, 'data', 'google-credentials.json')
 
 // Initialize OAuth2 client
 async function initOAuthClient() {
+  if (initializationPromise) return initializationPromise;
+  
+  initializationPromise = _initOAuthClient();
+  isInitialized = await initializationPromise;
+  return initializationPromise;
+}
+
+async function _initOAuthClient() {
   try {
     // Check if credentials are stored
     const credsData = await fs.readFile(CREDENTIALS_PATH, 'utf8');
@@ -21,7 +31,7 @@ async function initOAuthClient() {
     oauth2Client = new google.auth.OAuth2(
       client_id,
       client_secret,
-      'urn:ietf:wg:oauth:2.0:oob' // Out-of-band for manual copy-paste
+      'http://localhost:3000/api/google-calendar/auth-callback' // Out-of-band for manual copy-paste
     );
     
     // Load saved tokens if they exist
@@ -37,9 +47,10 @@ async function initOAuthClient() {
     return { success: true };
   } catch (error) {
     console.error('❌ Google Calendar: Failed to initialize OAuth client:', error.message);
-    return { success: false, error: error.message };
+    throw new Error(error.message);
   }
 }
+
 
 // Store credentials (called when user provides credentials JSON)
 async function storeCredentials(credentialsJson) {
@@ -49,12 +60,14 @@ async function storeCredentials(credentialsJson) {
     return { success: true };
   } catch (error) {
     console.error('❌ Failed to store credentials:', error);
-    return { success: false, error: error.message };
+    throw new Error(error.message);
   }
 }
 
 // Get authorization URL - supports manual code flow for headless/VPS setups
-function getAuthUrl() {
+async function getAuthUrl() {
+  await initOAuthClient();
+  
   if (!oauth2Client) {
     return { success: false, error: 'OAuth client not initialized' };
   }
@@ -69,23 +82,24 @@ function getAuthUrl() {
     access_type: 'offline',
     scope: scopes,
     prompt: 'consent',
-    redirect_uri: 'http://localhost'
+    redirect_uri: 'http://localhost:3000/api/google-calendar/auth-callback'
   });
   
   return { 
     success: true, 
     url,
-    instructions: 'After authorizing, you will be redirected to localhost. Copy the "code" parameter from the URL and POST it to /api/google-calendar/auth-callback with {"code": "YOUR_CODE"}'
+    instructions: 'After authorizing, you will be redirected to localhost:3000/api/google-calendar/auth-callback. Copy the "code" parameter from the URL and POST it to /api/google-calendar/auth-callback with {"code": "YOUR_CODE"}'
   };
 }
 
 // Exchange code for tokens
 async function exchangeCode(code) {
+    await initOAuthClient();
   try {
     // Must specify the same redirect_uri used in getAuthUrl
     const { tokens } = await oauth2Client.getToken({
       code,
-      redirect_uri: 'http://localhost'
+      redirect_uri: 'http://localhost:3000/api/google-calendar/auth-callback'
     });
     oauth2Client.setCredentials(tokens);
     
@@ -96,7 +110,7 @@ async function exchangeCode(code) {
     return { success: true, tokens };
   } catch (error) {
     console.error('❌ Token exchange failed:', error);
-    return { success: false, error: error.message };
+    throw new Error(error.message);
   }
 }
 
@@ -120,7 +134,7 @@ async function getCalendarList() {
     return { success: true, calendars: response.data.items };
   } catch (error) {
     console.error('❌ Failed to get calendars:', error);
-    return { success: false, error: error.message };
+    throw new Error(error.message);
   }
 }
 
@@ -148,7 +162,7 @@ async function getEvents(calendarId = 'primary', timeMin, timeMax, maxResults = 
     return { success: true, events: response.data.items };
   } catch (error) {
     console.error('❌ Failed to get events:', error);
-    return { success: false, error: error.message };
+    throw new Error(error.message);
   }
 }
 
@@ -204,7 +218,7 @@ async function createEvent(calendarId = 'primary', eventData) {
     return { success: true, event: response.data };
   } catch (error) {
     console.error('❌ Failed to create event:', error);
-    return { success: false, error: error.message };
+    throw new Error(error.message);
   }
 }
 
@@ -233,7 +247,7 @@ async function updateEvent(calendarId = 'primary', eventId, eventData) {
     return { success: true, event: response.data };
   } catch (error) {
     console.error('❌ Failed to update event:', error);
-    return { success: false, error: error.message };
+    throw new Error(error.message);
   }
 }
 
@@ -254,7 +268,7 @@ async function deleteEvent(calendarId = 'primary', eventId) {
     return { success: true };
   } catch (error) {
     console.error('❌ Failed to delete event:', error);
-    return { success: false, error: error.message };
+    throw new Error(error.message);
   }
 }
 
@@ -312,7 +326,7 @@ async function disconnect() {
     return { success: true };
   } catch (error) {
     console.error('❌ Disconnect failed:', error);
-    return { success: false, error: error.message };
+    throw new Error(error.message);
   }
 }
 

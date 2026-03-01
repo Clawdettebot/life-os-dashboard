@@ -29,6 +29,7 @@ export default function CalendarView({ events = [], api, googleConnected = false
   const [syncStatus, setSyncStatus] = useState('idle');
   const [calendars, setCalendars] = useState([]);
   const [selectedCalendar, setSelectedCalendar] = useState('primary');
+  const [authUrl, setAuthUrl] = useState('');
 
   const [newEvent, setNewEvent] = useState({
     title: '',
@@ -80,6 +81,18 @@ export default function CalendarView({ events = [], api, googleConnected = false
 
   useEffect(() => {
     fetchCalendars();
+  }, [googleConnected]);
+
+  // Fetch Google auth URL when not connected
+  useEffect(() => {
+    if (!googleConnected) {
+      fetch('/api/google-calendar/auth-url')
+        .then(r => r.json())
+        .then(d => {
+          if (d.url) setAuthUrl(d.url);
+        })
+        .catch(console.error);
+    }
   }, [googleConnected]);
 
   const getDateRange = () => {
@@ -295,9 +308,18 @@ export default function CalendarView({ events = [], api, googleConnected = false
             ${googleConnected ? 'bg-green-500/5 border-green-500/20 text-green-400' : 'bg-white/5 border-white/10 text-gray-500'}
           `}>
             <Cloud size={14} className={googleConnected ? 'animate-pulse' : ''} />
-            <span className="text-[10px] font-black uppercase tracking-widest">
-              {googleConnected ? 'Sync Matrix Active' : 'Offline Mode'}
-            </span>
+            {!googleConnected && authUrl ? (
+              <a
+                href={authUrl}
+                className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded text-[10px] font-black uppercase tracking-widest transition-all"
+              >
+                Connect Google
+              </a>
+            ) : (
+              <span className="text-[10px] font-black uppercase tracking-widest">
+                {googleConnected ? 'Sync Matrix Active' : 'Offline Mode'}
+              </span>
+            )}
           </div>
 
           {googleConnected && (
