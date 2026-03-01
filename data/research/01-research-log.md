@@ -41,3 +41,7 @@
 ---
 
 _Updated: 2026-03-01_
+
+| 18-political-shifts.md | Political shifts | 🆕 New |
+| 19-filipino-news.md | Filipino news | 🆕 New |
+| 20-bay-area-news.md | Bay Area news | 🆕 New |
