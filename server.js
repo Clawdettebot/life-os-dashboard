@@ -323,21 +323,59 @@ app.get('/api/research/links', async (req, res) => {
   }
 });
 
-// POST /api/research/links - Save a new link
+// POST /api/research/links - Save a new link (with optional scrape)
 app.post('/api/research/links', async (req, res) => {
-  const { url, title, description, tags, category } = req.body;
+  const { url, title, description, tags, category, scrape } = req.body;
   
   if (!url) {
     return res.status(400).json({ error: 'URL required' });
   }
 
   try {
+    let content = '';
+    
+    // If scrape=true, fetch the actual content
+    if (scrape) {
+      try {
+        const { default: puppeteer } = require('puppeteer');
+        const browser = await puppeteer.launch({
+          headless: 'new',
+          args: ['--no-sandbox', '--disable-setuid-sandbox']
+        });
+        
+        const page = await browser.newPage();
+        await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 30000 });
+        
+        // Extract main content
+        content = await page.evaluate(() => {
+          // Remove scripts and styles
+          document.querySelectorAll('script, style, nav, header, footer, .ad, .advertisement').forEach(el => el.remove());
+          
+          // Try to get main content
+          const main = document.querySelector('article') || 
+                       document.querySelector('main') || 
+                       document.querySelector('.content') ||
+                       document.querySelector('#content') ||
+                       document.body;
+          
+          // Get text content
+          return main ? main.innerText.substring(0, 10000) : ''; // Limit to 10k chars
+        });
+        
+        await browser.close();
+      } catch (scrapeErr) {
+        console.error('Scrape error:', scrapeErr.message);
+        content = '[Could not scrape content]';
+      }
+    }
+    
     const data = await getResearchLinks();
     const link = {
       id: 'link_' + Date.now(),
       url,
       title: title || url,
       description: description || '',
+      content: content, // The scraped text
       tags: tags || [],
       category: category || 'uncategorized',
       saved_at: new Date().toISOString()
@@ -350,6 +388,52 @@ app.post('/api/research/links', async (req, res) => {
     res.json({ success: true, link });
   } catch (e) {
     res.status(500).json({ error: e.message });
+  }
+});
+
+// POST /api/research/scrape - Just scrape a URL, don't save
+app.post('/api/research/scrape', async (req, res) => {
+  const { url } = req.body;
+  
+  if (!url) {
+    return res.status(400).json({ error: 'URL required' });
+  }
+
+  try {
+    const { default: puppeteer } = require('puppeteer');
+    const browser = await puppeteer.launch({
+      headless: 'new',
+      args: ['--no-sandbox', '--disable-setuid-sandbox']
+    });
+    
+    const page = await browser.newPage();
+    await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 30000 });
+    
+    const result = await page.evaluate(() => {
+      // Get title
+      const title = document.title;
+      
+      // Remove unwanted elements
+      document.querySelectorAll('script, style, nav, header, footer, .ad, .advertisement, .sidebar, .comments').forEach(el => el.remove());
+      
+      // Get main content
+      const main = document.querySelector('article') || 
+                   document.querySelector('main') || 
+                   document.querySelector('.content') ||
+                   document.body;
+      
+      const text = main ? main.innerText : '';
+      
+      return {
+        title,
+        content: text.substring(0, 15000) // 15k char limit
+      };
+    });
+    
+    await browser.close();
+    res.json({ success: true, ...result });
+  } catch (e) {
+    res.status(500).json({ error: e.message, hint: 'Site may be blocking scrapers' });
   }
 });
 
