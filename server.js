@@ -331,26 +331,20 @@ app.delete('/api/blog/ideas/:id', async (req, res) => {
   }
 });
 
-// SHRIMP - AI Writing Agent (uses Minimax API)
+// SHRIMP - AI Writing Agent (uses OpenClaw sub-agent)
 app.post('/api/blog/shrimp', async (req, res) => {
   const { idea_id, idea_title, idea_brief } = req.body;
   if (!idea_id || !idea_brief) {
     return res.json({ success: false, error: 'Missing idea_id or idea_brief' });
   }
 
-  res.json({ success: true, message: '🦐 Shrimp is cooking with Minimax...' });
+  res.json({ success: true, message: '🦐 Spawning OpenClaw agent...' });
 
   (async () => {
     try {
       console.log('🦐 Shrimp starting for idea:', idea_id);
       
       const styleProfile = require('fs').readFileSync('/root/.openclaw/workspace/akims-writing-style.md', 'utf-8');
-      
-      const apiKey = process.env.MINIMAX_API_KEY;
-      if (!apiKey) {
-        console.error('🦐 No MINIMAX_API_KEY found');
-        return;
-      }
       
       const prompt = `You are writing a blog post for Akim (GuapDad). Use his writing style below.
 
@@ -364,54 +358,52 @@ Brief: ${idea_brief}
 TASK:
 Expand this idea into a full blog post draft in Akim's voice. 1500-2500 words. Raw, conversational, authentic. Include personal anecdotes. Use ALL CAPS for emphasis, blockquotes for tangents. End with resolution. Return ONLY the blog post content in HTML format (with <h2>, <p>, <blockquote>, etc).`;
 
-      const requestData = {
-        model: 'MiniMax-Text-01',
-        messages: [{ role: 'user', content: prompt }],
-        temperature: 0.7
-      };
-
+      // Try to spawn a sub-agent using the gateway API
       const { spawn } = require('child_process');
-      const curl = spawn('curl', [
-        '-s', '-X', 'POST',
-        'https://api.minimax.chat/v1/text/chatcompletion_pro',
-        '-H', 'Content-Type: application/json',
-        '-H', `Authorization: Bearer ${apiKey}`,
-        '-d', JSON.stringify(requestData),
-        '--max-time', '180'
-      ]);
-
+      
+      // Get gateway token
+      let gatewayToken = '';
+      try {
+        gatewayToken = require('fs').readFileSync('/root/.openclaw/gateway-token.txt', 'utf-8').trim();
+      } catch (e) {}
+      
+      const postData = {
+        runtime: 'subagent',
+        model: 'minimax/MiniMax-M2.5', 
+        task: prompt,
+        label: 'shrimp-' + idea_id,
+        timeoutSeconds: 120
+      };
+      
+      const args = ['-s', '-X', 'POST', 'http://localhost:18789/api/sessions_spawn'];
+      if (gatewayToken) {
+        args.push('-H', `Authorization: Bearer ${gatewayToken}`);
+      }
+      args.push('-H', 'Content-Type: application/json');
+      args.push('-d', JSON.stringify(postData));
+      args.push('--max-time', '30');
+      
+      const curl = spawn('curl', args);
+      
       let output = '';
       curl.stdout.on('data', (data) => { output += data; });
       
-      curl.on('close', async (code) => {
+      curl.on('close', (code) => {
+        console.log('🦐 Spawn result:', output.substring(0, 200));
+        
+        // Save to JSON file
+        const ideasFile = '/root/.openclaw/workspace/dashboard/data/blog-ideas.json';
         try {
-          const result = JSON.parse(output);
-          let generatedContent = '';
-          
-          if (result.choices && result.choices[0] && result.choices[0].message) {
-            generatedContent = result.choices[0].message.content;
-          } else if (result.base_resp && result.base_resp.status_code === 0) {
-            generatedContent = result.choices[0].message.content;
-          } else {
-            console.error('🦐 MinMax error:', JSON.stringify(result).substring(0, 200));
-            generatedContent = `<h2>${idea_title}</h2><p>${idea_brief}</p><p><em>AI generation placeholder</em></p>`;
-          }
-          
-          // Save to JSON file
-          const ideasFile = '/root/.openclaw/workspace/dashboard/data/blog-ideas.json';
           const ideasData = JSON.parse(require('fs').readFileSync(ideasFile, 'utf-8'));
           const ideaIndex = ideasData.ideas.findIndex(i => i.id === idea_id);
           if (ideaIndex >= 0) {
-            ideasData.ideas[ideaIndex].status = 'drafting';
-            ideasData.ideas[ideaIndex].expanded_content = generatedContent;
+            ideasData.ideas[ideaIndex].status = 'expanding';
             ideasData.ideas[ideaIndex].updated_at = new Date().toISOString();
             require('fs').writeFileSync(ideasFile, JSON.stringify(ideasData, null, 2));
           }
-          
-          console.log('🦐 Shrimp completed for idea:', idea_id);
-        } catch (e) {
-          console.error('🦐 Shrimp parse error:', e.message);
-        }
+        } catch (e) {}
+        
+        console.log('🦐 Shrimp spawned for idea:', idea_id);
       });
       
     } catch (e) {
