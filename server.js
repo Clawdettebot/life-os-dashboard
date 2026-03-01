@@ -7,7 +7,7 @@ const path = require('path');
 const fs = require('fs').promises;
 const axios = require('axios');
 const multer = require('multer');
-const { lifeos } = require('./lifeos-supabase.js');
+const { lifeos, createCortexEntry } = require('./lifeos-supabase.js');
 require('dotenv').config();
 
 // Configure multer for file uploads
@@ -2119,6 +2119,76 @@ app.get('/api/cortex', async (req, res) => {
     const entries = await lifeos.getCortexEntries(section, parseInt(limit));
     res.json(entries);
   } catch (error) { res.json([]); }
+});
+
+// POST /api/cortex - Add entry with auto-link-scraping
+app.post('/api/cortex', async (req, res) => {
+  const { section, content, title, metadata } = req.body;
+  
+  if (!content) {
+    return res.status(400).json({ error: 'Content required' });
+  }
+
+  try {
+    let finalContent = content;
+    let scrapedData = null;
+    
+    // Auto-scrape any URLs in the content
+    const urlRegex = /(https?:\/\/[^\s]+)/g;
+    const urls = content.match(urlRegex);
+    
+    if (urls && urls.length > 0) {
+      console.log(`🕷️ Found ${urls.length} URLs in cortex entry, scraping...`);
+      
+      for (const url of urls) {
+        try {
+          const { default: puppeteer } = require('puppeteer');
+          const browser = await puppeteer.launch({
+            headless: 'new',
+            args: ['--no-sandbox', '--disable-setuid-sandbox']
+          });
+          
+          const page = await browser.newPage();
+          await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 15000 });
+          
+          const result = await page.evaluate(() => {
+            const title = document.title;
+            document.querySelectorAll('script, style, nav, header, footer, .ad, .sidebar, .comments').forEach(el => el.remove());
+            const main = document.querySelector('article') || document.querySelector('main') || document.body;
+            const text = main ? main.innerText.substring(0, 8000) : '';
+            return { title, text };
+          });
+          
+          await browser.close();
+          
+          scrapedData = scrapedData || {};
+          scrapedData[url] = result;
+          console.log(`🕷️ Scraped: ${result.title}`);
+        } catch (e) {
+          console.log(`🕷️ Failed to scrape ${url}: ${e.message}`);
+        }
+      }
+    }
+    
+    // Create the cortex entry
+    const entry = {
+      section: section || 'general',
+      content: finalContent,
+      title: title || finalContent.substring(0, 100),
+      metadata: {
+        ...metadata,
+        scraped: scrapedData,
+        original_urls: urls || []
+      },
+      created_at: new Date().toISOString()
+    };
+    
+    const result = await createCortexEntry(entry);
+    res.json({ success: true, entry: result, scraped: !!scrapedData });
+  } catch (error) {
+    console.error('Cortex entry error:', error);
+    res.status(500).json({ error: error.message });
+  }
 });
 
 app.get('/api/cortex/stats', async (req, res) => {
