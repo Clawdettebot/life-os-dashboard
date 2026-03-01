@@ -299,6 +299,89 @@ app.post('/api/recipes', async (req, res) => {
   }
 });
 
+// ============================================
+// AGENT MESSAGES API - For Round Table Agent Channel
+// ============================================
+
+const MESSAGES_FILE = path.join(__dirname, 'data', 'agent-messages.json');
+
+async function getMessages() {
+  try {
+    const data = await fs.readFile(MESSAGES_FILE, 'utf8');
+    return JSON.parse(data);
+  } catch (e) {
+    return { messages: [] };
+  }
+}
+
+async function saveMessages(data) {
+  await fs.writeFile(MESSAGES_FILE, JSON.stringify(data, null, 2));
+}
+
+// GET /api/agents/messages - Get messages for a channel
+app.get('/api/agents/messages', async (req, res) => {
+  const { channel = 'round-table', limit = 50 } = req.query;
+  
+  try {
+    const data = await getMessages();
+    const messages = data.messages
+      .filter(m => m.channel === channel)
+      .slice(-parseInt(limit));
+    res.json({ messages, channel });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// POST /api/agents/messages - Send a message to a channel
+app.post('/api/agents/messages', async (req, res) => {
+  const { agentId, agentName, channel = 'round-table', content, color = '#fff' } = req.body;
+  
+  if (!content) {
+    return res.status(400).json({ error: 'Content required' });
+  }
+
+  try {
+    const data = await getMessages();
+    const message = {
+      id: 'msg_' + Date.now(),
+      agentId,
+      agentName: agentName || agentId,
+      channel,
+      content,
+      color,
+      timestamp: new Date().toISOString()
+    };
+    
+    data.messages = data.messages || [];
+    data.messages.push(message);
+    await saveMessages(data);
+    
+    res.json({ success: true, message });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// GET /api/messages - Get last message for an agent
+app.get('/api/messages', async (req, res) => {
+  const { agent } = req.query;
+  
+  try {
+    const data = await getMessages();
+    let messages = data.messages;
+    
+    if (agent) {
+      messages = messages.filter(m => m.agentId === agent);
+    }
+    
+    const lastMsg = messages[messages.length - 1];
+    res.json({ message: lastMsg?.content || '', messages });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
 app.use(express.static(path.join(__dirname, 'client/build')));
 
 // OpenClaw command wrapper
