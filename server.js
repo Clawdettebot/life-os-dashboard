@@ -300,6 +300,60 @@ app.post('/api/recipes', async (req, res) => {
 });
 
 // ============================================
+// RESEARCH LINKS API - Save links for research
+// ============================================
+const RESEARCH_LINKS_FILE = path.join(__dirname, 'data', 'research-links.json');
+
+async function getResearchLinks() {
+  try {
+    const data = await fs.readFile(RESEARCH_LINKS_FILE, 'utf8');
+    return JSON.parse(data);
+  } catch (e) {
+    return { links: [] };
+  }
+}
+
+// GET /api/research/links - Get all saved links
+app.get('/api/research/links', async (req, res) => {
+  try {
+    const data = await getResearchLinks();
+    res.json(data);
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// POST /api/research/links - Save a new link
+app.post('/api/research/links', async (req, res) => {
+  const { url, title, description, tags, category } = req.body;
+  
+  if (!url) {
+    return res.status(400).json({ error: 'URL required' });
+  }
+
+  try {
+    const data = await getResearchLinks();
+    const link = {
+      id: 'link_' + Date.now(),
+      url,
+      title: title || url,
+      description: description || '',
+      tags: tags || [],
+      category: category || 'uncategorized',
+      saved_at: new Date().toISOString()
+    };
+    
+    data.links = data.links || [];
+    data.links.push(link);
+    await fs.writeFile(RESEARCH_LINKS_FILE, JSON.stringify(data, null, 2));
+    
+    res.json({ success: true, link });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// ============================================
 // AGENT MESSAGES API - For Round Table Agent Channel
 // ============================================
 
