@@ -331,80 +331,59 @@ app.delete('/api/blog/ideas/:id', async (req, res) => {
   }
 });
 
-// SHRIMP - AI Writing Agent (uses OpenClaw sub-agent)
+// SHRIMP - AI Writing Agent (messages main session to generate content)
 app.post('/api/blog/shrimp', async (req, res) => {
   const { idea_id, idea_title, idea_brief } = req.body;
   if (!idea_id || !idea_brief) {
     return res.json({ success: false, error: 'Missing idea_id or idea_brief' });
   }
 
-  res.json({ success: true, message: '🦐 Spawning OpenClaw agent...' });
+  res.json({ success: true, message: '🦐 Notifying OpenClaw...' });
 
   (async () => {
     try {
       console.log('🦐 Shrimp starting for idea:', idea_id);
       
+      // Read writing style
       const styleProfile = require('fs').readFileSync('/root/.openclaw/workspace/akims-writing-style.md', 'utf-8');
       
-      const prompt = `You are writing a blog post for Akim (GuapDad). Use his writing style below.
+      const prompt = `Generate a blog post draft:
 
-WRITING STYLE:
-${styleProfile}
+**Title:** ${idea_title}
+**Brief:** ${idea_brief}
 
-IDEA:
-Title: ${idea_title}
-Brief: ${idea_brief}
+Write in Akim's voice (conversational, raw, with anecdotes). 1500-2500 words. HTML format. Use this style:
+${styleProfile.substring(0, 500)}...
 
-TASK:
-Expand this idea into a full blog post draft in Akim's voice. 1500-2500 words. Raw, conversational, authentic. Include personal anecdotes. Use ALL CAPS for emphasis, blockquotes for tangents. End with resolution. Return ONLY the blog post content in HTML format (with <h2>, <p>, <blockquote>, etc).`;
+After generating, save it to the idea "${idea_id}" using the /api/blog/ideas PATCH endpoint.`;
 
-      // Try to spawn a sub-agent using the gateway API
+      // Try to send to main session via sessions_send
       const { spawn } = require('child_process');
-      
-      // Get gateway token
-      let gatewayToken = '';
-      try {
-        gatewayToken = require('fs').readFileSync('/root/.openclaw/gateway-token.txt', 'utf-8').trim();
-      } catch (e) {}
-      
-      const postData = {
-        runtime: 'subagent',
-        model: 'minimax/MiniMax-M2.5', 
-        task: prompt,
-        label: 'shrimp-' + idea_id,
-        timeoutSeconds: 120
-      };
-      
-      const args = ['-s', '-X', 'POST', 'http://localhost:18789/api/sessions_spawn'];
-      if (gatewayToken) {
-        args.push('-H', `Authorization: Bearer ${gatewayToken}`);
-      }
-      args.push('-H', 'Content-Type: application/json');
-      args.push('-d', JSON.stringify(postData));
-      args.push('--max-time', '30');
-      
-      const curl = spawn('curl', args);
+      const curl = spawn('curl', [
+        '-s', '-X', 'POST',
+        'http://localhost:18789/api/sessions_send',
+        '-H', 'Content-Type: application/json',
+        '-d', JSON.stringify({ message: prompt }),
+        '--max-time', '10'
+      ]);
       
       let output = '';
       curl.stdout.on('data', (data) => { output += data; });
-      
-      curl.on('close', (code) => {
-        console.log('🦐 Spawn result:', output.substring(0, 200));
-        
-        // Save to JSON file
-        const ideasFile = '/root/.openclaw/workspace/dashboard/data/blog-ideas.json';
-        try {
-          const ideasData = JSON.parse(require('fs').readFileSync(ideasFile, 'utf-8'));
-          const ideaIndex = ideasData.ideas.findIndex(i => i.id === idea_id);
-          if (ideaIndex >= 0) {
-            ideasData.ideas[ideaIndex].status = 'expanding';
-            ideasData.ideas[ideaIndex].updated_at = new Date().toISOString();
-            require('fs').writeFileSync(ideasFile, JSON.stringify(ideasData, null, 2));
-          }
-        } catch (e) {}
-        
-        console.log('🦐 Shrimp spawned for idea:', idea_id);
+      curl.on('close', () => {
+        console.log('🦐 Notified main session');
       });
+      
+      // Update idea status
+      const ideasFile = '/root/.openclaw/workspace/dashboard/data/blog-ideas.json';
+      try {
+        const ideasData = JSON.parse(require('fs').readFileSync(ideasFile, 'utf-8'));
+        const ideaIndex = ideasData.ideas.findIndex(i => i.id === idea_id);
+        if (ideaIndex >= 0) {
+          ideasData.ideas[ideaIndex].status = 'expanding';
+          ideasData.ideas[ideaIndex].updated_at = new Date().toISOString();
+          require('fs').writeFileSync(ideasFile, JSON.stringify(ideasData, null, 2));
+        }
+      } catch (e) {}
       
     } catch (e) {
       console.error('🦐 Shrimp error:', e.message);
