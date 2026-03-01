@@ -148,6 +148,8 @@ export default function BlogVoiceView({ api }) {
     p.title?.toLowerCase().includes(searchQuery.toLowerCase()) ||
     p.content?.toLowerCase().includes(searchQuery.toLowerCase())
   );
+  
+  console.log('[Blog] posts:', posts.length, 'filtered:', filteredPosts.length, 'search:', searchQuery);
 
   const stats = [
     { label: 'Drafts', value: draftPosts.length, icon: FileText, color: 'text-amber-400', bg: 'bg-amber-500/10' },
@@ -272,7 +274,7 @@ export default function BlogVoiceView({ api }) {
                   <WidgetCard
                     key={post.id}
                     className={`p-0 overflow-hidden cursor-pointer hover:border-violet-500/30 transition-all ${selectedPost?.id === post.id ? 'border-violet-500/50' : ''}`}
-                    onClick={() => setSelectedPost(post)}
+                    onClick={() => { console.log('Clicked post:', post.title); setSelectedPost(post); }}
                   >
                     <div className="p-5">
                       <div className="flex items-start justify-between gap-4 mb-3">
@@ -281,7 +283,7 @@ export default function BlogVoiceView({ api }) {
                           {status.label}
                         </span>
                       </div>
-                      <p className="text-sm text-gray-400 line-clamp-2 mb-4">{post.content || post.transcript || 'No content'}</p>
+                      <p className="text-sm text-gray-400 line-clamp-2 mb-4">{post.excerpt || post.content?.substring(0, 200) + '...' || 'No content'}</p>
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-2 text-xs text-gray-500">
                           <Clock className="w-3 h-3" />
@@ -324,7 +326,7 @@ export default function BlogVoiceView({ api }) {
                       <span key={i} className="px-2 py-1 bg-violet-500/20 text-violet-300 rounded text-xs">{tag}</span>
                     ))}
                   </div>
-                  <p className="text-gray-300 whitespace-pre-wrap">{selectedPost.content || selectedPost.transcript || 'No content yet'}</p>
+                  <div className="prose prose-invert prose-sm max-w-none" dangerouslySetInnerHTML={{ __html: selectedPost.content || selectedPost.transcript || 'No content yet' }}></div>
                 </div>
                 <div className="flex gap-2 mt-6 pt-4 border-t border-white/5">
                   <GlassyPill onClick={() => deletePost(selectedPost.id)} className="flex-1 !py-2 text-red-400">

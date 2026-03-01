@@ -1,0 +1,179 @@
+// ============================================
+// BLOG PIPELINE v2 - Ideas, Shrimp, Voice Drop
+// ============================================
+
+// Get all blog ideas
+app.get('/api/blog/ideas', async (req, res) => {
+  try {
+    const { data, error } = await supabase
+      .from('blog_idea')
+      .select('*')
+      .order('created_at', { ascending: false });
+    
+    if (error) throw error;
+    res.json({ ideas: data || [] });
+  } catch (e) {
+    // Fallback to file-based
+    try {
+      const data = JSON.parse(await fs.readFile(path.join(DATA_DIR, 'blog-ideas.json'), 'utf-8'));
+      res.json({ ideas: data.ideas || [] });
+    } catch (err) {
+      res.json({ ideas: [] });
+    }
+  }
+});
+
+// Create new blog idea
+app.post('/api/blog/ideas', async (req, res) => {
+  try {
+    const { title, brief, tags = [], priority = 'medium', status = 'raw' } = req.body;
+    
+    const { data, error } = await supabase
+      .from('blog_idea')
+      .insert({
+        title: title || 'Untitled Idea',
+        brief: brief || '',
+        tags,
+        priority,
+        status, // raw, expanding, drafting, published
+        created_at: new Date().toISOString()
+      })
+      .select()
+      .single();
+
+    if (error) throw error;
+    res.json({ success: true, idea: data });
+  } catch (e) {
+    console.error('Create idea error:', e.message);
+    res.json({ success: false, error: e.message });
+  }
+});
+
+// Update blog idea
+app.patch('/api/blog/ideas/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { title, brief, tags, priority, status, expanded_content } = req.body;
+    
+    const { data, error } = await supabase
+      .from('blog_idea')
+      .update({ title, brief, tags, priority, status, expanded_content, updated_at: new Date().toISOString() })
+      .eq('id', id)
+      .select()
+      .single();
+
+    if (error) throw error;
+    res.json({ success: true, idea: data });
+  } catch (e) {
+    res.json({ success: false, error: e.message });
+  }
+});
+
+// Delete blog idea
+app.delete('/api/blog/ideas/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { error } = await supabase.from('blog_idea').delete().eq('id', id);
+    if (error) throw error;
+    res.json({ success: true });
+  } catch (e) {
+    res.json({ success: false, error: e.message });
+  }
+});
+
+// ============================================
+// SHRIMP - AI Writing Agent
+// ============================================
+app.post('/api/blog/shrimp', async (req, res) => {
+  try {
+    const { idea_id, idea_title, idea_brief } = req.body;
+    
+    if (!idea_id || !idea_brief) {
+      return res.json({ success: false, error: 'Missing idea_id or idea_brief' });
+    }
+
+    // Read the writing style profile
+    const styleProfile = fs.readFileSync('/root/.openclaw/workspace/akims-writing-style.md', 'utf-8');
+
+    // Build prompt for the AI
+    const prompt = `You are writing a blog post for Akim (GuapDad/Akeem). Use his writing style below.
+
+WRITING STYLE:
+${styleProfile}
+
+IDEA:
+Title: ${idea_title}
+Brief: ${idea_brief}
+
+TASK:
+Expand this idea into a full blog post draft in Akim's voice. The post should be:
+- 1500-2500 words
+- Raw, conversational, authentic
+- Vulnerable but confident
+- Include personal anecdotes
+- Use formatting: ALL CAPS for emphasis, blockquotes for tangents
+- Multiple emotional beats
+- End with resolution/affirmation
+
+Write the full draft now. Just output the blog post content.`;
+
+    // Mark idea as being expanded
+    await supabase
+      .from('blog_idea')
+      .update({ status: 'expanding' })
+      .eq('id', idea_id);
+
+    res.json({ 
+      success: true, 
+      message: 'Shrimp is expanding your idea...',
+      prompt_length: prompt.length
+    });
+    
+    // In production, this would call OpenClaw's AI. 
+    // For now, return the prompt for manual expansion or connect to AI.
+    
+  } catch (e) {
+    res.json({ success: false, error: e.message });
+  }
+});
+
+// ============================================
+// VOICE DROP - Transcribe & Create Draft
+// ============================================
+app.post('/api/blog/voice-drop', async (req, res) => {
+  try {
+    const { transcript, title, idea_brief } = req.body;
+    
+    if (!transcript) {
+      return res.json({ success: false, error: 'No transcript provided' });
+    }
+
+    // Create idea from voice drop
+    const { data: idea, error: ideaError } = await supabase
+      .from('blog_idea')
+      .insert({
+        title: title || 'Voice Drop ' + new Date().toLocaleDateString(),
+        brief: transcript.substring(0, 500),
+        tags: ['voice-drop'],
+        priority: 'medium',
+        status: 'expanding',
+        expanded_content: transcript,
+        created_at: new Date().toISOString()
+      })
+      .select()
+      .single();
+
+    if (ideaError) throw ideaError;
+
+    res.json({ 
+      success: true, 
+      idea,
+      message: 'Voice drop saved as idea! Run shrimp to expand into draft.'
+    });
+    
+  } catch (e) {
+    console.error('Voice drop error:', e.message);
+    res.json({ success: false, error: e.message });
+  }
+});
+

@@ -30,16 +30,22 @@ export default function KanbanBoard({ tasks = [], api }) {
   const getColumnForStatus = (status) => {
     const statusToColumn = {
       'completed': 'done', 'done': 'done', 'in_progress': 'in_progress',
-      'review': 'review', 'todo': 'todo', 'backlog': 'backlog', 'pending': 'backlog'
+      'review': 'in_progress', 'todo': 'todo', 'backlog': 'backlog', 'pending': 'todo'
     };
     return statusToColumn[status] || 'todo';
+  };
+
+  const getColumnForTask = (task) => {
+    // Check completed_at for completion
+    if (task.completed_at || task.status === 'completed') return 'done';
+    return getColumnForStatus(task.status);
   };
 
   useEffect(() => {
     const organized = {};
     columns.forEach(col => organized[col.id] = []);
     tasks.forEach(task => {
-      const columnId = getColumnForStatus(task.status);
+      const columnId = getColumnForTask(task);
       if (!organized[columnId]) organized[columnId] = [];
       organized[columnId].push(task);
     });
@@ -50,6 +56,8 @@ export default function KanbanBoard({ tasks = [], api }) {
     e.preventDefault();
     setDragOverColumn(null);
     if (!draggedTask) return;
+
+    console.log('[Kanban] Moving task:', draggedTask.id, 'to column:', columnId);
 
     setKanbanTasks(prev => {
       const newState = { ...prev };
@@ -64,7 +72,11 @@ export default function KanbanBoard({ tasks = [], api }) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ column: columnId })
       });
-      if (response.ok && api?.fetchAllData) api.fetchAllData();
+      console.log('[Kanban] Move response:', response.status, response.ok);
+      if (response.ok && api?.fetchAllData) {
+        console.log('[Kanban] Refetching data...');
+        api.fetchAllData();
+      }
     } catch (err) { console.error('Failed to move task:', err); }
     setDraggedTask(null);
   };

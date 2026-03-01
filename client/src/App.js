@@ -136,6 +136,7 @@ function App() {
   };
 
   const fetchAllData = async () => {
+    console.log('[LifeOS] Starting fetch...');
     try {
       const [
         tasksList, projectsList, financesList, habitsList,
@@ -143,7 +144,7 @@ function App() {
         calendarData, analyticsData, streamsData, inventoryData, journalData,
         googleCalendarStatus
       ] = await Promise.all([
-        fetch('/api/tasks').then(r => { if (!r.ok) throw new Error(r.status); return r.json(); }),
+        fetch('/api/tasks').then(r => { if (!r.ok) throw new Error('/api/tasks failed ' + r.status); return r.json(); }),
         fetch('/api/projects/active').then(r => { if (!r.ok) throw new Error(r.status); return r.json(); }),
         fetch('/api/tables/finances').then(r => { if (!r.ok) throw new Error(r.status); return r.json().then(j => j.data || []); }),
         fetch('/api/tables/habits').then(r => { if (!r.ok) throw new Error(r.status); return r.json().then(j => j.data || []); }),
@@ -158,6 +159,10 @@ function App() {
         fetch('/api/journal').then(r => { if (!r.ok) throw new Error(r.status); return r.json(); }),
         fetch('/api/google-calendar/status').then(r => { if (!r.ok) throw new Error(r.status); return r.json(); }).catch(() => ({ connected: false }))
       ]);
+
+      console.log('[LifeOS] Tasks:', tasksList?.active?.length, 'active,', tasksList?.completed?.length, 'completed');
+      console.log('[LifeOS] Habits:', habitsList?.length, 'habits');
+      console.log('[LifeOS] Notes:', notesList?.length, 'notes');
 
       setTasks({
         active: tasksList.active || [],
@@ -180,6 +185,8 @@ function App() {
       setAchievements(checkAchievements({ tasks: tasksList.all, projects: projectsList.projects, finances: financesList, notes: notesList }));
     } catch (error) {
       console.error('Error fetching data:', error);
+    } finally {
+      console.log('[LifeOS] Fetch complete');
     }
   };
 
@@ -249,8 +256,8 @@ function App() {
     newSocket.on('sync_data', (data) => {
       if (data.tasks) {
         setTasks({
-          active: data.tasks.filter(t => t.status !== 'completed'),
-          completed: data.tasks.filter(t => t.status === 'completed'),
+          active: data.tasks.filter(t => t.status !== 'completed' && !t.completed_at),
+          completed: data.tasks.filter(t => t.status === 'completed' || t.completed_at),
           all: data.tasks
         });
       }
@@ -326,7 +333,9 @@ function App() {
   };
 
   const toggleTask = (task) => {
-    const newStatus = task.status === 'completed' ? 'pending' : 'completed';
+    // Check both status and completed_at for completion
+    const isCompleted = task.status === 'completed' || task.completed_at;
+    const newStatus = isCompleted ? 'pending' : 'completed';
     API.update('tasks', task.id, { status: newStatus });
     triggerSFX(newStatus === 'completed' ? '完了' : '未完了');
   };
