@@ -243,6 +243,62 @@ app.get('/api/releases/upcoming', async (req, res) => {
   }
 });
 
+const RECIPES_FILE = path.join(__dirname, 'data', 'kitchen.json');
+
+async function getRecipes() {
+  try {
+    const data = await fs.readFile(RECIPES_FILE, 'utf8');
+    return JSON.parse(data);
+  } catch (e) {
+    return { recipes: [] };
+  }
+}
+
+// GET /api/recipes - Get all recipes
+app.get('/api/recipes', async (req, res) => {
+  try {
+    const data = await getRecipes();
+    res.json(data);
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// POST /api/recipes - Add a new recipe
+app.post('/api/recipes', async (req, res) => {
+  const { name, category, tags, description, ingredients, instructions, prep_time, cook_time, servings, source } = req.body;
+  
+  if (!name) {
+    return res.status(400).json({ error: 'Name required' });
+  }
+
+  try {
+    const data = await getRecipes();
+    const recipe = {
+      id: 'recipe_' + Date.now(),
+      name,
+      category: category || 'Uncategorized',
+      tags: tags || [],
+      description: description || '',
+      ingredients: ingredients || [],
+      instructions: instructions || '',
+      prep_time: prep_time || '',
+      cook_time: cook_time || '',
+      servings: servings || 1,
+      source: source || '',
+      created_at: new Date().toISOString()
+    };
+    
+    data.recipes = data.recipes || [];
+    data.recipes.push(recipe);
+    await fs.writeFile(RECIPES_FILE, JSON.stringify(data, null, 2));
+    
+    res.json({ success: true, recipe });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
 app.use(express.static(path.join(__dirname, 'client/build')));
 
 // OpenClaw command wrapper
