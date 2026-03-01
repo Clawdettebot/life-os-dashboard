@@ -522,6 +522,20 @@ app.get('/api/messages', async (req, res) => {
 
 app.use(express.static(path.join(__dirname, 'client/build')));
 
+// ============================================
+// CORTEX TAGS API
+// ============================================
+const CORTEX_TAGS_FILE = path.join(__dirname, 'data', 'cortex-tags.json');
+
+app.get('/api/cortex/tags', async (req, res) => {
+  try {
+    const data = await fs.readFile(CORTEX_TAGS_FILE, 'utf8');
+    res.json(JSON.parse(data));
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
 // OpenClaw command wrapper
 function runOpenClawCommand(command, callback) {
   const fullCommand = `cd /root/.openclaw/workspace && ${command}`;
