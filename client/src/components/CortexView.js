@@ -72,6 +72,7 @@ export default function CortexView() {
   const [selectedEntry, setSelectedEntry] = useState(null);
   const [sectionTags, setSectionTags] = useState([]);
   const [selectedTags, setSelectedTags] = useState([]);
+  const [mediaUrl, setMediaUrl] = useState('');
 
   useEffect(() => {
     fetchEntries();
@@ -119,7 +120,8 @@ export default function CortexView() {
       title: form.title.value,
       content: form.content.value,
       section: activeSection,
-      category: selectedTags.length > 0 ? selectedTags.join(',') : form.category?.value || ''
+      category: selectedTags.length > 0 ? selectedTags.join(',') : form.category?.value || '',
+      media_url: mediaUrl
     };
 
     try {
@@ -128,11 +130,33 @@ export default function CortexView() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(data)
       });
-      setShowAddModal(false);
+      setShowAddModal(false); setMediaUrl('');
       fetchEntries();
       form.reset();
     } catch (e) {
       console.error('Failed to add entry:', e);
+    }
+  };
+
+  // Handle file upload for media
+  const handleMediaUpload = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    
+    const formData = new FormData();
+    formData.append('file', file);
+    
+    try {
+      const res = await fetch('/api/cortex/media', {
+        method: 'POST',
+        body: formData
+      });
+      const data = await res.json();
+      if (data.url) {
+        setMediaUrl(data.url);
+      }
+    } catch (err) {
+      console.error('Upload failed:', err);
     }
   };
 
@@ -290,6 +314,16 @@ export default function CortexView() {
                 )}
               </div>
               <div className="form-group">
+              <div className="form-group">
+                <label>Media (image)</label>
+                <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+                  <label className="btn btn-secondary" style={{ cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+                    <input type="file" accept="image/*" onChange={handleMediaUpload} style={{ display: 'none' }} />
+                    📎 Add Image
+                  </label>
+                  {mediaUrl && <span style={{ fontSize: '0.8rem', color: '#10b981' }}>✓ Image attached</span>}
+                </div>
+              </div>
                 <label>Content</label>
                 <textarea name="content" className="form-textarea" rows={6} required />
               </div>
@@ -328,6 +362,13 @@ function EntryModal({ entry, section, color, onClose }) {
           <h2 style={{ color: 'white', margin: 0 }}>{entry.title}</h2>
           <span style={{ color: '#888', fontSize: '14px' }}>{section.replace('_', ' ')}</span>
         </div>
+
+        {/* Show media if available */}
+        {entry.media_url && (
+          <div style={{ marginBottom: '15px' }}>
+            <img src={entry.media_url} alt="Entry media" style={{ maxWidth: '100%', borderRadius: '8px' }} />
+          </div>
+        )}
 
         <div className="modal-body">
           {section === 'howls_kitchen' && <HowlKitchenDetails parsedContent={parsedContent} />}

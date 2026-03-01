@@ -453,10 +453,42 @@ app.get('/api/twitch/callback', async (req, res) => {
       expires_at: twitchTokens.expiresAt
     }, null, 2));
 
-    res.redirect('/?twitch=connected');
+    // Return HTML that closes popup and redirects main window
+    return res.send(`
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <script>
+            if (window.opener) {
+              window.opener.postMessage({ type: 'twitch-connected' }, '*');
+              window.opener.location.href = '/?twitch=connected';
+            }
+            window.close();
+          </script>
+        </head>
+        <body>
+          <p>Connected! Closing...</p>
+        </body>
+      </html>
+    `);
   } catch (error) {
     console.error('Twitch auth error:', error.message);
-    res.redirect('/?twitch=error');
+    // Return HTML that shows error and closes popup
+    return res.send(`
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <script>
+            if (window.opener) {
+              window.opener.location.href = '/?twitch=error';
+            }
+          </script>
+        </head>
+        <body>
+          <p>Error connecting. You can close this window.</p>
+        </body>
+      </html>
+    `);
   }
 });
 
@@ -2139,6 +2171,45 @@ app.get('/api/cortex/tags', async (req, res) => {
     res.json({ error: error.message }); 
   }
 });
+// Cortex media upload endpoint - uploads image/file to Supabase Storage
+app.post('/api/cortex/media', upload.single('file'), async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ error: 'No file provided' });
+    }
+
+    const { bucket = 'media', folder = 'cortex' } = req.query;
+    
+    // Supabase Storage credentials
+    const SUPABASE_URL = 'https://pvavybczlrhwagasriwu.storage.supabase.co';
+    const SUPABASE_KEY = '084d0a038708e46fc73ebb0066b4a931';
+    
+    // Generate unique filename
+    const ext = req.file.originalname.split('.').pop();
+    const filename = `${folder}/${Date.now()}-${Math.random().toString(36).substring(7)}.${ext}`;
+    
+    // Upload to Supabase Storage
+    const response = await axios.put(
+      `${SUPABASE_URL}/storage/v1/object/${bucket}/${filename}`,
+      req.file.buffer,
+      {
+        headers: {
+          'Content-Type': req.file.mimetype,
+          'Authorization': `Bearer ${SUPABASE_KEY}`,
+          'x-upsert': 'true'
+        }
+      }
+    );
+
+    // Return the public URL
+    const publicUrl = `${SUPABASE_URL}/storage/v1/object/public/${bucket}/${filename}`;
+    res.json({ url: publicUrl, success: true });
+  } catch (error) {
+    console.error('Media upload error:', error.message);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 
 // Contacts CRM
 app.get('/api/contacts', async (req, res) => {

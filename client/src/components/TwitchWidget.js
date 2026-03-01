@@ -10,6 +10,17 @@ export default function TwitchWidget({ API }) {
   const [connecting, setConnecting] = useState(false);
 
   useEffect(() => {
+    // Listen for message from OAuth popup
+    const handleMessage = (event) => {
+      if (event.data?.type === 'twitch-connected') {
+        checkStatus();
+      }
+    };
+    window.addEventListener('message', handleMessage);
+    return () => window.removeEventListener('message', handleMessage);
+  }, []);
+
+  useEffect(() => {
     checkStatus();
   }, []);
 
@@ -48,17 +59,6 @@ export default function TwitchWidget({ API }) {
       if (data.authUrl) {
         // Open in new window for OAuth
         window.open(data.authUrl, '_blank', 'width=600,height=700');
-        // Poll for connection status
-        const pollInterval = setInterval(async () => {
-          const statusRes = await fetch('/api/twitch/status');
-          const statusData = await statusRes.json();
-          if (statusData.connected) {
-            clearInterval(pollInterval);
-            setStatus(statusData);
-            fetchSchedule();
-            setConnecting(false);
-          }
-        }, 2000);
       }
     } catch (e) {
       console.error('Twitch connect error:', e);
@@ -199,7 +199,7 @@ export default function TwitchWidget({ API }) {
 
       {/* Help text when not connected */}
       {!status.connected && (
-        <div className="p-3 bg-blue-500/5 border border-blue-500/20 rounded-xl">
+        <div className="p-3 bg-blue-500/05 border border-blue-500/20 rounded-xl">
           <div className="flex items-start gap-2">
             <AlertCircle className="w-4 h-4 text-blue-400 mt-0.5 flex-shrink-0" />
             <p className="text-xs text-gray-400">

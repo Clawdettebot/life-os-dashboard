@@ -2577,28 +2577,6 @@ body::before {
   font-family: var(--font-mono);
 }
 
-/* Form improvements for streams */
-.form-select {
-  width: 100%;
-  padding: 10px 12px;
-  border: var(--border-thin);
-  background: var(--white);
-  font-family: var(--font-main);
-  font-size: 0.85rem;
-  color: var(--ink);
-  margin-bottom: 12px;
-  cursor: pointer;
-  appearance: none;
-  background-image: none;
-}
-
-.form-select:focus {
-  outline: none;
-  border-color: var(--ink);
-  box-shadow: var(--shadow-manga-sm);
-}
-
-/* ═══════════════════════════════════════════════════════
    NEW COMPONENT STYLES
    Finance View, Kanban, Calendar, Habits
    ═══════════════════════════════════════════════════════ */
