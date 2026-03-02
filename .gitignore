@@ -36,3 +36,4 @@ data/*.json
 *.wav
 *.mp3
 .env.knaight
+data/uploads/
