@@ -155,6 +155,36 @@ app.get('/api/status', (req, res) => {
 });
 
 // Blog Posts API - now from Supabase
+app.post('/api/blog/posts', async (req, res) => {
+  try {
+    const client = website || supabase;
+    const { title, content: body, excerpt, cover_image, status } = req.body;
+    
+    if (!title || !body) {
+      return res.status(400).json({ error: 'Title and content required' });
+    }
+    
+    const { data, error } = await client
+      .from('blog_post')
+      .insert([{ 
+        title, 
+        content: body, 
+        excerpt: excerpt || body.substring(0, 150) + '...',
+        cover_image: cover_image || null,
+        status: status || 'draft',
+        slug: title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '')
+      }])
+      .select()
+      .single();
+    
+    if (error) throw error;
+    res.json({ success: true, post: data });
+  } catch (e) {
+    console.error('Blog create error:', e.message);
+    res.status(500).json({ error: e.message });
+  }
+});
+
 app.get('/api/blog/posts', async (req, res) => {
   try {
     const client = website || supabase;
@@ -2560,10 +2590,20 @@ app.get('/api/cortex/stats', async (req, res) => {
 app.get('/api/cortex/tags', async (req, res) => {
   const { section } = req.query;
   try {
-    const tags = await getCortexTags(section);
-    res.json(tags);
+    if (getCortexTags && typeof getCortexTags === 'function') {
+      const tags = await getCortexTags(section);
+      if (tags && Object.keys(tags).length > 0) {
+        return res.json(tags);
+      }
+    }
+    // Fallback to direct CORTEX_TAGS
+    if (section) {
+      res.json({ [section]: CORTEX_TAGS[section] || [] });
+    } else {
+      res.json(CORTEX_TAGS);
+    }
   } catch (error) { 
-    res.json({ error: error.message }); 
+    res.json(CORTEX_TAGS || {}); 
   }
 });
 // Cortex media upload endpoint - uploads image/file to Supabase Storage
