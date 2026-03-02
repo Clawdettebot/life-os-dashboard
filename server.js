@@ -1282,6 +1282,9 @@ app.post('/api/twitch/disconnect', async (req, res) => {
   if (lifeos && sbTable) {
     try {
       let payload = { ...req.body };
+      // Filter out fields that don't exist in Supabase
+      const validFields = ['name','description','status','category','priority','progress','start_date','target_date','tags','links'];
+      Object.keys(payload).forEach(k => { if (!validFields.includes(k)) delete payload[k]; });
       if (table === 'finances' && payload.title !== undefined) { payload.description = payload.title; delete payload.title; }
       if (table === 'notes' && payload.title !== undefined) { delete payload.title; }
       if (table === 'projects' && payload.title !== undefined) { payload.name = payload.title; delete payload.title; }
@@ -1308,6 +1311,9 @@ app.patch('/api/tables/:table/:id', async (req, res) => {
   if (lifeos && sbTable) {
     try {
       let payload = { ...req.body };
+      // Filter out fields that don't exist in Supabase
+      const validFields = ['name','description','status','category','priority','progress','start_date','target_date','tags','links'];
+      Object.keys(payload).forEach(k => { if (!validFields.includes(k)) delete payload[k]; });
       if (table === 'finances' && payload.title !== undefined) { payload.description = payload.title; delete payload.title; }
       if (table === 'notes' && payload.title !== undefined) { delete payload.title; }
       if (table === 'projects' && payload.title !== undefined) { payload.name = payload.title; delete payload.title; }
@@ -2233,6 +2239,9 @@ app.post('/api/projects', async (req, res) => {
   if (lifeos) {
     try {
       let payload = { ...req.body };
+      // Filter out fields that don't exist in Supabase
+      const validFields = ['name','description','status','category','priority','progress','start_date','target_date','tags','links'];
+      Object.keys(payload).forEach(k => { if (!validFields.includes(k)) delete payload[k]; });
       if (payload.title !== undefined) { payload.name = payload.title; delete payload.title; }
       if (payload.priority) { const pMap = { high: 2, medium: 3, low: 4 }; payload.priority = pMap[payload.priority] || 3; }
       const { data, error } = await lifeos.from('lifeos_projects')
@@ -2254,6 +2263,9 @@ app.patch('/api/projects/:id', async (req, res) => {
   if (lifeos) {
     try {
       let payload = { ...req.body };
+      // Filter out fields that don't exist in Supabase
+      const validFields = ['name','description','status','category','priority','progress','start_date','target_date','tags','links'];
+      Object.keys(payload).forEach(k => { if (!validFields.includes(k)) delete payload[k]; });
       if (payload.title !== undefined) { payload.name = payload.title; delete payload.title; }
       if (payload.priority) { const pMap = { high: 2, medium: 3, low: 4 }; payload.priority = pMap[payload.priority] || 3; }
       const { data, error } = await lifeos.from('lifeos_projects')
