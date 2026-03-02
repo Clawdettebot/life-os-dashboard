@@ -2449,6 +2449,19 @@ app.get('/api/cortex', async (req, res) => {
   } catch (error) { res.json([]); }
 });
 
+
+// Quick cortex search (limited results)
+app.get('/api/cortex/quick', async (req, res) => {
+  const { q = '' } = req.query;
+  try {
+    const entries = await getCortexEntries('main', 10);
+    const filtered = entries.filter(e => 
+      e.content.toLowerCase().includes(q.toLowerCase()) ||
+      (e.title && e.title.toLowerCase().includes(q.toLowerCase()))
+    );
+    res.json(filtered.slice(0, 5));
+  } catch (error) { res.json([]); }
+});
 // POST /api/cortex - Add entry with auto-link-scraping
 app.post('/api/cortex', async (req, res) => {
   const { section, content, title, metadata } = req.body;
