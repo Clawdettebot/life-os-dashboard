@@ -2560,36 +2560,34 @@ app.post('/api/cortex/media', upload.single('file'), async (req, res) => {
       return res.status(400).json({ error: 'No file provided' });
     }
 
-    const { bucket = 'media', folder = 'cortex' } = req.query;
+    const { folder = 'cortex' } = req.query;
+    const UPLOAD_DIR = path.join(__dirname, 'data', 'uploads', folder);
     
-    // Supabase Storage credentials
-    const SUPABASE_URL = 'https://pvavybczlrhwagasriwu.storage.supabase.co';
-    const SUPABASE_KEY = '084d0a038708e46fc73ebb0066b4a931';
+    // Ensure directory exists
+    await fs.mkdir(UPLOAD_DIR, { recursive: true });
     
     // Generate unique filename
-    const ext = req.file.originalname.split('.').pop();
-    const filename = `${folder}/${Date.now()}-${Math.random().toString(36).substring(7)}.${ext}`;
+    const ext = req.file.originalname.split('.').pop() || 'txt';
+    const filename = `${Date.now()}-${Math.random().toString(36).substring(7)}.${ext}`;
+    const filepath = path.join(UPLOAD_DIR, filename);
     
-    // Upload to Supabase Storage
-    const response = await axios.put(
-      `${SUPABASE_URL}/storage/v1/object/${bucket}/${filename}`,
-      req.file.buffer,
-      {
-        headers: {
-          'Content-Type': req.file.mimetype,
-          'Authorization': `Bearer ${SUPABASE_KEY}`,
-          'x-upsert': 'true'
-        }
-      }
-    );
-
-    // Return the public URL
-    const publicUrl = `${SUPABASE_URL}/storage/v1/object/public/${bucket}/${filename}`;
-    res.json({ url: publicUrl, success: true });
+    // Save file locally
+    await fs.writeFile(filepath, req.file.buffer);
+    
+    // Return the URL path
+    const urlPath = `/api/uploads/${folder}/${filename}`;
+    res.json({ url: urlPath, filename, success: true });
   } catch (error) {
     console.error('Media upload error:', error.message);
     res.status(500).json({ error: error.message });
   }
+});
+
+// Serve uploaded files
+app.get('/api/uploads/:folder/:filename', async (req, res) => {
+  const { folder, filename } = req.params;
+  const filepath = path.join(__dirname, 'data', 'uploads', folder, filename);
+  res.sendFile(filepath);
 });
 
 
