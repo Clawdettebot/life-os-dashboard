@@ -2484,6 +2484,34 @@ app.get('/api/cortex', async (req, res) => {
 
 
 // Quick cortex search (limited results)
+app.post('/api/cortex/quick', async (req, res) => {
+  try {
+    const { title, content: body, section, category, media_url } = req.body;
+    if (!title || !section) {
+      return res.status(400).json({ error: 'Title and section required' });
+    }
+    
+    const { data, error } = await lifeos
+      .from('lifeos_cortex')
+      .insert([{
+        title,
+        content: body || '',
+        section,
+        category: category || '',
+        content_type: 'note',
+        status: 'active'
+      }])
+      .select()
+      .single();
+    
+    if (error) throw error;
+    res.json({ success: true, entry: data });
+  } catch (e) {
+    console.error('Cortex quick add error:', e.message);
+    res.status(500).json({ error: e.message });
+  }
+});
+
 app.get('/api/cortex/quick', async (req, res) => {
   const { q = '' } = req.query;
   try {
