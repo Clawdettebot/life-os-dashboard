@@ -558,16 +558,6 @@ app.use(express.static(path.join(__dirname, 'client/build')));
 // ============================================
 const CORTEX_TAGS_FILE = path.join(__dirname, 'data', 'cortex-tags.json');
 
-app.get('/api/cortex/tags', async (req, res) => {
-  try {
-    const data = await fs.readFile(CORTEX_TAGS_FILE, 'utf8');
-    res.json(JSON.parse(data));
-  } catch (e) {
-    res.status(500).json({ error: e.message });
-  }
-});
-
-// OpenClaw command wrapper
 function runOpenClawCommand(command, callback) {
   const fullCommand = `cd /root/.openclaw/workspace && ${command}`;
   exec(fullCommand, (error, stdout, stderr) => {
@@ -2587,23 +2577,44 @@ app.get('/api/cortex/stats', async (req, res) => {
 });
 
 // Cortex tags endpoint - returns all predefined tags organized by section
+// Hardcoded cortex tags - guaranteed to work
+const HARDCODED_TAGS = {
+  emerald_tablets: [
+    { tag: 'history', color: 'gold', description: 'Historical events' },
+    { tag: 'culture', color: 'purple', description: 'Cultural traditions' },
+    { tag: 'timeline', color: 'blue', description: 'Chronological data' },
+    { tag: 'person', color: 'pink', description: 'Notable individuals' },
+    { tag: 'event', color: 'green', description: 'Happenings' },
+    { tag: 'african_american', color: 'amber', description: 'African American history' },
+    { tag: 'oakland', color: 'violet', description: 'Oakland-specific' }
+  ],
+  all_spark: [
+    { tag: 'idea', color: 'cyan', description: 'Raw ideas' },
+    { tag: 'project', color: 'purple', description: 'Projects in progress' },
+    { tag: 'creative', color: 'rose', description: 'Creative works' },
+    { tag: 'content', color: 'orange', description: 'Content ideas' },
+    { tag: 'merch', color: 'lime', description: 'Merchandise' },
+    { tag: 'startup', color: 'teal', description: 'Business ideas' }
+  ],
+  howls_kitchen: [
+    { tag: 'recipe', color: 'red', description: 'Recipes' },
+    { tag: 'review', color: 'teal', description: 'Restaurant reviews' },
+    { tag: 'technique', color: 'purple', description: 'Cooking techniques' },
+    { tag: 'restaurant', color: 'yellow', description: 'Restaurant info' }
+  ],
+  hitchhiker_guide: [
+    { tag: 'survival', color: 'green', description: 'Survival skills' },
+    { tag: 'diy', color: 'blue', description: 'DIY projects' },
+    { tag: 'tech', color: 'purple', description: 'Tech knowledge' }
+  ]
+};
+
 app.get('/api/cortex/tags', async (req, res) => {
   const { section } = req.query;
-  try {
-    if (getCortexTags && typeof getCortexTags === 'function') {
-      const tags = await getCortexTags(section);
-      if (tags && Object.keys(tags).length > 0) {
-        return res.json(tags);
-      }
-    }
-    // Fallback to direct CORTEX_TAGS
-    if (section) {
-      res.json({ [section]: CORTEX_TAGS[section] || [] });
-    } else {
-      res.json(CORTEX_TAGS);
-    }
-  } catch (error) { 
-    res.json(CORTEX_TAGS || {}); 
+  if (section) {
+    res.json({ [section]: HARDCODED_TAGS[section] || [] });
+  } else {
+    res.json(HARDCODED_TAGS);
   }
 });
 // Cortex media upload endpoint - uploads image/file to Supabase Storage
