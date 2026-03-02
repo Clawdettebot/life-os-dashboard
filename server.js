@@ -7,7 +7,7 @@ const path = require('path');
 const fs = require('fs').promises;
 const axios = require('axios');
 const multer = require('multer');
-const { lifeos, getCortexEntries, getCortexTags, CORTEX_TAGS, createCortexEntry } = require('./lifeos-supabase.js');
+const { lifeos, website, getCortexEntries, getCortexTags, CORTEX_TAGS, createCortexEntry } = require('./lifeos-supabase.js');
 require('dotenv').config();
 
 // Configure multer for file uploads
@@ -157,7 +157,8 @@ app.get('/api/status', (req, res) => {
 // Blog Posts API - now from Supabase
 app.get('/api/blog/posts', async (req, res) => {
   try {
-    const { data: posts, error } = await supabase
+    const client = website || supabase;
+    const { data: posts, error } = await client
       .from('blog_post')
       .select('*')
       .order('created_at', { ascending: false });
