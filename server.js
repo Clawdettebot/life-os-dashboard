@@ -2836,12 +2836,16 @@ app.get('/api/content/automation', (req, res) => { res.json({ automations: [] })
 
 // Inventory
 app.get('/api/inventory/all', async (req, res) => {
+  console.log('[DEBUG] inventory/all called');
   try {
     // Fetch shop items from Supabase
-    const { data: shopItems } = await supabase
+    console.log('[DEBUG] querying shop_item...');
+    const result = await supabase
       .from('shop_item')
       .select('*')
       .order('created_at', { ascending: false });
+    console.log('[DEBUG] shopItems result:', result);
+    const { data: shopItems, error: shopError } = result;
 
     // Fetch giveaway inventory
     let giveawayItems = [];
@@ -2870,7 +2874,7 @@ app.get('/api/inventory/all', async (req, res) => {
 
     const stats = { shop: shopFormatted.length, giveaway: giveawayFormatted.length, personal: 0, bundles: 0 };
     res.json({ items: [...shopFormatted, ...giveawayFormatted], stats, grouped });
-  } catch (error) { res.json({ items: [], stats: { shop: 0, giveaway: 0, personal: 0, bundles: 0 }, grouped: {} }); }
+  } catch (error) { console.log('[DEBUG] inventory error:', error); res.json({ items: [], stats: { shop: 0, giveaway: 0, personal: 0, bundles: 0 }, grouped: {} }); }
 });
 
 // Favicon
@@ -2901,8 +2905,8 @@ app.get('/api/giveaway/inventory', async (req, res) => {
 const { createClient } = require('@supabase/supabase-js');
 
 const supabase = createClient(
-  process.env.SUPABASE_URL || 'https://yyoxpcsspmjvolteknsn.supabase.co',
-  process.env.SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inl5b3hwY3NzcG1qdm9sdGVrbnNuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTY3MTM5MzAsImV4cCI6MjA3MjI4OTkzMH0.HFFOlmMjiiyQiKAODnz9RAmF3IR7n4KrvGhWp-K_dHM'
+  'https://yyoxpcsspmjvolteknsn.supabase.co',
+  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inl5b3hwY3NzcG1qdm9sdGVrbnNuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTY3MTM5MzAsImV4cCI6MjA3MjI4OTkzMH0.HFFOlmMjiiyQiKAODnz9RAmF3IR7n4KrvGhWp-K_dHM'
 );
 
 app.get('/api/shop/items', async (req, res) => {
