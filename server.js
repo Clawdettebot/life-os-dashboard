@@ -7,7 +7,7 @@ const path = require('path');
 const fs = require('fs').promises;
 const axios = require('axios');
 const multer = require('multer');
-const { lifeos, getCortexEntries, getCortexTags, CORTEX_TAGS } = require('./lifeos-supabase.js');
+const { lifeos, getCortexEntries, getCortexTags, CORTEX_TAGS, createCortexEntry } = require('./lifeos-supabase.js');
 require('dotenv').config();
 
 // Configure multer for file uploads
@@ -243,7 +243,298 @@ app.get('/api/releases/upcoming', async (req, res) => {
   }
 });
 
+const RECIPES_FILE = path.join(__dirname, 'data', 'kitchen.json');
+
+async function getRecipes() {
+  try {
+    const data = await fs.readFile(RECIPES_FILE, 'utf8');
+    return JSON.parse(data);
+  } catch (e) {
+    return { recipes: [] };
+  }
+}
+
+// GET /api/recipes - Get all recipes
+app.get('/api/recipes', async (req, res) => {
+  try {
+    const data = await getRecipes();
+    res.json(data);
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// POST /api/recipes - Add a new recipe
+app.post('/api/recipes', async (req, res) => {
+  const { name, category, tags, description, ingredients, instructions, prep_time, cook_time, servings, source } = req.body;
+  
+  if (!name) {
+    return res.status(400).json({ error: 'Name required' });
+  }
+
+  try {
+    const data = await getRecipes();
+    const recipe = {
+      id: 'recipe_' + Date.now(),
+      name,
+      category: category || 'Uncategorized',
+      tags: tags || [],
+      description: description || '',
+      ingredients: ingredients || [],
+      instructions: instructions || '',
+      prep_time: prep_time || '',
+      cook_time: cook_time || '',
+      servings: servings || 1,
+      source: source || '',
+      created_at: new Date().toISOString()
+    };
+    
+    data.recipes = data.recipes || [];
+    data.recipes.push(recipe);
+    await fs.writeFile(RECIPES_FILE, JSON.stringify(data, null, 2));
+    
+    res.json({ success: true, recipe });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// ============================================
+// RESEARCH LINKS API - Save links for research
+// ============================================
+const RESEARCH_LINKS_FILE = path.join(__dirname, 'data', 'research-links.json');
+
+async function getResearchLinks() {
+  try {
+    const data = await fs.readFile(RESEARCH_LINKS_FILE, 'utf8');
+    return JSON.parse(data);
+  } catch (e) {
+    return { links: [] };
+  }
+}
+
+// GET /api/research/links - Get all saved links
+app.get('/api/research/links', async (req, res) => {
+  try {
+    const data = await getResearchLinks();
+    res.json(data);
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// POST /api/research/links - Save a new link (with optional scrape)
+app.post('/api/research/links', async (req, res) => {
+  const { url, title, description, tags, category, scrape } = req.body;
+  
+  if (!url) {
+    return res.status(400).json({ error: 'URL required' });
+  }
+
+  try {
+    let content = '';
+    
+    // If scrape=true, fetch the actual content
+    if (scrape) {
+      try {
+        const { default: puppeteer } = require('puppeteer');
+        const browser = await puppeteer.launch({
+          headless: 'new',
+          args: ['--no-sandbox', '--disable-setuid-sandbox']
+        });
+        
+        const page = await browser.newPage();
+        await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 30000 });
+        
+        // Extract main content
+        content = await page.evaluate(() => {
+          // Remove scripts and styles
+          document.querySelectorAll('script, style, nav, header, footer, .ad, .advertisement').forEach(el => el.remove());
+          
+          // Try to get main content
+          const main = document.querySelector('article') || 
+                       document.querySelector('main') || 
+                       document.querySelector('.content') ||
+                       document.querySelector('#content') ||
+                       document.body;
+          
+          // Get text content
+          return main ? main.innerText.substring(0, 10000) : ''; // Limit to 10k chars
+        });
+        
+        await browser.close();
+      } catch (scrapeErr) {
+        console.error('Scrape error:', scrapeErr.message);
+        content = '[Could not scrape content]';
+      }
+    }
+    
+    const data = await getResearchLinks();
+    const link = {
+      id: 'link_' + Date.now(),
+      url,
+      title: title || url,
+      description: description || '',
+      content: content, // The scraped text
+      tags: tags || [],
+      category: category || 'uncategorized',
+      saved_at: new Date().toISOString()
+    };
+    
+    data.links = data.links || [];
+    data.links.push(link);
+    await fs.writeFile(RESEARCH_LINKS_FILE, JSON.stringify(data, null, 2));
+    
+    res.json({ success: true, link });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// POST /api/research/scrape - Just scrape a URL, don't save
+app.post('/api/research/scrape', async (req, res) => {
+  const { url } = req.body;
+  
+  if (!url) {
+    return res.status(400).json({ error: 'URL required' });
+  }
+
+  try {
+    const { default: puppeteer } = require('puppeteer');
+    const browser = await puppeteer.launch({
+      headless: 'new',
+      args: ['--no-sandbox', '--disable-setuid-sandbox']
+    });
+    
+    const page = await browser.newPage();
+    await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 30000 });
+    
+    const result = await page.evaluate(() => {
+      // Get title
+      const title = document.title;
+      
+      // Remove unwanted elements
+      document.querySelectorAll('script, style, nav, header, footer, .ad, .advertisement, .sidebar, .comments').forEach(el => el.remove());
+      
+      // Get main content
+      const main = document.querySelector('article') || 
+                   document.querySelector('main') || 
+                   document.querySelector('.content') ||
+                   document.body;
+      
+      const text = main ? main.innerText : '';
+      
+      return {
+        title,
+        content: text.substring(0, 15000) // 15k char limit
+      };
+    });
+    
+    await browser.close();
+    res.json({ success: true, ...result });
+  } catch (e) {
+    res.status(500).json({ error: e.message, hint: 'Site may be blocking scrapers' });
+  }
+});
+
+// ============================================
+// AGENT MESSAGES API - For Round Table Agent Channel
+// ============================================
+
+const MESSAGES_FILE = path.join(__dirname, 'data', 'agent-messages.json');
+
+async function getMessages() {
+  try {
+    const data = await fs.readFile(MESSAGES_FILE, 'utf8');
+    return JSON.parse(data);
+  } catch (e) {
+    return { messages: [] };
+  }
+}
+
+async function saveMessages(data) {
+  await fs.writeFile(MESSAGES_FILE, JSON.stringify(data, null, 2));
+}
+
+// GET /api/agents/messages - Get messages for a channel
+app.get('/api/agents/messages', async (req, res) => {
+  const { channel = 'round-table', limit = 50 } = req.query;
+  
+  try {
+    const data = await getMessages();
+    const messages = data.messages
+      .filter(m => m.channel === channel)
+      .slice(-parseInt(limit));
+    res.json({ messages, channel });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// POST /api/agents/messages - Send a message to a channel
+app.post('/api/agents/messages', async (req, res) => {
+  const { agentId, agentName, channel = 'round-table', content, color = '#fff' } = req.body;
+  
+  if (!content) {
+    return res.status(400).json({ error: 'Content required' });
+  }
+
+  try {
+    const data = await getMessages();
+    const message = {
+      id: 'msg_' + Date.now(),
+      agentId,
+      agentName: agentName || agentId,
+      channel,
+      content,
+      color,
+      timestamp: new Date().toISOString()
+    };
+    
+    data.messages = data.messages || [];
+    data.messages.push(message);
+    await saveMessages(data);
+    
+    res.json({ success: true, message });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// GET /api/messages - Get last message for an agent
+app.get('/api/messages', async (req, res) => {
+  const { agent } = req.query;
+  
+  try {
+    const data = await getMessages();
+    let messages = data.messages;
+    
+    if (agent) {
+      messages = messages.filter(m => m.agentId === agent);
+    }
+    
+    const lastMsg = messages[messages.length - 1];
+    res.json({ message: lastMsg?.content || '', messages });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
 app.use(express.static(path.join(__dirname, 'client/build')));
+
+// ============================================
+// CORTEX TAGS API
+// ============================================
+const CORTEX_TAGS_FILE = path.join(__dirname, 'data', 'cortex-tags.json');
+
+app.get('/api/cortex/tags', async (req, res) => {
+  try {
+    const data = await fs.readFile(CORTEX_TAGS_FILE, 'utf8');
+    res.json(JSON.parse(data));
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
 
 // OpenClaw command wrapper
 function runOpenClawCommand(command, callback) {
@@ -2156,6 +2447,76 @@ app.get('/api/cortex', async (req, res) => {
     const entries = await getCortexEntries(section, parseInt(limit));
     res.json(entries);
   } catch (error) { res.json([]); }
+});
+
+// POST /api/cortex - Add entry with auto-link-scraping
+app.post('/api/cortex', async (req, res) => {
+  const { section, content, title, metadata } = req.body;
+  
+  if (!content) {
+    return res.status(400).json({ error: 'Content required' });
+  }
+
+  try {
+    let finalContent = content;
+    let scrapedData = null;
+    
+    // Auto-scrape any URLs in the content
+    const urlRegex = /(https?:\/\/[^\s]+)/g;
+    const urls = content.match(urlRegex);
+    
+    if (urls && urls.length > 0) {
+      console.log(`🕷️ Found ${urls.length} URLs in cortex entry, scraping...`);
+      
+      for (const url of urls) {
+        try {
+          const { default: puppeteer } = require('puppeteer');
+          const browser = await puppeteer.launch({
+            headless: 'new',
+            args: ['--no-sandbox', '--disable-setuid-sandbox']
+          });
+          
+          const page = await browser.newPage();
+          await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 15000 });
+          
+          const result = await page.evaluate(() => {
+            const title = document.title;
+            document.querySelectorAll('script, style, nav, header, footer, .ad, .sidebar, .comments').forEach(el => el.remove());
+            const main = document.querySelector('article') || document.querySelector('main') || document.body;
+            const text = main ? main.innerText.substring(0, 8000) : '';
+            return { title, text };
+          });
+          
+          await browser.close();
+          
+          scrapedData = scrapedData || {};
+          scrapedData[url] = result;
+          console.log(`🕷️ Scraped: ${result.title}`);
+        } catch (e) {
+          console.log(`🕷️ Failed to scrape ${url}: ${e.message}`);
+        }
+      }
+    }
+    
+    // Create the cortex entry
+    const entry = {
+      section: section || 'general',
+      content: finalContent,
+      title: title || finalContent.substring(0, 100),
+      metadata: {
+        ...metadata,
+        scraped: scrapedData,
+        original_urls: urls || []
+      },
+      created_at: new Date().toISOString()
+    };
+    
+    const result = await createCortexEntry(entry);
+    res.json({ success: true, entry: result, scraped: !!scrapedData });
+  } catch (error) {
+    console.error('Cortex entry error:', error);
+    res.status(500).json({ error: error.message });
+  }
 });
 
 app.get('/api/cortex/stats', async (req, res) => {
