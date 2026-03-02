@@ -7,9 +7,9 @@ BRANCH=${1:-main}
 cd /opt/life-os-dashboard
 
 echo "📦 Pulling latest from $BRANCH..."
-git fetch origin
+git fetch upstream
 git checkout $BRANCH
-git pull origin $BRANCH
+git pull upstream $BRANCH
 
 echo "🔨 Rebuilding client..."
 cd client
