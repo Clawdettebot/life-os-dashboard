@@ -15,72 +15,120 @@ body {
   touch-action: pan-y;
 }
 
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=Roboto+Mono:wght@400;500&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
 
-/* ── CSS Variables — Industrial Grey (Teenage Engineering Style) ── */
+/* ═════════════════════════════════════════════════════════════
+   ELITE NOIR DESIGN SYSTEM v2.0
+   Clean. Bold. Powerful. No gradients.
+   ═════════════════════════════════════════════════════════════ */
+
+/* ── CSS Variables — Elite Noir ── */
 :root {
-  --ink: #000000;
-  --paper: #e3e3e3;
-  /* Slightly darker grey background */
-  --paper-warm: #dcdcdc;
-  --grey-100: #d4d4d4;
-  --grey-200: #c0c0c0;
-  --grey-300: #a0a0a0;
-  --grey-400: #333333;
-  --grey-500: #1a1a1a;
-  --white: #f0f0f0;
-  /* Off-white for cards to reduce glare */
-  --accent: #ff4400;
-  /* TE often uses a stark orange accent */
-
-  --font-main: 'Inter', sans-serif;
-  /* Clean, Swiss-style */
-  --font-mono: 'Roboto Mono', monospace;
-  /* Technical look */
-  --font-jp: 'Noto Sans JP', sans-serif;
-
-  --border-thick: 2px solid var(--ink);
-  /* Slightly thinner, more precise */
-  --border-thin: 1px solid var(--ink);
-  --border-hair: 1px solid var(--grey-300);
-
-  --shadow-manga: 3px 3px 0px rgba(0, 0, 0, 0.15);
-  /* Softer, more technical shadow */
-  --shadow-manga-sm: 1px 1px 0px rgba(0, 0, 0, 0.15);
-  --shadow-manga-hover: 5px 5px 0px rgba(0, 0, 0, 0.2);
-  --shadow-manga-lg: 8px 8px 0px rgba(0, 0, 0, 0.15);
-
-  --transition: all 0.15s ease;
-  --transition-smooth: all 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
-}
-
-/* ── Dark Mode (Technical Dark) ── */
-[data-theme="dark"] {
-  --ink: #e0e0e0;
-  --paper: #1a1a1a;
-  --paper-warm: #222222;
-  --grey-100: #2a2a2a;
-  --grey-200: #333333;
-  --grey-300: #555555;
-  --grey-400: #888888;
-  --grey-500: #aaaaaa;
-  --white: #252525;
-  --accent: #ff5500;
-}
-
-/* ── Day Mode (Sun-soaked / Vibrant) ── */
-[data-theme="day"] {
-  --ink: #1a0f00;
-  --paper: #fff9f0;
-  --paper-warm: #fff5e6;
-  --grey-100: #ffecd1;
-  --grey-200: #ffd8a8;
-  --grey-300: #ffc078;
-  --grey-400: #5c3b00;
-  --grey-500: #2d1d00;
+  /* Core Colors */
+  --ink: #0a0a0a;
+  --paper: #f5f5f5;
+  --paper-warm: #eeeeee;
+  --grey-100: #fafafa;
+  --grey-200: #e0e0e0;
+  --grey-300: #bdbdbd;
+  --grey-400: #666666;
+  --grey-500: #333333;
   --white: #ffffff;
-  --accent: #f59e0b;
-  /* Amber 500 */
+  --accent: #ff4400;
+  --accent-hover: #ff5500;
+  
+  /* Functional Colors */
+  --success: #00c853;
+  --warning: #ffab00;
+  --error: #ff1744;
+  --info: #00e5ff;
+  
+  /* Platform Colors */
+  --twitch: #9146ff;
+  --youtube: #ff0000;
+  --instagram: #e1306c;
+  --twitter: #1da1f2;
+  
+  /* Typography - LARGER for elite feel */
+  --text-xs: 0.75rem;
+  --text-sm: 0.875rem;
+  --text-base: 1.125rem;
+  --text-lg: 1.5rem;
+  --text-xl: 2rem;
+  --text-2xl: 3rem;
+  
+  /* Spacing */
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --space-6: 1.5rem;
+  --space-8: 2rem;
+  --space-12: 3rem;
+  
+  /* Borders */
+  --border-thick: 2px solid var(--ink);
+  --border-thin: 1px solid var(--grey-300);
+  --border-hair: 1px solid rgba(0,0,0,0.1);
+  
+  /* Shadows - clean, no gradients */
+  --shadow-sm: 0 2px 8px rgba(0,0,0,0.1);
+  --shadow-md: 0 4px 20px rgba(0,0,0,0.15);
+  --shadow-lg: 0 8px 40px rgba(0,0,0,0.2);
+  
+  /* Transitions */
+  --transition: all 0.2s ease;
+  --transition-smooth: all 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+  
+  /* Font Stack */
+  --font-main: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-mono: 'JetBrains Mono', 'Roboto Mono', monospace;
+  --font-jp: 'Noto Sans JP', sans-serif;
+}
+
+/* ── Dark Mode (Elite Dark) ── */
+[data-theme="dark"] {
+  --ink: #e8e8e8;
+  --paper: #0a0a0a;
+  --paper-warm: #111111;
+  --grey-100: #1a1a1a;
+  --grey-200: #252525;
+  --grey-300: #333333;
+  --grey-400: #555555;
+  --grey-500: #888888;
+  --white: #1a1a1a;
+  --accent: #ff4400;
+}
+
+/* ── Global Font Size Bump — Elite Readability ── */
+body {
+  font-size: var(--text-base);
+}
+
+p, span, div, li, td, th {
+  font-size: var(--text-base) !important;
+}
+
+small, .text-xs, .text-sm {
+  font-size: var(--text-sm) !important;
+}
+
+h1, .text-xl { font-size: var(--text-xl) !important; }
+h2, .text-lg { font-size: var(--text-lg) !important; }
+h3 { font-size: var(--text-base) !important; }
+
+/* ── Day Mode (Clean Light) ── */
+[data-theme="day"] {
+  --ink: #0a0a0a;
+  --paper: #ffffff;
+  --paper-warm: #f8f8f8;
+  --grey-100: #f5f5f5;
+  --grey-200: #eeeeee;
+  --grey-300: #dddddd;
+  --grey-400: #666666;
+  --grey-500: #333333;
+  --white: #ffffff;
+  --accent: #ff4400;
 }
 
 /* ── Accessibility Contrast Overrides ── */
@@ -124,28 +172,27 @@ body {
   line-height: 1.5;
   min-height: 100vh;
   -webkit-font-smoothing: antialiased;
-  background-image: radial-gradient(var(--grey-300) 0.5px, transparent 0.5px);
-  background-size: 12px 12px;
-  /* Tighter grid */
+  /* No gradient - clean solid background */
+  background-image: none;
   transition: background-color 0.4s ease, color 0.4s ease;
   overflow-x: hidden;
   letter-spacing: -0.02em;
-  /* Tighter leading/tracking */
 }
 
 [data-theme="day"] body {
-  background-image: radial-gradient(rgba(245, 158, 11, 0.1) 1px, transparent 1px);
-  background-size: 20px 20px;
+  /* No gradient - clean solid background */
+  background-image: none;
 }
 
 [data-theme="day"] body::after {
+  /* Removed gradient overlay */
   content: '';
   position: fixed;
   top: 0;
   left: 0;
   width: 100%;
   height: 100%;
-  background: radial-gradient(circle at 80% 20%, rgba(251, 191, 36, 0.05) 0%, transparent 50%);
+  background: transparent;
   pointer-events: none;
   z-index: -1;
 }
