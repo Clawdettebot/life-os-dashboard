@@ -1105,8 +1105,8 @@ app.get('/api/tables/:table', async (req, res) => {
 // Inventory System
 app.get('/api/inventory', async (req, res) => {
   try {
-    // Fetch from Supabase shop
-    const { data: items, error } = await supabase
+    // Fetch from Website Supabase
+    const { data: items, error } = await website
       .from('shop_item')
       .select('*')
       .order('created_at', { ascending: false });
