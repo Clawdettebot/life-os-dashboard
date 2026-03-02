@@ -662,7 +662,7 @@ app.post('/api/twitch/schedule', async (req, res) => {
     return res.status(401).json({ error: 'Not authenticated with Twitch' });
   }
 
-  const { title, startTime, endTime, categoryId } = req.body;
+  const { title, startTime, endTime, categoryId, timezone } = req.body;
 
   if (!title || !startTime) {
     return res.status(400).json({ error: 'Title and start time are required' });
@@ -684,15 +684,23 @@ app.post('/api/twitch/schedule', async (req, res) => {
     });
 
     const broadcasterId = userResponse.data.data[0]?.id;
+    const tz = timezone || 'America/Los_Angeles';
+    
+    // Calculate duration in minutes
+    let duration = '60';
+    if (endTime) {
+      duration = String(Math.round((new Date(endTime) - new Date(startTime)) / 60000));
+    }
 
     // Create scheduled stream
-    const response = await axios.post('https://api.twitch.tv/helix/schedule/segment', {
-      broadcaster_id: broadcasterId,
+    const response = await axios.post(
+      `https://api.twitch.tv/helix/schedule/segment?broadcaster_id=${broadcasterId}&timezone=${tz}`,
+      {
       title: title,
       start_time: startTime,
-      duration: endTime ? Math.round((new Date(endTime) - new Date(startTime)) / 60000) + 'm' : '60m',
+      duration: duration,
       category_id: categoryId
-    }, {
+      }, {
       headers: {
         'Client-ID': TWITCH_CLIENT_ID,
         'Authorization': `Bearer ${twitchTokens.accessToken}`,

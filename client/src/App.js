@@ -77,6 +77,7 @@ function App() {
   const [analytics, setAnalytics] = useState(null);
   const [subagents, setSubagents] = useState([]);
   const [streams, setStreams] = useState([]);
+  const [twitchSchedule, setTwitchSchedule] = useState([]);
   const [inventory, setInventory] = useState({ items: [], raw: '' });
   const [journal, setJournal] = useState([]);
   const [googleCalendarConnected, setGoogleCalendarConnected] = useState(false);
@@ -110,6 +111,14 @@ function App() {
   const [showMoodSelector, setShowMoodSelector] = useState(false);
   const [selectedAgent, setSelectedAgent] = useState('clawdette');
 
+  const fetchTwitchSchedule = async () => {
+    try {
+      const res = await fetch("/api/twitch/schedule");
+      const data = await res.json();
+      if (data.schedule) setTwitchSchedule(data.schedule);
+    } catch (e) { console.log("Twitch schedule error:", e); }
+  };
+
   const fetchMoods = async () => {
     try {
       const res = await fetch('/api/moods');
@@ -122,7 +131,7 @@ function App() {
     } catch (e) { console.error('Failed to fetch moods:', e); }
   };
 
-  useEffect(() => { fetchMoods(); }, []);
+  useEffect(() => { fetchMoods(); fetchTwitchSchedule(); }, []);
 
   // Refs for Charts & Intervals
   const chartRefs = useRef({});
@@ -732,10 +741,10 @@ function App() {
           {activePage === 'streams' && (
             <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
               <div className="lg:col-span-3">
-                <StreamsView streams={streams} setActiveModal={setActiveModal} api={API} triggerSFX={triggerSFX} />
+                <StreamsView streams={streams} twitchSchedule={twitchSchedule} setActiveModal={setActiveModal} api={API} triggerSFX={triggerSFX} />
               </div>
               <div className="lg:col-span-1">
-                <TwitchWidget API={API} />
+                
               </div>
             </div>
           )}
@@ -985,7 +994,19 @@ function App() {
               <input className="form-input" id="streamChat" placeholder="Chat Activations / Engagement Plans" />
             </div>
             <div className="modal-footer">
-              <button className="btn btn-primary" onClick={() => {
+              <button className="btn btn-primary" onClick={async () => {
+                const p = document.getElementById('streamPlatform').value;
+                const t = document.getElementById('streamTitle').value;
+                const d = document.getElementById('streamDate').value;
+                const ti = document.getElementById('streamTime').value;
+                if (p === 'Twitch' && t && d && ti) {
+                  await fetch('/api/twitch/schedule', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({title: t, startTime: d+'T'+ti+':00Z', timezone: 'America/Los_Angeles', duration: 60, is_recurring: false})
+                  });
+                  alert('Scheduled on Twitch!');
+                } else {
                 API.create('streams', {
                   title: document.getElementById('streamTitle').value,
                   scheduledDate: document.getElementById('streamDate').value,
@@ -995,6 +1016,7 @@ function App() {
                   guests: document.getElementById('streamGuests').value,
                   chatActivations: document.getElementById('streamChat').value
                 });
+                }
                 setActiveModal(null);
               }}>Schedule Stream</button>
             </div>
@@ -1038,6 +1060,7 @@ function App() {
                 });
                 setActiveModal(null);
               }}>Update Stream</button>
+              <button className="btn btn-danger" onClick={async () => { const id=document.getElementById("editStreamId").value; if(id.startsWith("twitch-")){ await fetch("/api/twitch/schedule/"+id.replace("twitch-",""), {method:"DELETE"}); alert("Deleted!"); } else { API.delete("streams",id); } setActiveModal(null); }}>Delete Stream</button>
             </div>
           </div>
         </div>

@@ -21,6 +21,11 @@ const lifeos = (supabaseUrl && supabaseKey)
 // For backward compatibility and specialized use cases
 const supabase = lifeos;
 
+// Website Supabase (for shop, blog, inventory)
+const websiteUrl = process.env.WEBSITE_SUPABASE_URL || config.website.url;
+const websiteKey = process.env.WEBSITE_SUPABASE_KEY || config.website.anonKey;
+const website = (websiteUrl && websiteKey) ? createClient(websiteUrl, websiteKey) : null;
+
 // ============================================
 // TASKS
 // ============================================
@@ -370,6 +375,7 @@ async function getContentSchedule(status = null) {
 module.exports = {
   lifeos,
   supabase,
+  website,
   // Tasks
   getTasks,
   createTask,
