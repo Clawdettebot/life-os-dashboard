@@ -4,7 +4,7 @@
 # Defaults to main branch
 
 BRANCH=${1:-main}
-cd /root/.openclaw/workspace/dashboard
+cd /opt/life-os-dashboard
 
 echo "📦 Pulling latest from $BRANCH..."
 git fetch origin
