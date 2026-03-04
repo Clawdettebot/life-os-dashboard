@@ -369,6 +369,11 @@ const TreeRender = ({ node, onSelect, selectedId }) => {
 // --- MISSION CONTROL COMMAND CENTER MODAL ---
 const CommandCenterModal = ({ isOpen, onClose }) => {
   const [activePanel, setActivePanel] = useState('overview');
+  const [taskData, setTaskData] = useState([]);
+  const [newTaskTitle, setNewTaskTitle] = useState('');
+  const [newTaskPriority, setNewTaskPriority] = useState('MEDIUM');
+  const [newTaskStatus, setNewTaskStatus] = useState('todo');
+  const [isAddingTask, setIsAddingTask] = useState(false);
   
   if (!isOpen) return null;
 
@@ -448,26 +453,104 @@ const CommandCenterModal = ({ isOpen, onClose }) => {
           </div>
         );
       case 'tasks':
+        // Add task form state - moved to component top level
+        
+        const handleAddTask = async () => {
+          if (!newTaskTitle.trim()) return;
+          setIsAddingTask(true);
+          try {
+            const res = await fetch('/api/tasks', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                title: newTaskTitle,
+                status: newTaskStatus,
+                priority: newTaskPriority,
+                tag: 'MISSION-CONTROL'
+              })
+            });
+            if (res.ok) {
+              setNewTaskTitle('');
+              // Refresh tasks
+              const tasksRes = await fetch('/api/tasks').then(r => r.json());
+              setTaskData(tasksRes.active?.length ? tasksRes.active : tasksRes.all || []);
+            }
+          } catch (err) {
+            console.error('Error creating task:', err);
+          } finally {
+            setIsAddingTask(false);
+          }
+        };
+        
         return (
-          <div className="space-y-2">
-            {tasks.map(task => (
-              <div key={task.id} className="bg-[var(--bg-card)] border border-[var(--border-color)] rounded-lg p-3 flex items-center gap-3">
-                <div className={`w-2 h-2 rounded-full ${
-                  task.status === 'done' ? 'bg-emerald-500' : 
-                  task.status === 'in_progress' ? 'bg-blue-500' :
-                  task.status === 'review' ? 'bg-yellow-500' : 'bg-[var(--text-faint)]'
-                }`} />
-                <div className="flex-1">
-                  <div className="text-xs font-medium text-[var(--text-main)]">{task.title}</div>
-                  <div className="text-[8px] font-space-mono text-[var(--text-muted)]">{task.agent}</div>
+          <div className="space-y-4">
+            {/* Add Task Form */}
+            <div className="bg-[var(--bg-card)] border border-[var(--border-color)] rounded-xl p-4">
+              <div className="text-xs font-bold text-[var(--text-main)] mb-3 uppercase tracking-wider">Add New Task</div>
+              <div className="space-y-3">
+                <input
+                  type="text"
+                  value={newTaskTitle}
+                  onChange={(e) => setNewTaskTitle(e.target.value)}
+                  placeholder="Task title..."
+                  className="w-full bg-[var(--bg-overlay)] border border-[var(--border-color)] rounded-lg px-3 py-2 text-xs text-[var(--text-main)] placeholder-[var(--text-fount)] focus:outline-none focus:border-[rgb(var(--rgb-accent-main))]"
+                />
+                <div className="flex gap-2">
+                  <select
+                    value={newTaskStatus}
+                    onChange={(e) => setNewTaskStatus(e.target.value)}
+                    className="bg-[var(--bg-overlay)] border border-[var(--border-color)] rounded-lg px-2 py-2 text-xs text-[var(--text-main)]"
+                  >
+                    <option value="backlog">Backlog</option>
+                    <option value="todo">Todo</option>
+                    <option value="in_progress">In Progress</option>
+                    <option value="done">Done</option>
+                  </select>
+                  <select
+                    value={newTaskPriority}
+                    onChange={(e) => setNewTaskPriority(e.target.value)}
+                    className="bg-[var(--bg-overlay)] border border-[var(--border-color)] rounded-lg px-2 py-2 text-xs text-[var(--text-main)]"
+                  >
+                    <option value="HIGH">High</option>
+                    <option value="MEDIUM">Medium</option>
+                    <option value="LOW">Low</option>
+                  </select>
+                  <button
+                    onClick={handleAddTask}
+                    disabled={isAddingTask || !newTaskTitle.trim()}
+                    className="flex-1 bg-[var(--logo-bg)] text-[var(--logo-text)] rounded-lg px-4 py-2 text-xs font-bold uppercase disabled:opacity-50 hover:opacity-80 transition-opacity"
+                  >
+                    {isAddingTask ? 'Adding...' : 'Add Task'}
+                  </button>
                 </div>
-                <span className={`text-[8px] font-space-mono px-2 py-1 rounded ${
-                  task.priority === 'HIGH' ? 'bg-red-500/20 text-red-500' :
-                  task.priority === 'MEDIUM' ? 'bg-yellow-500/20 text-yellow-500' :
-                  'bg-[var(--bg-overlay)] text-[var(--text-muted)]'
-                }`}>{task.priority}</span>
               </div>
-            ))}
+            </div>
+            
+            {/* Task List */}
+            <div className="space-y-2 max-h-[400px] overflow-y-auto">
+              {taskData.length === 0 ? (
+                <div className="text-center text-[var(--text-muted)] py-8">No tasks found</div>
+              ) : (
+                taskData.slice(0, 20).map(task => (
+                  <div key={task.id} className="bg-[var(--bg-card)] border border-[var(--border-color)] rounded-lg p-3 flex items-center gap-3">
+                    <div className={`w-2 h-2 rounded-full ${
+                      task.status === 'done' ? 'bg-emerald-500' : 
+                      task.status === 'in_progress' ? 'bg-blue-500' :
+                      task.status === 'review' ? 'bg-yellow-500' : 'bg-[var(--text-faint)]'
+                    }`} />
+                    <div className="flex-1 min-w-0">
+                      <div className="text-xs font-medium text-[var(--text-main)] truncate">{task.title || task.content || 'Untitled'}</div>
+                      <div className="text-[8px] font-space-mono text-[var(--text-muted)]">{task.tag || task.tags?.[0] || 'No tag'}</div>
+                    </div>
+                    <span className={`text-[8px] font-space-mono px-2 py-1 rounded shrink-0 ${
+                      task.priority === 'HIGH' ? 'bg-red-500/20 text-red-500' :
+                      task.priority === 'MEDIUM' ? 'bg-yellow-500/20 text-yellow-500' :
+                      'bg-[var(--bg-overlay)] text-[var(--text-muted)]'
+                    }`}>{task.priority || 'LOW'}</span>
+                  </div>
+                ))
+              )}
+            </div>
           </div>
         );
       case 'tokens':
@@ -779,6 +862,7 @@ export default function RoundTableView() {
         </div>
 
         <div className="absolute inset-0 bg-tech-grid pointer-events-none z-0" />
+        <div className="absolute inset-0 pointer-events-none z-0" style={{backgroundImage: "url(/backgrounds/roundtable-bg.png)", backgroundSize: "cover", backgroundPosition: "center", opacity: 0.5}} />
         <div className="absolute inset-0 bg-gradient-to-b from-[var(--bg-base)] via-transparent to-[var(--bg-base)] opacity-80 pointer-events-none z-0" />
 
         {/* Global Ripples */}
@@ -803,7 +887,7 @@ export default function RoundTableView() {
             className="w-[2500px] h-[1500px] flex flex-col items-center justify-start pt-8 pb-32" style={{ marginLeft: '-700px' }}
           >
             {/* Floating Title Box mapped to original sketch */}
-            <CommandCenterWidget />
+            
 
             {/* The Entire Generated Tree Rendered Here */}
             <TreeRender node={NETWORK_DATA} onSelect={handleNodeSelect} selectedId={selectedNode?.id} />

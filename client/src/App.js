@@ -316,6 +316,26 @@ export default function App() {
   const [data, setData] = useState({ tasks: [], projects: [], finances: [], habits: [], cortex: [], ideas: [], blog: [], notes: [], contacts: [], streams: [] });
   const [loading, setLoading] = useState(true);
 
+  // API utility for components
+  const api = {
+    create: async (type, data) => {
+      const res = await fetch(`/api/${type}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data)
+      });
+      return res.ok ? res.json() : Promise.reject(res.statusText);
+    },
+    update: async (type, id, data) => {
+      const res = await fetch(`/api/${type}/${id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) });
+      return res.ok ? res.json() : Promise.reject(res.statusText);
+    },
+    delete: async (type, id) => {
+      const res = await fetch(`/api/${type}/${id}`, { method: 'DELETE' });
+      return res.ok ? res.json() : Promise.reject(res.statusText);
+    }
+  };
+
   useEffect(() => {
     const fetchData = async () => {
       try {
@@ -368,7 +388,7 @@ export default function App() {
       case 'dashboard': return <DashboardView {...data} {...viewProps} />;
       case 'round-table': return <RoundTableView {...data} {...viewProps} />;
       case 'knight': return <KnowledgeChat {...data} {...viewProps} />;
-      case 'tasks': return <KanbanBoard {...data} {...viewProps} />;
+      case 'tasks': return <KanbanBoard api={api} {...data} {...viewProps} />;
       case 'projects': return <ProjectsView {...data} {...viewProps} />;
       case 'calendar': return <CalendarView {...data} {...viewProps} />;
       case 'streams': return <StreamsView {...data} {...viewProps} />;
@@ -601,5 +621,4 @@ export default function App() {
     </>
   );
 }
-const UNIQUE_TEST_MARKER = 'build_test_123';
-TEST_BUILD_MARKER_12345
+BUILD_TEST_1772620746

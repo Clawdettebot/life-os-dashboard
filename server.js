@@ -265,6 +265,28 @@ app.get('/api/blog/suggestions', async (req, res) => {
   }
 });
 
+app.get('/api/blog/ideas', async (req, res) => {
+  try {
+    const blogData = JSON.parse(await fs.readFile(path.join(DATA_DIR, 'blog-posts.json'), 'utf-8'));
+    res.json({ ideas: blogData.ideas || [], data: blogData.ideas || [] });
+  } catch (e) {
+    res.json({ ideas: [], data: [] });
+  }
+});
+
+app.post('/api/blog/ideas', async (req, res) => {
+  try {
+    const blogData = JSON.parse(await fs.readFile(path.join(DATA_DIR, 'blog-posts.json'), 'utf-8'));
+    if (!blogData.ideas) blogData.ideas = [];
+    const newIdea = { id: Date.now(), title: req.body.title || req.body.content || 'New Idea', created_at: new Date().toISOString(), status: 'raw' };
+    blogData.ideas.push(newIdea);
+    await fs.writeFile(path.join(DATA_DIR, 'blog-posts.json'), JSON.stringify(blogData, null, 2));
+    res.json({ success: true, idea: newIdea });
+  } catch (e) {
+    res.json({ success: false, error: e.message });
+  }
+});
+
 app.get('/api/releases/upcoming', async (req, res) => {
   try {
     const calendarData = JSON.parse(await fs.readFile(path.join(DATA_DIR, 'content-calendar.json'), 'utf-8'));
