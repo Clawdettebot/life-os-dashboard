@@ -685,49 +685,6 @@ const DigitalLobsterSwirl = () => {
   );
 };
 
-// --- FLOATING COMMAND CENTER WIDGET ---
-const CommandCenterWidget = () => {
-  return (
-    <div className="flex flex-row items-stretch justify-center mb-10 relative z-20 mt-4 gap-3">
-
-      {/* Box 1: The Round Table Title */}
-      <div className="bg-[var(--bg-card)] backdrop-blur-xl border border-[var(--border-color)] p-5 rounded-sm shadow-lg flex flex-col items-start justify-center relative overflow-hidden group min-w-[260px]">
-        <div className="absolute inset-0 bg-tech-grid opacity-20 pointer-events-none" />
-        <NodeCorner position="tl" /><NodeCorner position="tr" /><NodeCorner position="bl" /><NodeCorner position="br" />
-        <div className="absolute top-0 left-0 right-0 h-[1px] bg-gradient-to-r from-[var(--border-highlight)] to-transparent opacity-80" />
-
-        <h1 className="text-xl font-bold font-space-grotesk text-[var(--text-main)] uppercase tracking-[0.2em] relative z-10 flex items-center gap-3">
-          <Terminal size={16} className="text-[rgb(var(--rgb-accent-main))]" /> The Round Table
-        </h1>
-        <p className="text-[8px] font-space-mono text-[var(--text-faint)] uppercase tracking-[0.4em] mt-1 relative z-10">
-          SYS.DEPLOY // DIGITAL_KNIGHTS
-        </p>
-      </div>
-
-      {/* Box 2: Access Interface (Digital Swirl) - CLICK TO OPEN COMMAND CENTER */}
-      <button onClick={() => setShowCommandCenter(true)} className="bg-[var(--bg-card)] backdrop-blur-xl border border-[var(--border-color)] p-4 rounded-sm shadow-lg flex flex-col items-center justify-center relative cursor-pointer group hover:bg-[var(--bg-overlay)] hover:border-[var(--border-highlight)] transition-all min-w-[140px]">
-        <NodeCorner position="tl" /><NodeCorner position="br" />
-        <DigitalLobsterSwirl />
-        <span className="text-[7px] font-space-mono text-[var(--text-faint)] uppercase tracking-widest mt-3 group-hover:text-[rgb(var(--rgb-accent-main))] transition-colors">
-          Command Center
-        </span>
-      </button>
-
-      {/* Box 3: Deploy Night Action */}
-      <button className="bg-[rgba(var(--rgb-accent-main),0.05)] backdrop-blur-xl border border-[rgb(var(--rgb-accent-main))] p-4 rounded-sm shadow-[0_0_15px_rgba(var(--rgb-accent-main),0.1)] hover:bg-[rgba(var(--rgb-accent-main),0.15)] hover:shadow-[0_0_20px_rgba(var(--rgb-accent-main),0.3)] transition-all flex flex-col items-center justify-center relative group min-w-[140px] cursor-pointer">
-        <NodeCorner position="tr" /><NodeCorner position="bl" />
-        <div className="text-[rgb(var(--rgb-accent-main))] group-hover:scale-110 group-hover:-translate-y-1 transition-transform mb-3 drop-shadow-[0_0_8px_rgba(var(--rgb-accent-main),0.8)]">
-          <Sword size={26} strokeWidth={1.5} />
-        </div>
-        <span className="text-[9px] font-space-mono text-[rgb(var(--rgb-accent-main))] uppercase tracking-widest font-bold">
-          Deploy Night
-        </span>
-      </button>
-
-    </div>
-  );
-};
-
 // --- MAIN APP COMPONENT ---
 // (We change 'export default function App' to 'export default function RoundTableView')
 export default function RoundTableView() {
@@ -797,6 +754,14 @@ export default function RoundTableView() {
         </defs>
       </svg>
 
+      {/* Command Center Button - Floating */}
+      <button 
+        onClick={() => setShowCommandCenter(true)}
+        className="absolute top-4 right-4 z-50 bg-[var(--bg-card)] border border-[var(--border-color)] hover:border-[rgb(var(--rgb-accent-main))] p-3 rounded-full shadow-lg hover:shadow-[0_0_20px_rgba(var(--rgb-accent-main),0.3)] transition-all group"
+      >
+        <Terminal size={20} className="text-[rgb(var(--rgb-accent-main))] group-hover:scale-110 transition-transform" />
+      </button>
+
       <div
         className="relative flex flex-col h-full w-full overflow-hidden transition-colors duration-700 ease-in-out flex-1"
         onMouseMove={(e) => {
@@ -859,3 +824,4 @@ export default function RoundTableView() {
     </div>
   );
 }
+2
