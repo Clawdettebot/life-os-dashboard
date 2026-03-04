@@ -5,17 +5,22 @@ import { GlassyPill } from './ui/GlassyPill';
 import GoogleCalendarWidget from './GoogleCalendarWidget';
 
 export default function DashboardView({
-    tasks,
-    projects,
-    finances,
-    habits,
-    streams,
+    tasks = [],
+    projects = [],
+    finances = [],
+    habits = [],
+    streams = [],
     toggleTask,
     setActivePage,
     setActiveModal,
     googleCalendarConnected
 }) {
-    const incomeTotal = finances.filter(f => f.type === 'income').reduce((s, f) => s + Number(f.amount), 0);
+    // Handle both flat array and object with active/completed
+    const tasksArray = Array.isArray(tasks) ? tasks : (tasks?.active || []);
+    const activeTasks = tasksArray.filter(t => t.status !== 'completed').slice(0, 5);
+    const completedTasks = tasksArray.filter(t => t.status === 'completed');
+    
+    const incomeTotal = (finances || []).filter(f => f.type === 'income').reduce((s, f) => s + Number(f.amount), 0);
 
     return (
         <div className="dashboard-container animate-in-fade-slide grid grid-cols-1 lg:grid-cols-12 gap-6 w-full max-w-[1600px] mx-auto">
@@ -36,12 +41,12 @@ export default function DashboardView({
                 </div>
 
                 <div className="flex flex-col gap-3 flex-1 overflow-y-auto glass-scroll pr-2 max-h-[320px]">
-                    {tasks.active.length === 0 ? (
+                    {activeTasks.length === 0 ? (
                         <div className="text-center p-8 text-gray-500 font-mono text-sm border border-dashed border-white/10 flex-1 rounded-2xl flex items-center justify-center">
                             No priority operations currently active.
                         </div>
                     ) : (
-                        tasks.active.slice(0, 5).map((t, i) => (
+                        activeTasks.slice(0, 5).map((t, i) => (
                             <div key={i}
                                 onClick={() => toggleTask(t)}
                                 className="group flex items-center gap-4 p-4 rounded-2xl bg-white/[0.02] border border-white/[0.05] hover:bg-white/[0.06] hover:border-white/20 transition-all cursor-pointer relative overflow-hidden"
@@ -79,7 +84,7 @@ export default function DashboardView({
 
                 <div className="grid grid-cols-2 gap-4 flex-1">
                     <div className="bg-black/20 border border-white/5 rounded-2xl p-5 flex flex-col justify-center items-center hover:bg-white/[0.02] transition-colors relative overflow-hidden group">
-                        <div className="text-4xl font-light tracking-tighter text-white font-premium group-hover:scale-110 transition-transform">{tasks.active.length}</div>
+                        <div className="text-4xl font-light tracking-tighter text-white font-premium group-hover:scale-110 transition-transform">{activeTasks.length}</div>
                         <div className="text-[10px] font-bold tracking-[0.2em] text-gray-500 uppercase mt-2">Tasks</div>
                     </div>
                     <div className="bg-black/20 border border-white/5 rounded-2xl p-5 flex flex-col justify-center items-center hover:bg-white/[0.02] transition-colors relative overflow-hidden group">

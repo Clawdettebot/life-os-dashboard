@@ -158,7 +158,7 @@ app.get('/api/status', (req, res) => {
 app.post('/api/blog/posts', async (req, res) => {
   try {
     const client = website || supabase;
-    const { title, content: body, excerpt, cover_image, status } = req.body;
+    const { title, content: body, excerpt, status } = req.body;
     
     if (!title || !body) {
       return res.status(400).json({ error: 'Title and content required' });
@@ -170,8 +170,8 @@ app.post('/api/blog/posts', async (req, res) => {
         title, 
         content: body, 
         excerpt: excerpt || body.substring(0, 150) + '...',
-        cover_image: cover_image || null,
         status: status || 'draft',
+        premium_tier: 'free',
         slug: title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '')
       }])
       .select()
@@ -3166,6 +3166,103 @@ app.get('/api/drive/guapdad', async (req, res) => {
 
   const result = await driveClient.listGuapDadFiles();
   res.json(result);
+});
+
+// ============================================
+// OLLAMA LOCAL AI CHAT
+// ============================================
+const OLLAMA_HOST = process.env.OLLAMA_HOST || 'http://localhost:11434';
+
+// Get available models
+app.get('/api/ollama/models', async (req, res) => {
+  try {
+    const response = await axios.get(`${OLLAMA_HOST}/api/tags`);
+    res.json(response.data.models || []);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to fetch models', details: error.message });
+  }
+});
+
+// Chat with a model
+app.post('/api/ollama/chat', async (req, res) => {
+  const { model, messages } = req.body;
+  
+  if (!model || !messages) {
+    return res.status(400).json({ error: 'Model and messages required' });
+  }
+
+  try {
+    const response = await axios.post(`${OLLAMA_HOST}/api/chat`, {
+      model,
+      messages,
+      stream: false
+    });
+    res.json(response.data);
+  } catch (error) {
+    res.status(500).json({ error: 'Chat failed', details: error.message });
+  }
+});
+
+// Streaming chat
+app.post('/api/ollama/chat/stream', async (req, res) => {
+  const { model, messages } = req.body;
+  
+  if (!model || !messages) {
+    return res.status(400).json({ error: 'Model and messages required' });
+  }
+
+  res.setHeader('Content-Type', 'text/event-stream');
+  res.setHeader('Cache-Control', 'no-cache');
+  res.setHeader('Connection', 'keep-alive');
+
+  try {
+    const response = await axios.post(`${OLLAMA_HOST}/api/chat`, {
+      model,
+      messages,
+      stream: true
+    }, { responseType: 'stream' });
+
+    response.data.on('data', (chunk) => {
+      res.write(chunk.toString());
+    });
+
+    response.data.on('end', () => {
+      res.write('[DONE]');
+      res.end();
+    });
+
+    response.data.on('error', (err) => {
+      res.write(`[ERROR]${err.message}`);
+      res.end();
+    });
+  } catch (error) {
+    res.write(`[ERROR]${error.message}`);
+    res.end();
+  }
+});
+
+// Send message to Discord
+app.post('/api/discord/send', async (req, res) => {
+  const { channelId, message } = req.body;
+  
+  if (!message) {
+    return res.status(400).json({ error: 'Message required' });
+  }
+
+  try {
+    // Use the message tool via subprocess
+    const { execSync } = require('child_process');
+    
+    const cmd = channelId 
+      ? `openclaw message send --channel discord --target ${channelId} --message "${message.replace(/"/g, '\\"')}"`
+      : `openclaw message send --channel discord --message "${message.replace(/"/g, '\\"')}"`;
+    
+    execSync(cmd, { encoding: 'utf8' });
+    res.json({ success: true, message: 'Sent to Discord' });
+  } catch (error) {
+    console.error('Discord send error:', error.message);
+    res.status(500).json({ error: 'Failed to send to Discord', details: error.message });
+  }
 });
 
 // Serve React (MUST BE LAST)

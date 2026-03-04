@@ -1,10 +1,11 @@
-@import url('https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;700&family=Orbitron:wght@400;500;600;700;800;900&family=Rajdhani:wght@300;400;500;600;700&display=swap');
 
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 :root {
+  
   --premium-red: #ff3333;
   --premium-orange: #ff8800;
   --glass-bg: rgba(15, 15, 20, 0.65);
@@ -14,13 +15,61 @@
     radial-gradient(at 100% 0%, rgba(255, 136, 0, 0.1) 0, transparent 50%);
 }
 
+/* GLOBAL LOBSTER SCROLLBAR - Replaces default scrollbar everywhere */
+html {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+html::-webkit-scrollbar {
+  display: none;
+}
+
 body {
   margin: 0;
   background-color: #020203;
   color: #f5f5f7;
-  font-family: 'Manrope', 'Inter', system-ui, -apple-system, sans-serif;
+  font-family: 'Rajdhani', 'Manrope', 'Inter', system-ui, -apple-system, sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  scrollbar-width: none;
+  overflow-y: scroll;
+}
+
+body::-webkit-scrollbar {
+  width: 0px;
+  background: transparent;
+}
+
+/* Global custom scrollbar - shows on any overflow element */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(249, 115, 22, 0.6) rgba(255, 255, 255, 0.05);
+}
+
+*::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+*::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 4px;
+}
+
+*::-webkit-scrollbar-thumb {
+  background: linear-gradient(180deg, #ff6b35 0%, #f7931e 100%);
+  border-radius: 4px;
+  border: 2px solid rgba(0, 0, 0, 0.3);
+}
+
+*::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(180deg, #ff8c5a 0%, #ffaa40 100%);
+  box-shadow: 0 0 10px rgba(249, 115, 22, 0.5);
+}
+
+*::-webkit-scrollbar-corner {
+  background: transparent;
 }
 
 h1,
@@ -28,7 +77,8 @@ h2,
 h3,
 h4,
 .font-premium {
-  font-family: 'Manrope', 'Outfit', sans-serif;
+  font-family: 'Orbitron', 'Rajdhani', 'Manrope', sans-serif;
+  letter-spacing: 0.05em;
 }
 
 code,

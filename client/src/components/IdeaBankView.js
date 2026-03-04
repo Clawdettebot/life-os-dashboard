@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Plus, Lightbulb, Zap, FileText, Trash2, Send, RefreshCw, X, Star } from 'lucide-react';
 import { WidgetCard } from './ui/WidgetCard';
+import { LobsterScrollArea } from './ui/LobsterScrollBar';
 
 const statusConfig = {
   raw: { label: 'Raw', color: 'text-gray-400', bg: 'bg-gray-500/10', glass: 'bg-gray-500/20 text-gray-300' },
@@ -190,8 +191,9 @@ export default function IdeaBankView({ api }) {
         </div>
       )}
 
-      {/* Ideas Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+      {/* Ideas Grid with Lobster Scroll */}
+      <LobsterScrollArea className="max-h-[calc(100vh-250px)]">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 pb-8">
         {isLoading ? (
           <WidgetCard className="col-span-full p-12 text-center">
             <RefreshCw className="w-8 h-8 text-amber-400 animate-spin mx-auto" />
@@ -242,6 +244,7 @@ export default function IdeaBankView({ api }) {
           })
         )}
       </div>
+      </LobsterScrollArea>
     </div>
   );
 }

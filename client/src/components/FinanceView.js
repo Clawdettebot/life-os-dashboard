@@ -1,470 +1,283 @@
-import React, { useState, useEffect, useMemo, useRef } from 'react';
-import Chart from 'chart.js/auto';
-import {
-  TrendingUp, TrendingDown, Wallet, Calendar, Repeat,
-  ShoppingBag, Coffee, Home, Car, Zap, Heart,
-  Briefcase, Gift, DollarSign, Edit2, Check, X, Plus,
-  Mail, RefreshCw, Filter, AlertTriangle, Clock, Bell,
-  Coins, Banknote, AlertCircle, FileText, Lightbulb
+import React, { useState, useMemo } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { 
+  Wallet, TrendingUp, TrendingDown, Plus, Search, X, MoreHorizontal,
+  ShoppingBag, Coffee, Home, Car, Zap, Heart, Briefcase, Gift, DollarSign
 } from 'lucide-react';
-import AnimatedIcon from './AnimatedIcon';
-import ExpensesView from './ExpensesView';
+
+// Sir Clawthchilds SVG for decorations
+import SirClawthchilds from './knights/SirClawthchilds';
+
+const staggerContainer = {
+  hidden: { opacity: 0 },
+  visible: { opacity: 1, transition: { staggerChildren: 0.08, delayChildren: 0.1 } }
+};
+
+const staggerItem = {
+  hidden: { opacity: 0, y: 20, filter: 'blur(4px)' },
+  visible: { opacity: 1, y: 0, filter: 'blur(0px)', transition: { type: "spring", stiffness: 300, damping: 24 } }
+};
+
+const Crosshair = ({ className = '' }) => (
+  <svg width="10" height="10" viewBox="0 0 10 10" className={`absolute text-[var(--text-faint)] transition-colors duration-500 pointer-events-none z-20 ${className}`} fill="none" stroke="currentColor" strokeWidth="1">
+    <path d="M5 0v10M0 5h10" />
+  </svg>
+);
 
 const categoryIcons = {
-  food: Coffee,
-  shopping: ShoppingBag,
-  housing: Home,
-  transport: Car,
-  utilities: Zap,
-  health: Heart,
-  work: Briefcase,
-  gift: Gift,
-  income: DollarSign,
-  transfer: DollarSign,
-  other: Wallet
+  food: Coffee, shopping: ShoppingBag, housing: Home, transport: Car,
+  utilities: Zap, health: Heart, work: Briefcase, gift: Gift,
+  income: DollarSign, other: Wallet
 };
 
 const categoryColors = {
-  food: '#ff6b6b',
-  shopping: '#4ecdc4',
-  housing: '#45b7d1',
-  transport: '#f9ca24',
-  utilities: '#6c5ce7',
-  health: '#a29bfe',
-  work: '#74b9ff',
-  gift: '#fd79a8',
-  income: '#00b894',
-  transfer: '#00cec9',
-  other: '#dfe6e9'
+  food: '#ff6b6b', shopping: '#4ecdc4', housing: '#45b7d1', transport: '#f9ca24',
+  utilities: '#6c5ce7', health: '#a29bfe', work: '#74b9ff', gift: '#fd79a8',
+  income: '#00b894', other: '#dfe6e9'
 };
 
-const TYPE_CONFIG = {
-  refund: { label: 'Refund', color: '#4caf50', icon: <AnimatedIcon Icon={Coins} size={16} /> },
-  payment_received: { label: 'Payment', color: '#2196f3', icon: <AnimatedIcon Icon={Banknote} size={16} /> },
-  bonus: { label: 'Bonus', color: '#ff9800', icon: <AnimatedIcon Icon={Gift} size={16} /> },
-  urgent: { label: 'Urgent', color: '#f44336', icon: <AnimatedIcon Icon={AlertCircle} size={16} /> },
-  follow_up: { label: 'Follow Up', color: '#9c27b0', icon: <AnimatedIcon Icon={FileText} size={16} /> }
-};
-
-const getCategoryIcon = (category) => {
-  const Icon = categoryIcons[category] || Wallet;
-  return <Icon size={20} />;
-};
-
-export default function FinanceView({ finances = [], api }) {
-  const [activeTab, setActiveTab] = useState('transactions'); // transactions, expenses, opportunities
-  const [viewMode, setViewMode] = useState('monthly');
-  const [editingId, setEditingId] = useState(null);
-  const [editForm, setEditForm] = useState({});
+export default function FinanceView({ finances = [] }) {
+  const [activeTab, setActiveTab] = useState('transactions');
   const [showAddForm, setShowAddForm] = useState(false);
+  const [animateSir, setAnimateSir] = useState(false);
   const [newTransaction, setNewTransaction] = useState({
-    title: '',
-    amount: '',
-    type: 'expense',
-    category: 'food',
-    date: new Date().toISOString().split('T')[0],
-    recurring: false
+    description: '', amount: '', category: 'other', type: 'expense',
+    date: new Date().toISOString().split('T')[0]
   });
 
-  // Email expenses state
-  const [emailExpenses, setEmailExpenses] = useState([]);
-  const [recurringData, setRecurringData] = useState(null);
-  const [scanning, setScanning] = useState(false);
-
-  // Opportunities state
-  const [opportunities, setOpportunities] = useState([]);
-
-  const lineChartRef = useRef(null);
-  const doughnutChartRef = useRef(null);
-  const lineCanvasRef = useRef(null);
-  const doughnutCanvasRef = useRef(null);
-
-  // Fetch email data
-  const fetchEmailData = async () => {
-    try {
-      const [emailRes, recurringRes, oppsRes] = await Promise.all([
-        fetch('/api/finances/email-detected'),
-        fetch('/api/finances/recurring'),
-        fetch('/api/opportunities')
-      ]);
-
-      const emailData = await emailRes.json();
-      const recurringData = await recurringRes.json();
-      const oppsData = await oppsRes.json();
-
-      setEmailExpenses(emailData.expenses || []);
-      setRecurringData(recurringData);
-      setOpportunities(oppsData.opportunities || []);
-    } catch (e) {
-      console.error('Error fetching data:', e);
-    }
+  // Trigger Sir Clawthchilds animation when form is submitted
+  const handleAddTransaction = () => {
+    setAnimateSir(true);
+    setTimeout(() => setAnimateSir(false), 1000); // Reset after 1 second
   };
 
-  useEffect(() => {
-    fetchEmailData();
-  }, []);
+  const totals = useMemo(() => {
+    const income = finances.filter(f => f.type === 'income').reduce((s, f) => s + Number(f.amount), 0);
+    const expenses = finances.filter(f => f.type === 'expense').reduce((s, f) => s + Number(f.amount), 0);
+    return { income, expenses, balance: income - expenses };
+  }, [finances]);
 
-  const handleScan = async () => {
-    setScanning(true);
-    try {
-      await fetch('/api/finances/scan', { method: 'POST' });
-      await fetchEmailData();
-    } catch (e) {
-      console.error('Scan error:', e);
-    }
-    setScanning(false);
-  };
-
-  const handleScanOpps = async () => {
-    setScanning(true);
-    try {
-      await fetch('/api/finances/scan', { method: 'POST' });
-      await fetchEmailData();
-    } catch (e) {
-      console.error('Scan error:', e);
-    }
-    setScanning(false);
-  };
-
-  // Filter transactions based on view mode
-  const filteredFinances = useMemo(() => {
-    const now = new Date();
-    const cutoff = new Date();
-
-    if (viewMode === 'weekly') {
-      cutoff.setDate(now.getDate() - 7);
-    } else {
-      cutoff.setMonth(now.getMonth() - 1);
-    }
-
-    return finances.filter(f => {
-      const date = new Date(f.date || f.created_at);
-      return date >= cutoff;
+  const byCategory = useMemo(() => {
+    const grouped = {};
+    finances.forEach(f => {
+      if (!grouped[f.category]) grouped[f.category] = 0;
+      grouped[f.category] += Number(f.amount);
     });
-  }, [finances, viewMode]);
+    return Object.entries(grouped).sort((a, b) => b[1] - a[1]);
+  }, [finances]);
 
-  // Stats
-  const stats = useMemo(() => {
-    const income = filteredFinances
-      .filter(f => f.type === 'income')
-      .reduce((sum, f) => sum + Number(f.amount), 0);
-    const expenses = filteredFinances
-      .filter(f => f.type === 'expense')
-      .reduce((sum, f) => sum + Number(f.amount), 0);
-    const recurring = filteredFinances.filter(f => f.recurring).length;
+  const formatCurrency = (amount) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(amount);
 
-    return { income, expenses, balance: income - expenses, recurring };
-  }, [filteredFinances]);
-
-  // Chart data
-  const chartData = useMemo(() => {
-    const expensesByCategory = {};
-    const incomeByDate = {};
-    const expenseByDate = {};
-
-    filteredFinances.forEach(f => {
-      if (f.type === 'expense') {
-        expensesByCategory[f.category] = (expensesByCategory[f.category] || 0) + Number(f.amount);
-        const date = new Date(f.date || f.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-        expenseByDate[date] = (expenseByDate[date] || 0) + Number(f.amount);
-      } else {
-        const date = new Date(f.date || f.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-        incomeByDate[date] = (incomeByDate[date] || 0) + Number(f.amount);
-      }
-    });
-
-    return { expensesByCategory, incomeByDate, expenseByDate };
-  }, [filteredFinances]);
-
-  useEffect(() => {
-    if (!lineCanvasRef.current || !doughnutCanvasRef.current) return;
-
-    if (lineChartRef.current) lineChartRef.current.destroy();
-    if (doughnutChartRef.current) doughnutChartRef.current.destroy();
-
-    const allDates = [...new Set([...Object.keys(chartData.incomeByDate), ...Object.keys(chartData.expenseByDate)])].sort();
-
-    lineChartRef.current = new Chart(lineCanvasRef.current, {
-      type: 'line',
-      data: {
-        labels: allDates.slice(-10),
-        datasets: [
-          { label: 'Income', data: allDates.slice(-10).map(d => chartData.incomeByDate[d] || 0), borderColor: '#00b894', backgroundColor: 'rgba(0, 184, 148, 0.1)', tension: 0.4, fill: true },
-          { label: 'Expenses', data: allDates.slice(-10).map(d => chartData.expenseByDate[d] || 0), borderColor: '#ff6b6b', backgroundColor: 'rgba(255, 107, 107, 0.1)', tension: 0.4, fill: true }
-        ]
-      },
-      options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'top' } }, scales: { y: { beginAtZero: true } } }
-    });
-
-    const categories = Object.keys(chartData.expensesByCategory);
-    const amounts = Object.values(chartData.expensesByCategory);
-    const colors = categories.map(cat => categoryColors[cat] || categoryColors.other);
-
-    doughnutChartRef.current = new Chart(doughnutCanvasRef.current, {
-      type: 'doughnut',
-      data: { labels: categories.map(c => c.charAt(0).toUpperCase() + c.slice(1)), datasets: [{ data: amounts, backgroundColor: colors, borderWidth: 2, borderColor: '#fff' }] },
-      options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'right' } } }
-    });
-
-    return () => {
-      if (lineChartRef.current) lineChartRef.current.destroy();
-      if (doughnutChartRef.current) doughnutChartRef.current.destroy();
-    };
-  }, [chartData]);
-
-  const handleEdit = (transaction) => {
-    setEditingId(transaction.id);
-    setEditForm({ ...transaction });
-  };
-
-  const handleSave = async (id) => {
-    await api.update('finances', id, editForm);
-    setEditingId(null);
-  };
-
-  const handleCancel = () => {
-    setEditingId(null);
-    setEditForm({});
-  };
-
-  const handleAdd = async () => {
-    if (!newTransaction.title || !newTransaction.amount) return;
-    await api.create('finances', newTransaction);
-    setNewTransaction({ title: '', amount: '', type: 'expense', category: 'food', date: new Date().toISOString().split('T')[0], recurring: false });
-    setShowAddForm(false);
-  };
-
-  const formatDate = (timestamp) => {
-    return new Date(timestamp).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-  };
+  const tabs = [
+    { id: 'transactions', label: 'Transactions' },
+    { id: 'expenses', label: 'Expenses' },
+    { id: 'opportunities', label: 'Opportunities' }
+  ];
 
   return (
-    <div className="finance-view">
-      {/* Tab Navigation */}
-      <div className="finance-tabs">
-        <button className={`tab-btn ${activeTab === 'transactions' ? 'active' : ''}`} onClick={() => setActiveTab('transactions')}>
-          <AnimatedIcon Icon={Coins} size={16} style={{ display: 'inline', marginRight: '4px' }} /> Transactions
-        </button>
-        <button className={`tab-btn ${activeTab === 'expenses' ? 'active' : ''}`} onClick={() => setActiveTab('expenses')}>
-          <AnimatedIcon Icon={Mail} size={16} style={{ display: 'inline', marginRight: '4px' }} /> Email Expenses
-        </button>
-        <button className={`tab-btn ${activeTab === 'opportunities' ? 'active' : ''}`} onClick={() => setActiveTab('opportunities')}>
-          <AnimatedIcon Icon={Lightbulb} size={16} style={{ display: 'inline', marginRight: '4px' }} /> Opportunities
-        </button>
+    <motion.div variants={staggerContainer} initial="hidden" animate="visible" className="h-full flex flex-col space-y-6 relative overflow-hidden">
+      {/* Sir Clawthchilds PNG Background - full cover, low opacity */}
+      <div className="absolute inset-0 pointer-events-none z-0 opacity-30">
+        <img src="/avatars/99f2a89b-8c51-4078-af63-10046a333434.png" alt="" className="w-full h-full object-contain object-center" />
       </div>
-
-      {/* TRANSACTIONS TAB */}
-      {activeTab === 'transactions' && (
-        <>
-          <div className="grid-4" style={{ marginBottom: '20px' }}>
-            <div className="stat-card">
-              <div className="stat-label">Income</div>
-              <div className="stat-value" style={{ color: '#00b894' }}><TrendingUp size={20} style={{ display: 'inline', marginRight: '5px' }} />${stats.income.toLocaleString()}</div>
-            </div>
-            <div className="stat-card">
-              <div className="stat-label">Expenses</div>
-              <div className="stat-value" style={{ color: '#ff6b6b' }}><TrendingDown size={20} style={{ display: 'inline', marginRight: '5px' }} />${stats.expenses.toLocaleString()}</div>
-            </div>
-            <div className="stat-card">
-              <div className="stat-label">Balance</div>
-              <div className="stat-value" style={{ color: stats.balance >= 0 ? '#00b894' : '#ff6b6b' }}><Wallet size={20} style={{ display: 'inline', marginRight: '5px' }} />${stats.balance.toLocaleString()}</div>
-            </div>
-            <div className="stat-card">
-              <div className="stat-label">Recurring</div>
-              <div className="stat-value"><Repeat size={20} style={{ display: 'inline', marginRight: '5px' }} />{stats.recurring}</div>
-            </div>
+      
+      {/* Header */}
+      <div className="flex items-center justify-between shrink-0 border-b border-[var(--border-color)] pb-4 relative z-10">
+        <div className="flex items-center gap-4">
+          <div className="w-12 h-12 rounded-full bg-[rgb(var(--rgb-accent-sec))] text-black flex items-center justify-center font-bold font-space-mono shadow-[0_0_20px_rgba(var(--rgb-accent-sec),0.4)]">
+            <DollarSign size={20} />
           </div>
-
-          <div className="card" style={{ marginBottom: '20px' }}>
-            <div className="card-header">
-              <span className="card-title">Financial Overview</span>
-              <div className="view-toggle">
-                <button className={`view-toggle-btn ${viewMode === 'weekly' ? 'active' : ''}`} onClick={() => setViewMode('weekly')}><Calendar size={14} /> Weekly</button>
-                <button className={`view-toggle-btn ${viewMode === 'monthly' ? 'active' : ''}`} onClick={() => setViewMode('monthly')}><Calendar size={14} /> Monthly</button>
-              </div>
-            </div>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', height: '300px' }}>
-              <div><canvas ref={lineCanvasRef}></canvas></div>
-              <div><canvas ref={doughnutCanvasRef}></canvas></div>
-            </div>
+          <div>
+            <h2 className="text-xl font-bold font-space-grotesk text-[var(--text-main)] uppercase tracking-widest flex items-center gap-3">
+              Finances <span className="text-[rgb(var(--rgb-accent-main))]">2026</span>
+            </h2>
+            <p className="text-[10px] font-space-mono text-[var(--text-muted)] uppercase tracking-[0.2em]">Track Your Wealth & Expenses</p>
           </div>
-
-          <div className="card">
-            <div className="card-header">
-              <span className="card-title">Transactions</span>
-              <button className="btn btn-sm" onClick={() => setShowAddForm(!showAddForm)}><Plus size={14} /> Add</button>
+        </div>
+        
+        {/* Sir Clawthchilds SVG - animated on transaction add */}
+        <motion.div 
+          className="w-20 h-20 cursor-pointer"
+          animate={animateSir ? { scale: [1, 1.2, 1], rotate: [0, 10, -10, 0] } : {}}
+          transition={{ duration: 0.5 }}
+          title="Sir Clawthchilds - Bull Market Warrior"
+        >
+          <SirClawthchilds />
+        </motion.div>
+        
+        <div className="flex items-center gap-4">
+          <div className="relative">
+            <Search size={14} className="absolute left-4 top-1/2 -translate-y-1/2 text-[var(--text-muted)]" />
+            <input type="text" placeholder="SEARCH TRANSACTIONS..." className="pl-10 pr-4 py-2.5 rounded-full border border-[var(--border-color)] text-[10px] font-space-mono focus:outline-none focus:border-[var(--text-main)] focus:bg-[var(--bg-overlay)] w-64 bg-[var(--bg-panel)] text-[var(--text-main)] placeholder-[var(--text-faint)] transition-all duration-300" />
+          </div>
+          <button onClick={() => setShowAddForm(true)} className="inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-full text-xs font-bold uppercase tracking-widest transition-all bg-transparent text-[var(--text-main)] border border-[var(--border-color)] hover:border-[rgb(var(--rgb-accent-main))]">
+            <Plus size={16} /> Add Transaction
+          </button>
+        </div>
+      </div>
+      
+      {/* Stats Cards */}
+      <div className="grid grid-cols-3 gap-6 shrink-0">
+        {[
+          { label: 'Income', value: totals.income, icon: TrendingUp, color: 'text-green-500', bg: 'bg-green-500/10' },
+          { label: 'Expenses', value: totals.expenses, icon: TrendingDown, color: 'text-red-500', bg: 'bg-red-500/10' },
+          { label: 'Balance', value: totals.balance, icon: Wallet, color: totals.balance >= 0 ? 'text-green-500' : 'text-red-500', bg: 'bg-[rgb(var(--rgb-accent-main))]/10' }
+        ].map((stat, i) => (
+          <motion.div key={i} variants={staggerItem} className="hover-spotlight bg-[var(--bg-card)] border border-[var(--border-color)] rounded-[2.5rem] p-6 text-center !py-8">
+            <div className="flex items-center justify-center gap-2 mb-2">
+              <stat.icon size={20} className={stat.color} />
+              <span className="text-[9px] font-space-mono uppercase tracking-widest">{stat.label}</span>
             </div>
-
-            {showAddForm && (
-              <div className="transaction-form" style={{ padding: '15px', background: 'var(--grey-100)', borderRadius: '8px', marginBottom: '15px' }}>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '10px' }}>
-                  <input className="form-input" placeholder="Description" value={newTransaction.title} onChange={e => setNewTransaction({ ...newTransaction, title: e.target.value })} />
-                  <input className="form-input" type="number" placeholder="Amount" value={newTransaction.amount} onChange={e => setNewTransaction({ ...newTransaction, amount: e.target.value })} />
-                  <select className="form-select" value={newTransaction.type} onChange={e => setNewTransaction({ ...newTransaction, type: e.target.value })}>
-                    <option value="expense">Expense</option>
-                    <option value="income">Income</option>
-                  </select>
-                  <select className="form-select" value={newTransaction.category} onChange={e => setNewTransaction({ ...newTransaction, category: e.target.value })}>
-                    {Object.keys(categoryIcons).map(cat => (<option key={cat} value={cat}>{cat}</option>))}
-                  </select>
-                  <button className="btn btn-primary" onClick={handleAdd}>Add</button>
+            <div className={`text-3xl font-bold font-space-grotesk ${stat.color} drop-shadow-[0_0_15px_rgba(var(--rgb-accent-sec),0.5)]`}>
+              {formatCurrency(stat.value)}
+            </div>
+          </motion.div>
+        ))}
+      </div>
+      
+      {/* Tabs */}
+      <div className="flex items-center gap-2 bg-[var(--bg-panel)] p-1.5 rounded-full border border-[var(--border-color)] w-max shrink-0">
+        {tabs.map(tab => (
+          <button key={tab.id} onClick={() => setActiveTab(tab.id)}
+            className={`px-6 py-2 rounded-full text-[10px] font-space-mono uppercase tracking-widest transition-all ${
+              activeTab === tab.id 
+                ? 'bg-[rgb(var(--rgb-accent-sec))] text-black font-bold shadow-[0_0_15px_rgba(var(--rgb-accent-sec),0.4)]' 
+                : 'text-[var(--text-muted)] hover:text-[var(--text-main)]'
+            }`}>
+            {tab.label}
+          </button>
+        ))}
+      </div>
+      
+      {/* Content */}
+      <div className="flex-1 overflow-hidden flex gap-6">
+        <div className="flex-1 overflow-y-auto space-y-4 pr-2 scrollbar-hide">
+          {activeTab === 'transactions' && (
+            <motion.div variants={staggerContainer} className="space-y-3">
+              {finances.length === 0 ? (
+                <div className="hover-spotlight bg-[var(--bg-card)] border border-[var(--border-color)] rounded-[2.5rem] p-12 text-center">
+                  <Wallet size={48} className="mx-auto mb-4 text-[var(--text-faint)]" />
+                  <p className="text-[var(--text-muted)] font-space-mono">No transactions yet</p>
                 </div>
-              </div>
-            )}
-
-            <div className="transaction-list">
-              {filteredFinances.sort((a, b) => new Date(b.date || b.created_at) - new Date(a.date || a.created_at)).map(transaction => (
-                <div key={transaction.id} className="transaction-item" style={{ display: 'flex', alignItems: 'center', padding: '12px', borderBottom: '1px solid var(--grey-200)', gap: '15px' }}>
-                  {editingId === transaction.id ? (
-                    <>
-                      <input className="form-input" style={{ flex: 2 }} value={editForm.title || editForm.description || ''} onChange={e => setEditForm({ ...editForm, title: e.target.value })} />
-                      <input className="form-input" type="number" style={{ flex: 1 }} value={editForm.amount} onChange={e => setEditForm({ ...editForm, amount: e.target.value })} />
-                      <select className="form-select" style={{ flex: 1 }} value={editForm.category} onChange={e => setEditForm({ ...editForm, category: e.target.value })}>
-                        {Object.keys(categoryIcons).map(cat => (<option key={cat} value={cat}>{cat}</option>))}
-                      </select>
-                      <button className="btn btn-sm btn-primary" onClick={() => handleSave(transaction.id)}><Check size={14} /></button>
-                      <button className="btn btn-sm" onClick={handleCancel}><X size={14} /></button>
-                    </>
-                  ) : (
-                    <>
-                      <div style={{ width: '40px', height: '40px', borderRadius: '50%', background: categoryColors[transaction.category] || categoryColors.other, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white' }}>
-                        {getCategoryIcon(transaction.category)}
-                      </div>
-                      <div style={{ flex: 2 }}>
-                        <div style={{ fontWeight: '600' }}>{transaction.title || (typeof transaction.description === 'string' ? transaction.description : '')}</div>
-                        <div style={{ fontSize: '0.75rem', color: 'var(--grey-500)', display: 'flex', alignItems: 'center', gap: '5px' }}>
-                          {formatDate(transaction.date || transaction.created_at)}
-                          {transaction.recurring && <Repeat size={12} />}
-                          {transaction.source === 'email' && <Mail size={12} />}
+              ) : (
+                finances.slice(0, 20).map((item, i) => {
+                  const Icon = categoryIcons[item.category] || Wallet;
+                  const color = categoryColors[item.category] || '#666';
+                  return (
+                    <motion.div key={item.id || i} variants={staggerItem}
+                      className="hover-spotlight bg-[var(--bg-card)] border border-[var(--border-color)] rounded-[2rem] p-5 flex items-center justify-between group hover:border-[var(--border-highlight)] transition-all duration-300">
+                      <div className="flex items-center gap-4">
+                        <div className="w-12 h-12 rounded-full flex items-center justify-center" style={{ backgroundColor: `${color}20`, color }}>
+                          <Icon size={20} />
+                        </div>
+                        <div>
+                          <h4 className="text-sm font-bold text-[var(--text-main)] font-space-grotesk">{item.description}</h4>
+                          <div className="flex items-center gap-2 text-[9px] font-space-mono text-[var(--text-muted)]">
+                            <span className="uppercase">{item.category}</span>
+                            <span>•</span>
+                            <span>{item.date || 'No date'}</span>
+                          </div>
                         </div>
                       </div>
-                      <div style={{ flex: 1, textAlign: 'right', color: transaction.type === 'income' ? '#00b894' : '#ff6b6b', fontWeight: '600' }}>
-                        {transaction.type === 'income' ? '+' : '-'}${Number(transaction.amount).toLocaleString()}
+                      <div className="flex items-center gap-4">
+                        <span className={`text-lg font-bold font-space-mono ${item.type === 'income' ? 'text-green-500' : 'text-[var(--text-main)]'}`}>
+                          {item.type === 'income' ? '+' : '-'}{formatCurrency(item.amount)}
+                        </span>
+                        <button className="opacity-0 group-hover:opacity-100 p-2 hover:bg-[var(--bg-overlay)] rounded-full transition-all">
+                          <MoreHorizontal size={16} className="text-[var(--text-muted)]" />
+                        </button>
                       </div>
-                      <div style={{ display: 'flex', gap: '5px' }}>
-                        <button className="btn btn-sm" onClick={() => handleEdit(transaction)}><Edit2 size={14} /></button>
-                        <button className="btn btn-sm btn-danger" onClick={() => api.delete('finances', transaction.id)}><X size={14} /></button>
-                      </div>
-                    </>
-                  )}
-                </div>
-              ))}
-            </div>
-          </div>
-        </>
-      )}
-
-      {/* EMAIL EXPENSES TAB */}
-      {activeTab === 'expenses' && (
-        <ExpensesView finances={finances} api={api} />
-      )}
-
-      {/* OPPORTUNITIES TAB */}
-      {activeTab === 'opportunities' && (
-        <>
-          <div className="section-header" style={{ marginBottom: '20px' }}>
-            <h1 className="section-title">Money Opportunities</h1>
-            <button className={`btn btn-primary ${scanning ? 'loading' : ''}`} onClick={handleScanOpps} disabled={scanning}>
-              <RefreshCw size={16} className={scanning ? 'spin' : ''} />
-              {scanning ? 'Scanning...' : 'Scan Emails'}
-            </button>
-          </div>
-
-          <div className="grid-3" style={{ marginBottom: '20px' }}>
-            <div className="stat-card">
-              <div className="stat-value">{opportunities.filter(o => o.status === 'pending').length}</div>
-              <div className="stat-label">Pending</div>
-            </div>
-            <div className="stat-card" style={{ borderLeft: '4px solid #f44336' }}>
-              <div className="stat-value">{opportunities.filter(o => o.priority === 'high' && o.status === 'pending').length}</div>
-              <div className="stat-label">Urgent</div>
-            </div>
-            <div className="stat-card">
-              <div className="stat-value">{opportunities.length}</div>
-              <div className="stat-label">Total Found</div>
-            </div>
-          </div>
-
-          <div className="opp-list">
-            {opportunities.length === 0 ? (
-              <div className="card empty-state" style={{ padding: '40px', textAlign: 'center' }}>
-                <AlertTriangle size={48} style={{ opacity: 0.5 }} />
-                <p>No opportunities found</p>
-                <button className="btn" onClick={handleScanOpps}>Scan Now</button>
+                    </motion.div>
+                  );
+                })
+              )}
+            </motion.div>
+          )}
+          
+          {activeTab === 'expenses' && (
+            <div className="hover-spotlight bg-[var(--bg-card)] border border-[var(--border-color)] rounded-[2.5rem] p-6">
+              <div className="flex justify-between items-center mb-6">
+                <h3 className="text-sm font-bold tracking-widest uppercase text-[var(--text-main)] font-space-grotesk flex items-center gap-3">
+                  <div className="w-2 h-2 rounded-full bg-[var(--border-highlight)]" /> Spending by Category
+                </h3>
               </div>
-            ) : (
-              opportunities.map(opp => (
-                <div key={opp.id} className="card" style={{ marginBottom: '12px', padding: '16px' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                    <div>
-                      <span className="category-badge" style={{ backgroundColor: TYPE_CONFIG[opp.type]?.color, marginRight: '8px' }}>
-                        {TYPE_CONFIG[opp.type]?.icon} {TYPE_CONFIG[opp.type]?.label}
-                      </span>
-                      <span style={{ color: opp.priority === 'high' ? '#f44336' : '#999', fontSize: '0.75rem', textTransform: 'uppercase' }}>{opp.priority} priority</span>
-                      <h3 style={{ margin: '8px 0' }}>{opp.title}</h3>
-                      <p style={{ color: '#666', fontSize: '0.85rem' }}>{opp.description}</p>
-                      {opp.amount && <div style={{ fontWeight: 700, fontSize: '1.2rem', color: '#2196f3' }}>${opp.amount.toFixed(2)}</div>}
-                    </div>
-                    <div style={{ display: 'flex', gap: '8px' }}>
-                      {opp.status === 'pending' && (
-                        <>
-                          <button className="btn btn-sm btn-success"><Check size={14} /> Claim</button>
-                          <button className="btn btn-sm btn-danger"><X size={14} /> Dismiss</button>
-                        </>
-                      )}
-                    </div>
-                  </div>
+              <div className="space-y-4">
+                {byCategory.map(([category, amount], i) => {
+                  const Icon = categoryIcons[category] || Wallet;
+                  const color = categoryColors[category] || '#666';
+                  return (
+                    <motion.div key={category} variants={staggerItem} className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-full flex items-center justify-center" style={{ backgroundColor: `${color}20`, color }}>
+                          <Icon size={20} />
+                        </div>
+                        <span className="text-sm font-space-mono uppercase text-[var(--text-main)]">{category}</span>
+                      </div>
+                      <div className="flex items-center gap-4">
+                        <div className="w-32 h-2 bg-[var(--bg-panel)] rounded-full overflow-hidden">
+                          <div className="h-full rounded-full" style={{ width: `${(amount / totals.expenses) * 100}%`, backgroundColor: color }} />
+                        </div>
+                        <span className="text-sm font-bold font-space-mono text-[var(--text-main)] w-24 text-right">{formatCurrency(amount)}</span>
+                      </div>
+                    </motion.div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+          
+          {activeTab === 'opportunities' && (
+            <div className="hover-spotlight bg-[var(--bg-card)] border border-[var(--border-color)] rounded-[2.5rem] p-12 text-center">
+              <p className="text-[var(--text-muted)] font-space-mono">Investment insights coming soon</p>
+            </div>
+          )}
+        </div>
+        
+        {/* Add Form Panel */}
+        <AnimatePresence>
+          {showAddForm && (
+            <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 20 }} className="w-80 shrink-0">
+              <div className="hover-spotlight bg-[var(--bg-card)] border border-[var(--border-color)] rounded-[2.5rem] p-6 flex flex-col relative">
+                <Crosshair className="-top-[5px] -left-[5px]" />
+                <Crosshair className="-top-[5px] -right-[5px]" />
+                <Crosshair className="-bottom-[5px] -left-[5px]" />
+                <Crosshair className="-bottom-[5px] -right-[5px]" />
+                
+                <div className="flex justify-between items-center mb-6 relative z-10">
+                  <h3 className="text-sm font-bold tracking-widest uppercase text-[var(--text-main)] font-space-grotesk">New Transaction</h3>
+                  <button onClick={() => setShowAddForm(false)}><X size={16} className="text-[var(--text-muted)] hover:text-[var(--text-main)]" /></button>
                 </div>
-              ))
-            )}
-          </div>
-        </>
-      )}
-
-      <style>{`
-        .finance-tabs {
-          display: flex;
-          gap: 4px;
-          margin-bottom: 16px;
-          background: #e8e8e8;
-          padding: 4px;
-          border-radius: 10px;
-        }
-        .tab-btn {
-          padding: 8px 16px;
-          border: none;
-          background: transparent;
-          cursor: pointer;
-          font-size: 0.85rem;
-          font-weight: 600;
-          color: #666;
-          border-radius: 8px;
-          transition: all 0.2s ease;
-        }
-        .tab-btn:hover {
-          color: #333;
-        }
-        .tab-btn.active {
-          color: #fff;
-          background: #222;
-          box-shadow: 0 2px 6px rgba(0,0,0,0.25);
-        }
-        .spin { animation: spin 1s linear infinite; }
-        @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
-        .category-badge {
-          display: inline-block;
-          padding: 4px 10px;
-          border-radius: 12px;
-          font-size: 0.75rem;
-          color: white;
-          font-weight: 500;
-          text-transform: capitalize;
-        }
-        .data-table { width: 100%; border-collapse: collapse; }
-        .data-table th, .data-table td { padding: 10px 8px; text-align: left; border-bottom: 1px solid #eee; }
-        .data-table th { font-weight: 600; color: #666; font-size: 0.75rem; text-transform: uppercase; }
-        .data-table tr:hover { background: #fafafa; }
-      `}</style>
-    </div>
+                
+                <div className="space-y-4 relative z-10">
+                  <input type="text" value={newTransaction.description} onChange={(e) => setNewTransaction({...newTransaction, description: e.target.value})}
+                    className="w-full bg-[var(--bg-panel)] border border-[var(--border-color)] rounded-xl px-4 py-3 text-sm text-[var(--text-main)] font-space-mono focus:outline-none focus:border-[var(--text-main)]" placeholder="Description" />
+                  <input type="number" value={newTransaction.amount} onChange={(e) => setNewTransaction({...newTransaction, amount: e.target.value})}
+                    className="w-full bg-[var(--bg-panel)] border border-[var(--border-color)] rounded-xl px-4 py-3 text-sm text-[var(--text-main)] font-space-mono focus:outline-none focus:border-[var(--text-main)]" placeholder="0.00" />
+                  <select value={newTransaction.category} onChange={(e) => setNewTransaction({...newTransaction, category: e.target.value})}
+                    className="w-full bg-[var(--bg-panel)] border border-[var(--border-color)] rounded-xl px-4 py-3 text-sm text-[var(--text-main)] font-space-mono focus:outline-none focus:border-[var(--text-main)]">
+                    {Object.keys(categoryIcons).map(cat => (<option key={cat} value={cat}>{cat.toUpperCase()}</option>))}
+                  </select>
+                  <div className="flex gap-2">
+                    {['expense', 'income'].map(type => (
+                      <button key={type} onClick={() => setNewTransaction({...newTransaction, type})}
+                        className={`flex-1 py-3 rounded-xl text-[10px] font-space-mono uppercase tracking-widest transition-all ${
+                          newTransaction.type === type 
+                            ? type === 'expense' ? 'bg-red-500/20 text-red-500 border border-red-500/30' : 'bg-green-500/20 text-green-500 border border-green-500/30'
+                            : 'bg-[var(--bg-panel)] text-[var(--text-muted)] border border-[var(--border-color)]'
+                        }`}>
+                        {type}
+                      </button>
+                    ))}
+                  </div>
+                  <button onClick={() => { handleAddTransaction(); setShowAddForm(false); }} className="w-full inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-full text-xs font-bold uppercase tracking-widest bg-[var(--logo-bg)] text-[var(--logo-text)] shadow-[0_0_15px_var(--border-highlight)]">
+                    Save Transaction
+                  </button>
+                </div>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
+    </motion.div>
   );
 }

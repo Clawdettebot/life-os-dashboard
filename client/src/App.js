@@ -1,1073 +1,420 @@
-// Life OS Dashboard - Fixed API error handling
+// Life OS Dashboard - Full Design Integration
 import React, { useState, useEffect, useRef } from 'react';
-import io from 'socket.io-client';
-import Chart from 'chart.js/auto';
-import { Timer, BarChart3, CalendarDays, PenTool, Coins, BrainCircuit, Users, Package, Zap, BookOpen, Footprints, Waves, Music, Book, Plus, Lightbulb } from 'lucide-react';
-import AnimatedIcon from './components/AnimatedIcon';
-import './App.css';
+import { motion, AnimatePresence } from 'framer-motion';
+import { 
+  LayoutDashboard, Users, Brain, CheckSquare, Briefcase, Calendar, Radio, Box, 
+  CalendarClock, Mic, Lightbulb, DollarSign, Activity, FileText, Settings, Plus, 
+  ChevronDown, ChevronRight, Circle, Play, MoreHorizontal, Search, Cpu, Book, 
+  Zap, MessageSquare, Clock, Filter, AlertCircle, Sparkles, CheckCircle2, Flame, 
+  Utensils, Compass, History, Navigation, Leaf, Droplet, Tent, Send, Edit2, 
+  Trash2, BarChart2, Globe, Video, PenTool, Eye, RefreshCw, ChevronLeft, 
+  Folder, Archive, Home, Wallet, TrendingUp, TrendingDown, Coffee, HomeIcon,
+  Car, Heart, Briefcase as WorkIcon, Gift
+} from 'lucide-react';
+import { createClient } from '@supabase/supabase-js';
 
-// Import new components
-import FinanceView from './components/FinanceView';
+// Our existing components
+import DashboardView from './components/DashboardView';
+import RoundTableView from './components/RoundTableView';
+import KnowledgeChat from './components/KnowledgeChat';
 import KanbanBoard from './components/KanbanBoard';
 import CalendarView from './components/CalendarView';
 import HabitsView from './components/HabitsView';
-import IconPicker from './components/IconPicker';
 import InventoryView from './components/InventoryView';
-import GoogleCalendarWidget from './components/GoogleCalendarWidget';
 import CortexView from './components/CortexView';
-import ExpensesView from './components/ExpensesView';
-import NotesView from './components/NotesView';
-import ContentSchedulerView from './components/ContentSchedulerView';
+import ProjectsView from './components/ProjectsView';
+import StreamsView from './components/StreamsView';
 import BlogVoiceView from './components/BlogVoiceView';
 import IdeaBankView from './components/IdeaBankView';
-import ProjectsView from './components/ProjectsView';
 import ContactsView from './components/ContactsView';
-import RoundTableView from './components/RoundTableView';
-import StreamsView from './components/StreamsView';
-import TwitchWidget from './components/TwitchWidget';
-import LanyardLogin from './components/LanyardLogin';
-import DashboardView from './components/DashboardView';
+import NotesView from './components/NotesView';
+import FinanceView from './components/FinanceView';
+import ContentSchedulerView from './components/ContentSchedulerView';
 
-// ── CONSTANTS & CONFIG ──
-const QUOTES = [
-  "The ink dries, but the story never ends.", "Every panel is a choice. Make yours count.",
-  "Discipline is the brush. Consistency is the ink.", "You are the protagonist of your own manga.",
-  "Draw your path with permanent strokes.", "The handsome lifestyle requires handsome habits.",
-  "Oakland raised, universe bound.", "Each chapter harder than the last. That's growth.",
-  "The pen is mightier. The drip is eternal.", "Focus isn't the absence of noise—it's choosing the signal."
+// Supabase clients
+const SUPABASE_URL = 'https://pvavybczlrhwagasriwu.supabase.co';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InB2YXZ5YmN6bHJod2Fnc3Jpd3UiLCJyb2xlIjoiYW5vbiIsImlhdCI6MTc1NjcxMzkzMCwiZXhwIjoyMDcyMjg5OTMwfQ.u4yQgq3GXGnkfT4qBqwKq2qMyT4qBqwKq2qMyT4qBqwKq2qMyT4qB';
+const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
+
+const WEBSITE_SUPABASE_URL = 'https://yyoxpcsspmjvolteknsn.supabase.co';
+const WEBSITE_SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inl5b3hwY3NzcG1qdm9sdGVrbnNuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTY3MTM5MzAsImV4cCI6MjA3MjI4OTkzMH0.HFFOlmMjiiyQiKAODnz9RAmF3IR7n4KrvGhWp-K_dHM';
+const websiteSupabase = createClient(WEBSITE_SUPABASE_URL, WEBSITE_SUPABASE_KEY);
+
+// Navigation
+const NAV_SECTIONS = [
+  { id: 'command', title: "Command", items: [
+    { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
+    { id: 'round-table', label: 'The Round Table', icon: Users },
+    { id: 'knight', label: 'Knowledge Knight', icon: Brain },
+  ]},
+  { id: 'work', title: "Work", items: [
+    { id: 'tasks', label: 'Tasks', icon: CheckSquare },
+    { id: 'projects', label: 'Projects', icon: Briefcase },
+    { id: 'calendar', label: 'Calendar', icon: Calendar },
+    { id: 'streams', label: 'Streams', icon: Radio },
+    { id: 'inventory', label: 'Inventory', icon: Box },
+  ]},
+  { id: 'content', title: "Content", items: [
+    { id: 'scheduler', label: 'Scheduler', icon: CalendarClock },
+    { id: 'blog', label: 'Blog & Voice', icon: Mic },
+    { id: 'ideas', label: 'Ideas', icon: Lightbulb },
+  ]},
+  { id: 'life', title: "Life", items: [
+    { id: 'finances', label: 'Finances', icon: DollarSign },
+    { id: 'habits', label: 'Habits', icon: Activity },
+  ]},
+  { id: 'second-brain', title: "Second Brain", items: [
+    { id: 'notes', label: 'Notes', icon: FileText },
+    { id: 'journal', label: 'Journal', icon: Book },
+    { id: 'cortex', label: 'Cortex', icon: Brain },
+    { id: 'contacts', label: 'Contacts', icon: Users },
+  ]}
 ];
 
-// Achievement Checks
-const checkAchievements = (data) => {
-  const unlocked = [];
-  if (data.tasks?.filter(t => t.status === 'completed').length >= 1) unlocked.push({ icon: <AnimatedIcon Icon={Footprints} animation="bounce" size={20} />, name: 'First Step' });
-  if (data.tasks?.filter(t => t.status === 'completed').length >= 10) unlocked.push({ icon: <AnimatedIcon Icon={Waves} animation="float" size={20} />, name: 'Momentum' });
-  if (data.projects?.length >= 1) unlocked.push({ icon: <AnimatedIcon Icon={Music} animation="spin" size={20} />, name: 'Creator' });
-  if (data.finances?.filter(f => f.type === 'income').reduce((s, f) => s + Number(f.amount), 0) >= 10000) unlocked.push({ icon: <AnimatedIcon Icon={Coins} animation="pulse" size={20} />, name: 'Bag Alert' });
-  if (data.notes?.length >= 10) unlocked.push({ icon: <AnimatedIcon Icon={Book} animation="glow" size={20} />, name: 'Chronicler' });
-  return unlocked;
+// Animation utils
+const staggerContainer = { hidden: { opacity: 0 }, visible: { opacity: 1, transition: { staggerChildren: 0.08, delayChildren: 0.1 } } };
+const staggerItem = { hidden: { opacity: 0, y: 20, filter: 'blur(4px)' }, visible: { opacity: 1, y: 0, filter: 'blur(0px)', transition: { type: "spring", stiffness: 300, damping: 24 } } };
+
+// ScrambleText Component
+const ScrambleText = ({ text, activeTab, theme }) => {
+  const [displayText, setDisplayText] = useState(String(text));
+  const chars = '!<>-_\\/[]{}—=+*^?#________';
+  
+  useEffect(() => {
+    let iteration = 0;
+    const strText = String(text);
+    const interval = setInterval(() => {
+      setDisplayText(strText.split('').map((letter, index) => {
+        if (index < iteration) return strText[index];
+        return chars[Math.floor(Math.random() * chars.length)];
+      }).join(''));
+      if (iteration >= strText.length) clearInterval(interval);
+      iteration += 1 / 3;
+    }, 30);
+    return () => clearInterval(interval);
+  }, [text]);
+  
+  return <span>{displayText}</span>;
 };
 
-function App() {
-  // ── STATE ──
-  const [socket, setSocket] = useState(null);
-  const [status, setStatus] = useState('Offline');
-  const [activePage, setActivePage] = useState('dashboard');
-  const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [isAuthenticated, setIsAuthenticated] = useState(true); // Set to true for now, can toggle
-  const [activeModal, setActiveModal] = useState(null);
-  const [theme, setTheme] = useState(localStorage.getItem('lifeos-theme') || 'light');
+// Crosshair
+const Crosshair = ({ className = '' }) => (
+  <svg width="10" height="10" viewBox="0 0 10 10" className={`absolute text-[var(--text-faint)] transition-colors duration-500 pointer-events-none z-20 ${className}`} fill="none" stroke="currentColor" strokeWidth="1">
+    <path d="M5 0v10M0 5h10" />
+  </svg>
+);
 
-  // Feature State
-  const [focusMode, setFocusMode] = useState(false);
-  const [pomodoro, setPomodoro] = useState({ active: false, time: 25 * 60, mode: 'focus', sessions: 0 });
+// AnimatedSVGLoader
+const AnimatedSVGLoader = () => (
+  <div className="relative w-32 h-32 flex items-center justify-center">
+    <svg viewBox="0 0 100 100" className="w-full h-full absolute inset-0 animate-[spin_10s_linear_infinite]">
+      <circle cx="50" cy="50" r="45" fill="none" stroke="var(--border-color)" strokeWidth="1" strokeDasharray="4 4" />
+      <circle cx="50" cy="50" r="35" fill="none" stroke="rgba(var(--rgb-accent-main), 0.3)" strokeWidth="1" strokeDasharray="10 20" className="animate-[spin_15s_linear_infinite_reverse]" style={{ transformOrigin: '50px 50px' }} />
+    </svg>
+    <svg viewBox="0 0 100 100" className="w-full h-full absolute inset-0">
+      <circle cx="50" cy="50" r="25" fill="none" stroke="rgb(var(--rgb-accent-red))" strokeWidth="2" strokeDasharray="40 100" className="animate-[spin_3s_ease-in-out_infinite]" style={{ transformOrigin: '50px 50px' }} strokeLinecap="round" />
+    </svg>
+    <div className="w-4 h-4 bg-[rgb(var(--rgb-accent-sec))] rounded-full animate-pulse shadow-[0_0_15px_rgba(var(--rgb-accent-sec),0.5)]" />
+  </div>
+);
 
-  // Data State
-  const [tasks, setTasks] = useState({ active: [], completed: [], all: [] });
-  const [projects, setProjects] = useState([]);
-  const [finances, setFinances] = useState([]);
-  const [schedule, setSchedule] = useState([]);
-  const [notes, setNotes] = useState([]);
-  const [habits, setHabits] = useState([]);
-  const [health, setHealth] = useState([]);
-  const [goals, setGoals] = useState([]);
-  const [achievements, setAchievements] = useState([]);
-
-  const [calendar, setCalendar] = useState(null);
-  const [analytics, setAnalytics] = useState(null);
-  const [subagents, setSubagents] = useState([]);
-  const [streams, setStreams] = useState([]);
-  const [twitchSchedule, setTwitchSchedule] = useState([]);
-  const [inventory, setInventory] = useState({ items: [], raw: '' });
-  const [journal, setJournal] = useState([]);
-  const [googleCalendarConnected, setGoogleCalendarConnected] = useState(false);
-
-  // Wallpaper State
-  const [currentWallpaper, setCurrentWallpaper] = useState(0);
-  const [showWallpaperSelector, setShowWallpaperSelector] = useState(false);
-
-  // Logo Animation State - swaps PNG to GIF every minute
-  const [logoAnimated, setLogoAnimated] = useState(false);
-  const wallpapers = [
-    '/wallpapers/wp1.png',
-    '/wallpapers/wp2.png',
-    '/wallpapers/wp3.png',
-    '/wallpapers/wp4.png',
-    '/wallpapers/wp5.png',
-    '/wallpapers/wp6.png',
-    '/wallpapers/wp7.png',
-    '/wallpapers/wp8.png',
-    '/wallpapers/wp9.png',
-    '/wallpapers/wp10.png',
-    '/wallpapers/wp11.png',
-    '/wallpapers/wp12.png',
-    '/wallpapers/wp13.png',
-    '/wallpapers/wp14.png',
-    '/wallpapers/wp15.png'
-  ];
-
-  // Mood State - from API
-  const [moodsData, setMoodsData] = useState({ moods: {}, agents: {} });
-  const [showMoodSelector, setShowMoodSelector] = useState(false);
-  const [selectedAgent, setSelectedAgent] = useState('clawdette');
-
-  const fetchTwitchSchedule = async () => {
-    try {
-      const res = await fetch("/api/twitch/schedule");
-      const data = await res.json();
-      if (data.schedule) setTwitchSchedule(data.schedule);
-    } catch (e) { console.log("Twitch schedule error:", e); }
+// Badge
+const Badge = ({ children, variant = 'outline', className = '' }) => {
+  const styles = {
+    outline: 'border border-[var(--border-color)] text-[var(--text-muted)] bg-[var(--bg-base)]',
+    HIGH: 'bg-[rgba(var(--rgb-accent-red),0.1)] text-[rgb(var(--rgb-accent-red))] border border-[rgba(var(--rgb-accent-red),0.3)]',
+    MEDIUM: 'bg-[rgba(var(--rgb-accent-main),0.1)] text-[rgb(var(--rgb-accent-main))] border border-[rgba(var(--rgb-accent-main),0.3)]',
+    LOW: 'bg-[rgba(var(--rgb-accent-sec),0.1)] text-[rgb(var(--rgb-accent-sec))] border border-[rgba(var(--rgb-accent-sec),0.3)]',
+    ACTIVE: 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/30',
+    PENDING: 'bg-cyan-500/10 text-cyan-400 border border-cyan-500/30',
+    PLANNED: 'bg-blue-500/10 text-blue-400 border border-blue-500/30',
+    black: 'bg-[var(--logo-bg)] text-[var(--logo-text)] font-bold',
   };
+  return (
+    <span className={`px-2 py-1 rounded-full text-[9px] font-space-mono uppercase tracking-widest transition-colors ${styles[variant] || styles.outline} ${className}`}>
+      {children}
+    </span>
+  );
+};
 
-  const fetchMoods = async () => {
-    try {
-      const res = await fetch('/api/moods');
-      if (!res.ok) {
-        console.error('Moods fetch failed:', res.status, await res.text());
-        return;
-      }
-      const data = await res.json();
-      setMoodsData(data);
-    } catch (e) { console.error('Failed to fetch moods:', e); }
-  };
+// Button
+const Button = ({ children, icon: Icon, variant = 'primary', className = '', onClick }) => {
+  const base = "inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-full text-xs font-bold uppercase tracking-widest transition-all active:scale-95 duration-500 relative overflow-hidden group hover-spotlight";
+  if (variant === 'primary') {
+    return (
+      <button onClick={onClick} className={`${base} bg-[var(--logo-bg)] text-[var(--logo-text)] shadow-[0_0_15px_var(--border-highlight)] ${className}`}>
+        {Icon && <Icon size={16} />}
+        <span className="relative z-10">{children}</span>
+      </button>
+    );
+  }
+  if (variant === 'accent') {
+    return (
+      <button onClick={onClick} className={`${base} bg-transparent text-[var(--text-main)] border border-[var(--border-color)] hover:border-[rgb(var(--rgb-accent-main))] ${className}`}>
+        {Icon && <Icon size={16} className="text-[rgb(var(--rgb-accent-main))]" />}
+        <span className="relative z-10">{children}</span>
+      </button>
+    );
+  }
+  return (
+    <button onClick={onClick} className={`${base} bg-transparent text-[var(--text-muted)] hover:text-[var(--text-main)] ${className}`}>
+      {Icon && <Icon size={16} className="relative z-10" />}
+      <span className="relative z-10">{children}</span>
+    </button>
+  );
+};
 
-  useEffect(() => { fetchMoods(); fetchTwitchSchedule(); }, []);
+// Card
+const Card = ({ children, className = '', title, action }) => (
+  <motion.div variants={staggerItem} className={`hover-spotlight bg-[var(--bg-card)] border border-[var(--border-color)] rounded-[2.5rem] p-7 flex flex-col relative group ${className}`}>
+    <Crosshair className="-top-[5px] -left-[5px]" />
+    <Crosshair className="-top-[5px] -right-[5px]" />
+    <Crosshair className="-bottom-[5px] -left-[5px]" />
+    <Crosshair className="-bottom-[5px] -right-[5px]" />
+    {(title || action) && (
+      <div className="flex justify-between items-center mb-6 relative z-10">
+        {title && <h3 className="text-sm font-bold tracking-widest uppercase text-[var(--text-main)] font-space-grotesk flex items-center gap-3">
+          <div className="w-2 h-2 rounded-full bg-[var(--border-highlight)] group-hover:bg-[rgb(var(--rgb-accent-main))] transition-colors" />
+          {title}
+        </h3>}
+        {action && <div>{action}</div>}
+      </div>
+    )}
+    <div className="flex-1 flex flex-col relative z-10 text-[var(--text-main)]">{children}</div>
+  </motion.div>
+);
 
-  // Refs for Charts & Intervals
-  const chartRefs = useRef({});
-  const pomoInterval = useRef(null);
+const THEMES = ['dark', 'light', 'eva'];
 
-  // ── DATA FETCHING ──
-  const fetchSubagents = async () => {
-    try {
-      const res = await fetch('/api/subagents');
-      const data = await res.json();
-      setSubagents(data.subagents || "No active subagents.");
-    } catch (e) { }
-  };
+const getIcon = (iconName) => {
+  const icons = { LayoutDashboard, Users, Brain, CheckSquare, Briefcase, Calendar, Radio, Box, CalendarClock, Mic, Lightbulb, DollarSign, Activity, FileText, Settings, Plus, ChevronDown, Circle, Play, MoreHorizontal, Search, Cpu, Book, Zap, MessageSquare, Clock, Filter, AlertCircle, Sparkles, CheckCircle2, Flame, Utensils, Compass, History, Navigation, Leaf, Droplet, Tent, Edit2, Trash2, BarChart2, Globe, Video, PenTool, Eye, RefreshCw, Folder, Archive, Home, Wallet, TrendingUp, TrendingDown, Coffee, HomeIcon, Car, Heart, WorkIcon, Gift };
+  return icons[iconName] || Circle;
+};
 
-  const fetchAllData = async () => {
-    console.log('[LifeOS] Starting fetch...');
-    try {
-      const [
-        tasksList, projectsList, financesList, habitsList,
-        notesList, healthList, goalsList, scheduleList,
-        calendarData, analyticsData, streamsData, inventoryData, journalData,
-        googleCalendarStatus
-      ] = await Promise.all([
-        fetch('/api/tasks').then(r => { if (!r.ok) throw new Error('/api/tasks failed ' + r.status); return r.json(); }),
-        fetch('/api/projects/active').then(r => { if (!r.ok) throw new Error(r.status); return r.json(); }),
-        fetch('/api/tables/finances').then(r => { if (!r.ok) throw new Error(r.status); return r.json().then(j => j.data || []); }),
-        fetch('/api/tables/habits').then(r => { if (!r.ok) throw new Error(r.status); return r.json().then(j => j.data || []); }),
-        fetch('/api/tables/notes').then(r => { if (!r.ok) throw new Error(r.status); return r.json().then(j => j.data || []); }),
-        fetch('/api/tables/health').then(r => { if (!r.ok) throw new Error(r.status); return r.json().then(j => j.data || []); }),
-        fetch('/api/tables/goals').then(r => { if (!r.ok) throw new Error(r.status); return r.json().then(j => j.data || []); }),
-        fetch('/api/tables/schedule').then(r => { if (!r.ok) throw new Error(r.status); return r.json().then(j => j.data || []); }),
-        fetch('/api/content/calendar').then(r => { if (!r.ok) throw new Error(r.status); return r.json(); }),
-        fetch('/api/analytics').then(r => { if (!r.ok) throw new Error(r.status); return r.json(); }),
-        fetch('/api/streams').then(r => { if (!r.ok) throw new Error(r.status); return r.json(); }),
-        fetch('/api/inventory').then(r => { if (!r.ok) throw new Error(r.status); return r.json(); }),
-        fetch('/api/journal').then(r => { if (!r.ok) throw new Error(r.status); return r.json(); }),
-        fetch('/api/google-calendar/status').then(r => { if (!r.ok) throw new Error(r.status); return r.json(); }).catch(() => ({ connected: false }))
-      ]);
+export default function App() {
+  const [activeTab, setActiveTab] = useState('dashboard');
+  const [themeIndex, setThemeIndex] = useState(0);
+  const containerRef = useRef(null);
+  const currentTheme = THEMES[themeIndex];
+  const [expandedSections, setExpandedSections] = useState({ 'command': true, 'work': true, 'content': true, 'life': false, 'second-brain': false });
+  
+  const [data, setData] = useState({ tasks: [], projects: [], finances: [], habits: [], cortex: [], ideas: [], blog: [], notes: [], contacts: [], streams: [] });
+  const [loading, setLoading] = useState(true);
 
-      console.log('[LifeOS] Tasks:', tasksList?.active?.length, 'active,', tasksList?.completed?.length, 'completed');
-      console.log('[LifeOS] Habits:', habitsList?.length, 'habits');
-      console.log('[LifeOS] Notes:', notesList?.length, 'notes');
-
-      setTasks({
-        active: tasksList.active || [],
-        completed: tasksList.completed || [],
-        all: tasksList.all || []
-      });
-      setProjects(projectsList.projects || []);
-      setFinances(financesList);
-      setHabits(habitsList);
-      setNotes(notesList);
-      setHealth(healthList);
-      setGoals(goalsList);
-      setSchedule(scheduleList.data || []);
-      setCalendar(calendarData);
-      setAnalytics(analyticsData);
-      setStreams(streamsData.streams || []);
-      setInventory(inventoryData || { items: [], raw: '' });
-      setJournal(journalData?.entries || []);
-      setGoogleCalendarConnected(!!googleCalendarStatus?.connected);
-      setAchievements(checkAchievements({ tasks: tasksList.all, projects: projectsList.projects, finances: financesList, notes: notesList }));
-    } catch (error) {
-      console.error('Error fetching data:', error);
-    } finally {
-      console.log('[LifeOS] Fetch complete');
-    }
-  };
-
-  // ── API HELPER ──
-  const API = {
-    get: async (table) => {
-      try {
-        const res = await fetch(`/api/tables/${table}`);
-        const json = await res.json();
-        return json.data || [];
-      } catch (e) { return []; }
-    },
-    create: async (table, data) => {
-      await fetch(`/api/tables/${table}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(data)
-      });
-      fetchAllData();
-      triggerSFX('作成');
-    },
-    update: async (table, id, data) => {
-      await fetch(`/api/tables/${table}/${id}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(data)
-      });
-      fetchAllData();
-    },
-    delete: async (table, id) => {
-      await fetch(`/api/tables/${table}/${id}`, { method: 'DELETE' });
-      fetchAllData();
-      triggerSFX('削除');
-    },
-    fetchAllData,
-    spawnSubagent: async (task, agentId) => {
-      try {
-        const res = await fetch('/api/subagents/spawn', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ task, agentId })
-        });
-        const data = await res.json();
-        triggerSFX('召喚');
-        fetchSubagents();
-        return data;
-      } catch (e) { console.error(e); }
-    },
-    killSubagent: async (target) => {
-      try {
-        await fetch('/api/subagents/kill', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ target })
-        });
-        triggerSFX('消滅');
-        fetchSubagents();
-      } catch (e) { console.error(e); }
-    }
-  };
-
-  // ── EFFECTS ──
   useEffect(() => {
-    const newSocket = io();
-    setSocket(newSocket);
-    newSocket.on('status_update', (data) => setStatus(data.status));
-    newSocket.on('sync_data', (data) => {
-      if (data.tasks) {
-        setTasks({
-          active: data.tasks.filter(t => t.status !== 'completed' && !t.completed_at),
-          completed: data.tasks.filter(t => t.status === 'completed' || t.completed_at),
-          all: data.tasks
+    const fetchData = async () => {
+      try {
+        // Fetch from our own API endpoints (more reliable than direct Supabase from browser)
+        const [tasksRes, projectsRes, financesRes, habitsRes, cortexRes, notesRes, streamsRes, ideasRes, blogRes] = await Promise.all([
+          fetch('/api/tasks').then(r => r.json()).then(d => (d.active?.length ? d.active : d.all) || []),
+          fetch('/api/projects').then(r => r.json()).then(d => d.projects ?? d ?? []),
+          fetch('/api/tables/finances').then(r => r.json()).then(d => d.data ?? d ?? []),
+          fetch('/api/habits').then(r => r.json()).then(d => d || []),
+          fetch('/api/cortex').then(r => r.json()).then(d => d || []),
+          fetch('/api/tables/notes').then(r => r.json()).then(d => d.data ?? d ?? []),
+          fetch('/api/streams').then(r => r.json()).then(d => d.streams ?? d ?? []),
+          fetch('/api/blog/posts?section=blog-ideas').then(r => r.json()).then(d => d || []),
+          fetch('/api/blog/posts').then(r => r.json()).then(d => d || [])
+        ]);
+        setData({
+          tasks: tasksRes,
+          projects: projectsRes,
+          finances: financesRes,
+          habits: habitsRes,
+          cortex: cortexRes,
+          ideas: ideasRes,
+          blog: blogRes,
+          notes: notesRes,
+          contacts: [],
+          streams: streamsRes
         });
-      }
-      if (data.finances) setFinances(data.finances);
-    });
-
-    fetchAllData();
-    fetchSubagents();
-
-    const savedTheme = localStorage.getItem('lifeos-theme') || 'light';
-    document.documentElement.setAttribute('data-theme', savedTheme);
-    setTheme(savedTheme);
-
-    // Logo animation: swap PNG to GIF every 60 seconds
-    const logoInterval = setInterval(() => {
-      setLogoAnimated(prev => !prev);
-    }, 60000);
-
-
-    // Wallpaper auto-rotation: change every 5 minutes
-    const wallpaperInterval = setInterval(() => {
-      setCurrentWallpaper(prev => (prev + 1) % wallpapers.length);
-    }, 300000); // 5 minutes
-
-    return () => {
-      newSocket.close();
-      if (pomoInterval.current) clearInterval(pomoInterval.current);
-      clearInterval(logoInterval);
-      clearInterval(wallpaperInterval);
+      } catch (err) { console.error('Error fetching data:', err); }
+      finally { setLoading(false); }
     };
+    fetchData();
   }, []);
 
   useEffect(() => {
-    if (activePage === 'analytics' || activePage === 'finances') renderCharts();
-  }, [activePage, finances, tasks]);
+    const updateMousePosition = (e) => {
+      if (!containerRef.current) return;
+      containerRef.current.style.setProperty('--mouse-x', `${e.clientX}px`);
+      containerRef.current.style.setProperty('--mouse-y', `${e.clientY}px`);
+    };
+    window.addEventListener('mousemove', updateMousePosition);
+    return () => window.removeEventListener('mousemove', updateMousePosition);
+  }, []);
 
-  // ── ACTIONS ──
-  const navigateTo = (page) => {
-    setActivePage(page);
-    // Close sidebar on mobile after navigation
-    if (window.innerWidth <= 768) {
-      setSidebarOpen(false);
+  const toggleTheme = () => setThemeIndex(prev => (prev + 1) % THEMES.length);
+  const toggleSection = (sectionId) => setExpandedSections(prev => ({ ...prev, [sectionId]: !prev[sectionId] }));
+
+  const renderContent = () => {
+    const viewProps = { data, loading, supabase, websiteSupabase };
+    switch (activeTab) {
+      case 'dashboard': return <DashboardView {...data} {...viewProps} />;
+      case 'round-table': return <RoundTableView {...data} {...viewProps} />;
+      case 'knight': return <KnowledgeChat {...data} {...viewProps} />;
+      case 'tasks': return <KanbanBoard {...data} {...viewProps} />;
+      case 'projects': return <ProjectsView {...data} {...viewProps} />;
+      case 'calendar': return <CalendarView {...data} {...viewProps} />;
+      case 'streams': return <StreamsView {...data} {...viewProps} />;
+      case 'inventory': return <InventoryView {...data} {...viewProps} />;
+      case 'scheduler': return <ContentSchedulerView {...data} {...viewProps} />;
+      case 'blog': return <BlogVoiceView {...data} {...viewProps} />;
+      case 'ideas': return <IdeaBankView {...data} {...viewProps} />;
+      case 'finances': return <FinanceView {...data} {...viewProps} />;
+      case 'habits': return <HabitsView {...data} {...viewProps} />;
+      case 'notes': return <NotesView {...data} {...viewProps} />;
+      case 'journal': return <div className="h-full flex items-center justify-center"><Card title="Journal"><p>Journal view coming soon</p></Card></div>;
+      case 'cortex': return <CortexView {...viewProps} />;
+      case 'contacts': return <ContactsView {...viewProps} />;
+      default:
+        return (
+          <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} className="h-full flex items-center justify-center flex-col text-[var(--text-muted)]">
+            <AnimatedSVGLoader />
+            <div className="mt-8 flex flex-col items-center gap-2">
+              <p className="font-space-mono text-xs uppercase tracking-[0.3em]"><ScrambleText text="Module Offline" activeTab={activeTab} theme={currentTheme} /></p>
+              <p className="font-space-mono text-[10px] uppercase tracking-widest text-[rgb(var(--rgb-accent-red))]">Error: Component not mounted</p>
+            </div>
+            <Button variant="accent" className="mt-8" onClick={() => setActiveTab('dashboard')}>Initialize Dashboard</Button>
+          </motion.div>
+        );
     }
   };
-
-  const toggleTheme = () => {
-    const currentTheme = document.documentElement.getAttribute('data-theme') || 'light';
-    let nextTheme = 'light';
-
-    if (currentTheme === 'light') nextTheme = 'dark';
-    else if (currentTheme === 'dark') nextTheme = 'day';
-    else nextTheme = 'light';
-
-    document.documentElement.setAttribute('data-theme', nextTheme);
-    localStorage.setItem('lifeos-theme', nextTheme);
-    setTheme(nextTheme);
-
-    if (nextTheme === 'dark') triggerSFX('闇');
-    if (nextTheme === 'day') triggerSFX('陽');
-    if (nextTheme === 'light') triggerSFX('光');
-  };
-
-  const triggerSFX = (text) => {
-    const container = document.getElementById('sfxContainer');
-    if (!container) return;
-    const el = document.createElement('div');
-    el.className = 'sfx-text animate';
-    el.textContent = text;
-    el.style.left = (20 + Math.random() * 60) + '%';
-    el.style.top = (20 + Math.random() * 40) + '%';
-    container.appendChild(el);
-    setTimeout(() => el.remove(), 1000);
-  };
-
-  const toggleTask = (task) => {
-    // Check both status and completed_at for completion
-    const isCompleted = task.status === 'completed' || task.completed_at;
-    const newStatus = isCompleted ? 'pending' : 'completed';
-    API.update('tasks', task.id, { status: newStatus });
-    triggerSFX(newStatus === 'completed' ? '完了' : '未完了');
-  };
-
-  // ── POMODORO ──
-  const togglePomodoro = () => {
-    if (pomodoro.active) {
-      clearInterval(pomoInterval.current);
-      setPomodoro(p => ({ ...p, active: false }));
-    } else {
-      setPomodoro(p => ({ ...p, active: true }));
-      pomoInterval.current = setInterval(() => {
-        setPomodoro(prev => {
-          if (prev.time <= 1) {
-            clearInterval(pomoInterval.current);
-            triggerSFX('完了！');
-            return { ...prev, active: false, time: prev.mode === 'focus' ? 5 * 60 : 25 * 60, mode: prev.mode === 'focus' ? 'break' : 'focus', sessions: prev.sessions + (prev.mode === 'focus' ? 1 : 0) };
-          }
-          return { ...prev, time: prev.time - 1 };
-        });
-      }, 1000);
-    }
-  };
-  const formatTime = (s) => `${Math.floor(s / 60).toString().padStart(2, '0')}:${(s % 60).toString().padStart(2, '0')}`;
-
-  // ── CHARTS ──
-  const renderCharts = () => {
-    const ctxF = document.getElementById('financeChart');
-    if (ctxF) {
-      if (chartRefs.current.finance) chartRefs.current.finance.destroy();
-      const data = {};
-      finances.filter(f => f.type === 'expense').forEach(f => data[f.category] = (data[f.category] || 0) + Number(f.amount));
-      chartRefs.current.finance = new Chart(ctxF, {
-        type: 'doughnut',
-        data: {
-          labels: Object.keys(data),
-          datasets: [{ data: Object.values(data), backgroundColor: ['#0a0a0a', '#444', '#888', '#ccc'] }]
-        }
-      });
-    }
-  };
-
-  if (!isAuthenticated) {
-    return <LanyardLogin onLogin={() => setIsAuthenticated(true)} agents={[]} />;
-  }
 
   return (
-    <div className={`app-container ${sidebarOpen ? 'sidebar-open' : ''} ${focusMode ? 'focus-active' : ''}`}>
-      {/* BASE WALLPAPER LAYER */}
-      <div
-        className="fixed inset-0 z-0 bg-cover bg-center transition-all duration-[2000ms] ease-in-out"
-        style={{ backgroundImage: `url(${wallpapers[currentWallpaper]})` }}
-      ></div>
-
-      {/* DEEP CINEMATIC BACKGROUND OVERLAY */}
-      <div className="noise-overlay" style={{ opacity: 0.05 }}></div>
-      <div className="fixed inset-0 z-0 pointer-events-none bg-[#020203]/80">
-        <div className="absolute inset-0 bg-gradient-to-b from-[#111116]/90 via-[#050508]/80 to-[#020203]/90"></div>
-        <div className="absolute top-[-10%] left-[-10%] w-[50vw] h-[50vw] bg-red-600/20 rounded-full blur-[140px] mix-blend-screen"></div>
-        <div className="absolute bottom-[10%] right-[-5%] w-[40vw] h-[40vw] bg-cyan-600/20 rounded-full blur-[160px] mix-blend-screen"></div>
-      </div>
-
-      <div id="sfxContainer" className="sfx-container"></div>
-
-      {/* ═══ ZEN MODE (FOCUS OVERLAY) ═══ */}
-      <div
-        className={`fixed inset-0 z-[200] flex flex-col items-center justify-center transition-all duration-1000 ${focusMode ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'}`}
-      >
-        {/* Deep Atmosphere Base */}
-        <div className="absolute inset-0 bg-[#020203]/95 backdrop-blur-2xl transition-opacity duration-1000"></div>
-        {/* Pulsing Cinematic Orbs */}
-        <div className="absolute top-[20%] left-[10%] w-[60vw] h-[60vw] bg-yellow-600/10 rounded-full blur-[150px] mix-blend-screen animate-pulse duration-[8000ms]"></div>
-        <div className="absolute bottom-[20%] right-[10%] w-[50vw] h-[50vw] bg-orange-600/10 rounded-full blur-[150px] mix-blend-screen animate-pulse duration-[10000ms] delay-1000"></div>
-        <div className="noise-overlay opacity-30"></div>
-
-        {/* Floating Giant Kanji Watermark */}
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 font-jp font-black text-[30vw] text-white/[0.02] drop-shadow-[0_0_100px_rgba(255,255,255,0.05)] select-none pointer-events-none tracking-widest leading-none z-0">
-          集中
+    <>
+      <style>{`
+        @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=Space+Mono:ital,wght@0,400;0,700;1,400&display=swap');
+        .font-space-grotesk { font-family: 'Space Grotesk', sans-serif; }
+        .font-space-mono { font-family: 'Space Mono', monospace; }
+        :root, [data-theme="dark"] {
+          --bg-base: #000000; --bg-panel: #050505; --bg-card: #0a0a0c; --bg-sidebar: rgba(0, 0, 0, 0.85);
+          --text-main: #ffffff; --text-muted: rgba(255, 255, 255, 0.4); --text-faint: rgba(255, 255, 255, 0.2);
+          --border-color: rgba(255, 255, 255, 0.1); --border-highlight: rgba(255, 255, 255, 0.2);
+          --bg-overlay: rgba(255, 255, 255, 0.05); --rgb-accent-main: 249, 115, 22; --rgb-accent-sec: 234, 179, 8; --rgb-accent-red: 239, 68, 68;
+          --tech-grid: rgba(255, 255, 255, 0.03); --logo-bg: #ffffff; --logo-text: #000000;
+        }
+        [data-theme="light"] {
+          --bg-base: #e4e4e7; --bg-panel: #f4f4f5; --bg-card: #ffffff; --bg-sidebar: rgba(244, 244, 245, 0.85);
+          --text-main: #09090b; --text-muted: rgba(0, 0, 0, 0.5); --text-faint: rgba(0, 0, 0, 0.2);
+          --border-color: rgba(0, 0, 0, 0.1); --border-highlight: rgba(0, 0, 0, 0.2);
+          --bg-overlay: rgba(0, 0, 0, 0.05); --rgb-accent-main: 234, 88, 12; --rgb-accent-sec: 202, 138, 4; --rgb-accent-red: 220, 38, 38;
+          --tech-grid: rgba(0, 0, 0, 0.05); --logo-bg: #09090b; --logo-text: #ffffff;
+        }
+        [data-theme="eva"] {
+          --bg-base: #110926; --bg-panel: #1b0e3d; --bg-card: #271455; --bg-sidebar: rgba(27, 14, 61, 0.85);
+          --text-main: #39ff14; --text-muted: rgba(57, 255, 20, 0.6); --text-faint: rgba(57, 255, 20, 0.2);
+          --border-color: rgba(57, 255, 20, 0.2); --border-highlight: rgba(255, 102, 0, 0.5);
+          --bg-overlay: rgba(57, 255, 20, 0.05); --rgb-accent-main: 255, 102, 0; --rgb-accent-sec: 57, 255, 20; --rgb-accent-red: 255, 0, 60;
+          --tech-grid: rgba(57, 255, 20, 0.08); --logo-bg: #39ff14; --logo-text: #110926;
+        }
+        .bg-tech-grid { background-image: linear-gradient(var(--tech-grid) 1px, transparent 1px), linear-gradient(90deg, var(--tech-grid) 1px, transparent 1px); background-size: 30px 30px; }
+        .scanlines { position: fixed; inset: 0; background: linear-gradient(to bottom, rgba(255,255,255,0), rgba(255,255,255,0) 50%, rgba(0,0,0,0.1) 50%, rgba(0,0,0,0.1)); background-size: 100% 4px; pointer-events: none; z-index: 50; opacity: 0.4; }
+        .hover-spotlight { position: relative; }
+        .hover-spotlight::before { content: ""; position: absolute; inset: 0; border-radius: inherit; padding: 1px; background: radial-gradient(800px circle at var(--mouse-x) var(--mouse-y), rgba(var(--rgb-accent-main), 0.4), transparent 40%); -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0); -webkit-mask-composite: xor; mask-composite: exclude; opacity: 0; transition: opacity 0.5s; pointer-events: none; z-index: 20; }
+        .hover-spotlight:hover::before { opacity: 1; }
+        .hover-spotlight::after { content: ""; position: absolute; inset: 0; border-radius: inherit; background: radial-gradient(600px circle at var(--mouse-x) var(--mouse-y), rgba(var(--rgb-accent-main), 0.03), transparent 40%); opacity: 0; transition: opacity 0.5s; pointer-events: none; z-index: 0; }
+        .hover-spotlight:hover::after { opacity: 1; }
+        .scrollbar-hide::-webkit-scrollbar { display: none; }
+        .scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
+      `}</style>
+      
+      <div ref={containerRef} data-theme={currentTheme} className="relative flex h-screen w-full bg-[var(--bg-base)] text-[var(--text-main)] font-space-grotesk overflow-hidden selection:bg-[rgba(var(--rgb-accent-main),0.3)] transition-colors duration-700">
+        <div className="scanlines" />
+        <div className="fixed inset-0 z-0 pointer-events-none bg-tech-grid">
+          <div className="absolute left-[280px] top-0 bottom-0 w-[1px] bg-[var(--border-color)]" />
+          <div className="absolute left-0 right-0 top-[88px] h-[1px] bg-[var(--border-color)]" />
         </div>
 
-        {/* Content Container */}
-        <div className="relative z-10 w-full max-w-4xl px-8 flex flex-col items-center">
-
-          {/* Header & Session Info */}
-          <div className="flex flex-col items-center mb-16 opacity-80 animate-fade-in-up">
-            <span className="text-xs font-bold tracking-[0.5em] text-yellow-500/80 uppercase mb-4 drop-shadow-[0_0_10px_rgba(234,179,8,0.5)]">Deep Work Protocol</span>
-            <div className="flex items-center gap-6 mb-8">
-              {/* Mood Display - Clawdette & Knowledge Knaight (in Zen styling) */}
-              {['clawdette', 'knowledge-knaight'].map(agentId => {
-                const agent = moodsData.agents[agentId];
-                const mood = agent ? moodsData.moods[agent.currentMood] : null;
-
-                return (
-                  <div
-                    key={agentId}
-                    className="flex flex-col items-center gap-2 cursor-pointer group"
-                    onClick={() => { setSelectedAgent(agentId); setShowMoodSelector(!showMoodSelector); }}
-                  >
-                    <div className="w-16 h-16 rounded-full bg-white/5 border border-white/[0.08] p-1 shadow-[0_0_30px_rgba(0,0,0,0.5)] group-hover:border-white/20 transition-all flex items-center justify-center overflow-hidden">
-                      <img src={mood?.gif || '/moods/ready.gif'} alt={agent?.currentMood || 'ready'} className="w-full h-full object-cover opacity-80 group-hover:opacity-100 transition-opacity" />
-                    </div>
-                    <span className="text-[9px] font-bold tracking-[0.2em] text-gray-500 uppercase group-hover:text-white transition-colors">{agent?.name || agentId}</span>
-                  </div>
-                );
-              })}
-            </div>
-            {/* Mood Selector Modal (Re-styled for Zen) */}
-            {showMoodSelector && (
-              <div className="absolute top-[80px] bg-[#0a0a0c]/90 backdrop-blur-xl border border-white/[0.08] p-4 rounded-3xl shadow-[0_20px_60px_rgba(0,0,0,0.8)] flex flex-wrap gap-4 z-50 w-[300px] justify-center">
-                {Object.entries(moodsData.moods).map(([id, mood]) => (
-                  <div
-                    key={id}
-                    className="flex flex-col items-center gap-2 cursor-pointer group p-2 hover:bg-white/5 rounded-2xl transition-all"
-                    onClick={async () => {
-                      await fetch('/api/moods/' + selectedAgent, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ mood: id })
-                      });
-                      fetchMoods();
-                      setShowMoodSelector(false);
-                    }}
-                  >
-                    <img src={mood.gif} alt={mood.label} className="w-12 h-12 rounded-xl" />
-                    <span className="text-[10px] font-bold text-gray-400 group-hover:text-white uppercase tracking-wider">{mood.label}</span>
-                  </div>
-                ))}
-              </div>
-            )}
-
-            {/* Zen Quote */}
-            <div className="text-sm font-mono text-gray-400 italic font-light tracking-wide text-center max-w-lg">
-              "{QUOTES[Math.floor(Math.random() * QUOTES.length)]}"
+        {/* Sidebar */}
+        <motion.aside initial={{ x: -300 }} animate={{ x: 0 }} className="w-[280px] bg-[var(--bg-sidebar)] backdrop-blur-xl border-r border-[var(--border-color)] flex flex-col z-20 relative">
+          <div className="h-[88px] flex items-center px-8 relative cursor-pointer group hover:bg-[var(--bg-overlay)]" onClick={toggleTheme}>
+            <div className="flex items-center gap-4 w-full">
+              <div className="w-10 h-10 bg-[var(--logo-bg)] text-[var(--logo-text)] rounded-full flex items-center justify-center font-bold font-space-mono text-sm shadow-[0_0_20px_var(--border-highlight)]">OS</div>
+              <h1 className="font-bold text-xl tracking-widest uppercase">Life<span className="text-[var(--text-muted)]">OS</span></h1>
+              <div className="ml-auto"><Activity size={16} className="text-[rgb(var(--rgb-accent-main))] animate-pulse" /></div>
             </div>
           </div>
 
-          {/* Core Priorities */}
-          <div className="w-full max-w-2xl flex flex-col gap-4 mb-20 animate-fade-in-up" style={{ animationDelay: '0.2s' }}>
-            {tasks.active.slice(0, 3).map((t, i) => (
-              <div key={i} className="group relative flex items-center gap-6 p-6 bg-white/5 backdrop-blur-3xl border border-white/[0.08] rounded-3xl shadow-[0_8px_32px_rgba(0,0,0,0.3)] transition-all duration-500 hover:bg-white/[0.08] hover:border-white/[0.15] hover:shadow-[0_0_40px_rgba(255,255,255,0.05)] hover:-translate-y-1 overflow-hidden">
-                <div className="absolute left-0 top-0 bottom-0 w-1 bg-gradient-to-b from-transparent via-yellow-500/50 to-transparent opacity-0 group-hover:opacity-100 transition-opacity"></div>
-                <div className="w-12 h-12 flex items-center justify-center rounded-2xl bg-black/40 border border-white/[0.05] shadow-inner text-2xl font-black font-jp text-white/30 group-hover:text-yellow-500/80 group-hover:border-yellow-500/30 transition-all">
-                  {i + 1}
+          <div className="flex-1 overflow-y-auto px-4 py-8 space-y-8 scrollbar-hide">
+            {NAV_SECTIONS.map((section) => {
+              const isExpanded = expandedSections[section.id];
+              return (
+                <div key={section.id} className="space-y-2">
+                  <button onClick={() => toggleSection(section.id)} className="w-full flex items-center justify-between px-4 py-2 text-[9px] font-space-mono uppercase tracking-[0.3em] text-[var(--text-muted)] hover:text-[var(--text-main)]">
+                    <span>{section.title}</span>
+                    <motion.div animate={{ rotate: isExpanded ? 180 : 0 }} transition={{ type: "spring", stiffness: 300, damping: 30 }}>
+                      <ChevronDown size={12} />
+                    </motion.div>
+                  </button>
+                  <AnimatePresence>
+                    {isExpanded && (
+                      <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }} exit={{ height: 0, opacity: 0 }} transition={{ type: "spring", stiffness: 300, damping: 30 }} className="overflow-hidden space-y-1 pt-1">
+                        {section.items.map((item) => {
+                          const isActive = activeTab === item.id;
+                          const ItemIcon = getIcon(item.icon);
+                          return (
+                            <button key={item.id} onClick={() => setActiveTab(item.id)} className={`w-full flex items-center gap-4 px-4 py-3 rounded-full text-xs font-bold uppercase tracking-widest transition-all hover-spotlight ${isActive ? 'text-[var(--text-main)]' : 'text-[var(--text-muted)] hover:text-[var(--text-main)]'}`}>
+                              {isActive && <motion.div layoutId="nav-active" className="absolute inset-0 bg-[var(--bg-overlay)] border border-[var(--border-color)] rounded-full" />}
+                              <ItemIcon size={16} className={`relative z-10 ${isActive ? 'text-[rgb(var(--rgb-accent-main))]' : 'opacity-70'}`} />
+                              <span className="relative z-10 font-space-grotesk">{item.label}</span>
+                            </button>
+                          );
+                        })}
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
                 </div>
-                <div className="flex-1">
-                  <h3 className="text-lg font-bold text-white/90 tracking-wide leading-relaxed group-hover:text-white transition-colors">{t.description || t.title}</h3>
-                </div>
-              </div>
-            ))}
-            {tasks.active.length === 0 && (
-              <div className="text-center p-12 bg-white/5 border border-white/[0.08] rounded-3xl">
-                <p className="text-gray-400 font-bold tracking-widest uppercase text-sm">No Active Directives</p>
-                <p className="text-gray-600 font-mono text-xs mt-2">The calm before the storm. Take a breath.</p>
-              </div>
-            )}
+              );
+            })}
           </div>
 
-        </div>
-
-        {/* Minimalist Exist Controls */}
-        <div className="absolute bottom-12 left-1/2 -translate-x-1/2 animate-fade-in-up" style={{ animationDelay: '0.6s' }}>
-          <button
-            className="group flex flex-col items-center justify-center gap-3 transition-transform hover:scale-105"
-            onClick={() => setFocusMode(false)}
-          >
-            <div className="w-16 h-16 rounded-full bg-white/5 backdrop-blur-md border border-white/[0.1] flex items-center justify-center shadow-[0_0_30px_rgba(0,0,0,0.3)] group-hover:bg-red-500/20 group-hover:border-red-500/50 group-hover:shadow-[0_0_40px_rgba(239,68,68,0.4)] transition-all duration-500 overflow-hidden relative">
-              <div className="absolute inset-0 bg-red-400/20 translate-y-full group-hover:translate-y-0 transition-transform duration-500"></div>
-              <span className="relative z-10 w-2 h-2 rounded-full bg-white/50 group-hover:bg-red-400 group-hover:scale-150 transition-all duration-300"></span>
-            </div>
-            <span className="text-[9px] font-bold tracking-[0.3em] text-gray-500 uppercase group-hover:text-red-400 transition-colors">Return to Surface</span>
-          </button>
-        </div>
-      </div>
-
-      {/* ═══ SIDEBAR ═══ */}
-      <aside className={`fixed top-0 left-0 h-full w-[260px] bg-[#0a0a0c]/70 backdrop-blur-3xl border-r border-white/[0.08] flex flex-col z-[100] transition-transform duration-300 ${sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}`}>
-
-        {/* Header / Logo Group */}
-        <div className="p-6 border-b border-white/[0.08] flex flex-col items-center justify-center relative group cursor-pointer" onClick={toggleTheme}>
-          <div className="absolute inset-0 bg-gradient-to-b from-white/[0.03] to-transparent opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none"></div>
-          <div className="relative w-20 h-20 mb-3 drop-shadow-[0_0_15px_rgba(255,255,255,0.1)] transition-transform duration-500 group-hover:scale-110">
-            <img
-              src={logoAnimated
-                ? (theme === 'dark' ? '/logo/logo-animated-2.gif' : '/logo/logo-animated-1.gif')
-                : (theme === 'dark' ? '/logo/logo-light.png' : '/logo/logo-dark.png')
-              }
-              alt="LIFE OS"
-              className="w-full h-full object-contain"
-            />
-          </div>
-          <h2 className="text-sm font-black tracking-[0.3em] font-premium text-white uppercase group-hover:text-transparent group-hover:bg-clip-text group-hover:bg-gradient-to-r group-hover:from-white group-hover:to-gray-400 transition-all">Life OS</h2>
-        </div>
-
-        {/* Navigation */}
-        <nav className="flex-1 overflow-y-auto glass-scroll py-6 px-4 flex flex-col gap-6">
-
-          {/* Command Section */}
-          <div>
-            <div className="text-[10px] font-bold tracking-[0.2em] text-gray-500 uppercase px-3 mb-3">Command</div>
-            <div className="flex flex-col gap-1">
-              {['dashboard'].map(p => (
-                <div key={p} className={`flex items-center gap-3 px-4 py-2.5 rounded-xl cursor-pointer transition-all duration-300 ${activePage === p ? 'bg-white/10 text-white shadow-[0_4px_12px_rgba(0,0,0,0.2)] border border-white/[0.15]' : 'text-gray-400 hover:text-white hover:bg-white/[0.05] border border-transparent'}`} onClick={() => navigateTo(p)}>
-                  <span className="text-xs font-bold tracking-wide capitalize">{p}</span>
-                </div>
-              ))}
-              <div className={`flex items-center gap-3 px-4 py-2.5 rounded-xl cursor-pointer transition-all duration-300 ${activePage === 'subagents' ? 'bg-white/10 text-white shadow-[0_4px_12px_rgba(0,0,0,0.2)] border border-white/[0.15]' : 'text-gray-400 hover:text-white hover:bg-white/[0.05] border border-transparent'}`} onClick={() => navigateTo('subagents')}>
-                <span className="text-xs font-bold tracking-wide">The Round Table</span>
-              </div>
-            </div>
-          </div>
-
-          {/* Work Section */}
-          <div>
-            <div className="text-[10px] font-bold tracking-[0.2em] text-gray-500 uppercase px-3 mb-3">Work</div>
-            <div className="flex flex-col gap-1">
-              {['tasks', 'projects', 'calendar', 'streams', 'inventory'].map(p => (
-                <div key={p} className={`flex items-center gap-3 px-4 py-2.5 rounded-xl cursor-pointer transition-all duration-300 ${activePage === p ? 'bg-white/10 text-white shadow-[0_4px_12px_rgba(0,0,0,0.2)] border border-white/[0.15]' : 'text-gray-400 hover:text-white hover:bg-white/[0.05] border border-transparent'}`} onClick={() => navigateTo(p)}>
-                  <span className="text-xs font-bold tracking-wide capitalize">{p}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* Content Section */}
-          <div>
-            <div className="text-[10px] font-bold tracking-[0.2em] text-gray-500 uppercase px-3 mb-3">Content</div>
-            <div className="flex flex-col gap-1">
-              <div className={`flex items-center gap-3 px-4 py-2.5 rounded-xl cursor-pointer transition-all duration-300 ${activePage === 'content' ? 'bg-white/10 text-white shadow-[0_4px_12px_rgba(0,0,0,0.2)] border border-white/[0.15]' : 'text-gray-400 hover:text-white hover:bg-white/[0.05] border border-transparent'}`} onClick={() => navigateTo('content')}>
-                <span className="text-xs font-bold tracking-wide">📅 Scheduler</span>
-              </div>
-              <div className={`flex items-center gap-3 px-4 py-2.5 rounded-xl cursor-pointer transition-all duration-300 ${activePage === 'blog' ? 'bg-white/10 text-white shadow-[0_4px_12px_rgba(0,0,0,0.2)] border border-white/[0.15]' : 'text-gray-400 hover:text-white hover:bg-white/[0.05] border border-transparent'}`} onClick={() => navigateTo('blog')}>
-                <span className="text-xs font-bold tracking-wide">📝 Blog & Voice</span>
-              </div>
-              <div className={`flex items-center gap-3 px-4 py-2.5 rounded-xl cursor-pointer transition-all duration-300 ${activePage === 'ideas' ? 'bg-white/10 text-white shadow-[0_4px_12px_rgba(0,0,0,0.2)] border border-white/[0.15]' : 'text-gray-400 hover:text-white hover:bg-white/[0.05] border border-transparent'}`} onClick={() => navigateTo('ideas')}>
-                <span className="text-xs font-bold tracking-wide">💡 Ideas</span>
-              </div>
-            </div>
-          </div>
-
-          {/* Life Section */}
-          <div>
-            <div className="text-[10px] font-bold tracking-[0.2em] text-gray-500 uppercase px-3 mb-3">Life</div>
-            <div className="flex flex-col gap-1">
-              {['finances', 'habits'].map(p => (
-                <div key={p} className={`flex items-center gap-3 px-4 py-2.5 rounded-xl cursor-pointer transition-all duration-300 ${activePage === p ? 'bg-white/10 text-white shadow-[0_4px_12px_rgba(0,0,0,0.2)] border border-white/[0.15]' : 'text-gray-400 hover:text-white hover:bg-white/[0.05] border border-transparent'}`} onClick={() => navigateTo(p)}>
-                  <span className="text-xs font-bold tracking-wide capitalize flex items-center gap-2">
-                    {p === 'finances' ? <><AnimatedIcon Icon={Coins} size={14} /> Finances</> : p}
-                  </span>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* Second Brain Section */}
-          <div>
-            <div className="text-[10px] font-bold tracking-[0.2em] text-gray-500 uppercase px-3 mb-3">Second Brain</div>
-            <div className="flex flex-col gap-1">
-              {['notes', 'journal'].map(p => (
-                <div key={p} className={`flex items-center gap-3 px-4 py-2.5 rounded-xl cursor-pointer transition-all duration-300 ${activePage === p ? 'bg-white/10 text-white shadow-[0_4px_12px_rgba(0,0,0,0.2)] border border-white/[0.15]' : 'text-gray-400 hover:text-white hover:bg-white/[0.05] border border-transparent'}`} onClick={() => navigateTo(p)}>
-                  <span className="text-xs font-bold tracking-wide capitalize">{p}</span>
-                </div>
-              ))}
-              <div className={`flex items-center gap-3 px-4 py-2.5 rounded-xl cursor-pointer transition-all duration-300 ${activePage === 'cortex' ? 'bg-white/10 text-white shadow-[0_4px_12px_rgba(0,0,0,0.2)] border border-white/[0.15]' : 'text-gray-400 hover:text-white hover:bg-white/[0.05] border border-transparent'}`} onClick={() => navigateTo('cortex')}>
-                <span className="text-xs font-bold tracking-wide">🧠 Cortex</span>
-              </div>
-              <div className={`flex items-center gap-3 px-4 py-2.5 rounded-xl cursor-pointer transition-all duration-300 ${activePage === 'contacts' ? 'bg-white/10 text-white shadow-[0_4px_12px_rgba(0,0,0,0.2)] border border-white/[0.15]' : 'text-gray-400 hover:text-white hover:bg-white/[0.05] border border-transparent'}`} onClick={() => navigateTo('contacts')}>
-                <span className="text-xs font-bold tracking-wide">👥 Contacts</span>
-              </div>
-            </div>
-          </div>
-
-          {/* Tools Grid Section */}
-          <div>
-            <div className="text-[10px] font-bold tracking-[0.2em] text-gray-500 uppercase px-3 mb-3">Tools</div>
-            <div className="grid grid-cols-4 gap-2 px-1">
-              <button
-                className={`w-12 h-12 flex items-center justify-center rounded-xl cursor-pointer transition-all duration-300 group ${activePage === 'pomodoro' ? 'bg-white/10 text-white shadow-[0_4px_12px_rgba(0,0,0,0.2)] border border-white/[0.15]' : 'bg-black/40 border border-white/[0.05] text-gray-400 hover:text-white hover:bg-white/[0.05]'}`}
-                onClick={() => navigateTo('pomodoro')}
-                title="Pomodoro"
-              >
-                <Timer size={18} className="group-hover:scale-110 transition-transform" />
-              </button>
-              <button
-                className={`w-12 h-12 flex items-center justify-center rounded-xl cursor-pointer transition-all duration-300 group ${activePage === 'analytics' ? 'bg-white/10 text-white shadow-[0_4px_12px_rgba(0,0,0,0.2)] border border-white/[0.15]' : 'bg-black/40 border border-white/[0.05] text-gray-400 hover:text-white hover:bg-white/[0.05]'}`}
-                onClick={() => navigateTo('analytics')}
-                title="Analytics"
-              >
-                <BarChart3 size={18} className="group-hover:scale-110 transition-transform" />
-              </button>
-            </div>
-          </div>
-        </nav>
-
-        {/* Premium Bottom Control Hub */}
-        <div className="p-4 border-t border-white/[0.08] bg-black/20 backdrop-blur-md">
-          <div className="flex items-center justify-between mb-4">
-            <div className="flex flex-col">
-              <span className="text-[9px] font-bold tracking-[0.2em] text-gray-500 uppercase">System</span>
-              <span className="text-xs font-mono font-bold text-gray-300">Guapdad 4000</span>
-            </div>
-            <div className="w-2.5 h-2.5 rounded-full bg-green-500 animate-pulse shadow-[0_0_8px_rgba(34,197,94,0.6)]"></div>
-          </div>
-
-          <div className="flex gap-2">
-            <button
-              className="flex-1 py-2.5 bg-white/5 hover:bg-white/10 border border-white/[0.08] rounded-xl text-white font-bold text-xs tracking-wider transition-all shadow-[0_4px_12px_rgba(0,0,0,0.2)] hover:border-white/20 flex items-center justify-center gap-2"
-              onClick={() => setActiveModal('quickAdd')}
-              title="Quick Add"
-            >
-              <Plus size={14} /> Add
-            </button>
-            <button
-              className={`w-10 flex items-center justify-center rounded-xl transition-all shadow-[0_4px_12px_rgba(0,0,0,0.2)] border flex-shrink-0 ${focusMode ? 'bg-orange-500/20 text-orange-400 border-orange-500/30' : 'bg-white/5 hover:bg-white/10 border-white/[0.08] text-gray-300'}`}
-              onClick={() => setFocusMode(!focusMode)}
-              title="Focus Mode"
-            >
-              <span className="font-jp font-bold text-sm">集</span>
-            </button>
-          </div>
-        </div>
-      </aside>
-
-      {/* Sidebar Overlay - closes sidebar when clicked on mobile */}
-      <div
-        className={`sidebar-overlay ${sidebarOpen ? 'active' : ''}`}
-        onClick={() => setSidebarOpen(false)}
-      />
-
-      {/* ═══ MAIN ═══ */}
-      <main className="main-content">
-        {/* Mobile Menu Toggle (Only visible on small screens) */}
-        <button className="mobile-menu-toggle" onClick={() => setSidebarOpen(!sidebarOpen)}>
-          <span className="hamburger"></span>
-        </button>
-
-        <section key={activePage} className="page-section active z-10 p-6 min-h-screen relative mt-16 lg:mt-0 animate-fade-in-up">
-
-          {activePage === 'dashboard' && (
-            <DashboardView
-              tasks={tasks}
-              projects={projects}
-              finances={finances}
-              habits={habits}
-              streams={streams}
-              toggleTask={toggleTask}
-              setActivePage={setActivePage}
-              setActiveModal={setActiveModal}
-              googleCalendarConnected={googleCalendarConnected}
-            />
-          )}
-
-          {activePage === 'tasks' && (
-            <KanbanBoard tasks={tasks.all} api={API} />
-          )}
-
-          {activePage === 'projects' && (
-            <ProjectsView api={API} />
-          )}
-
-          {activePage === 'contacts' && (
-            <ContactsView />
-          )}
-
-          {activePage === 'pomodoro' && (
-            <div className="pomodoro-container">
-              <div className="pomodoro-ring">
-                <div className="pomodoro-time">{formatTime(pomodoro.time)}</div>
-                <div className="pomodoro-label">{pomodoro.mode.toUpperCase()}</div>
-              </div>
-              <div className="pomodoro-controls">
-                <button className="btn btn-primary" onClick={togglePomodoro}>{pomodoro.active ? 'PAUSE' : 'START'}</button>
-              </div>
-            </div>
-          )}
-
-          {activePage === 'finances' && (
-            <FinanceView finances={finances} api={API} />
-          )}
-
-          {activePage === 'habits' && (
-            <HabitsView habits={habits} api={API} />
-          )}
-
-          {activePage === 'calendar' && (
-            <CalendarView events={calendar?.events || []} api={API} googleConnected={googleCalendarConnected} />
-          )}
-
-          {activePage === 'inventory' && (
-            <InventoryView inventory={(inventory.items || []).filter(i => i.name && i.name !== ':---' && i.name !== '---')} api={API} />
-          )}
-
-          {activePage === 'streams' && (
-            <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-              <div className="lg:col-span-3">
-                <StreamsView streams={streams} twitchSchedule={twitchSchedule} setActiveModal={setActiveModal} api={API} triggerSFX={triggerSFX} />
-              </div>
-              <div className="lg:col-span-1">
-                
-              </div>
-            </div>
-          )}
-
-          {activePage === 'subagents' && (
-            <div className="w-full">
-              <RoundTableView />
-            </div>
-          )}
-
-          {activePage === 'analytics' && (
-            <div className="grid-2">
-              <div className="stat-card"><div className="stat-value">{analytics?.totalFiles || 0}</div><div className="stat-label">Total Files</div></div>
-              <div className="stat-card"><div className="stat-value">{analytics?.projectCount || 0}</div><div className="stat-label">Active Projects</div></div>
-              <div className="stat-card"><div className="stat-value">{analytics?.memoryEntries || 0}</div><div className="stat-label">Memory Entries</div></div>
-              <div className="stat-card"><div className="stat-value">{analytics?.taskCount || 0}</div><div className="stat-label">Total Tasks</div></div>
-            </div>
-          )}
-
-          {activePage === 'notes' && (
-            <NotesView notes={notes} api={API} />
-          )}
-
-          {activePage === 'content' && (
-            <ContentSchedulerView api={API} postbridgeKey="pb_live_6TxeA2MXDdTeVaXrp8BwG8" />
-          )}
-
-          {activePage === 'blog' && (
-            <BlogVoiceView api={API} />
-          )}
-
-          {activePage === 'ideas' && (
-            <IdeaBankView api={API} />
-          )}
-
-
-          {activePage === 'journal' && (
-            <div className="p-6 md:p-10 max-w-[1400px] mx-auto min-h-full bg-black/95 relative overflow-hidden text-white/90">
-              {/* Premium Background Effects */}
-              <div className="absolute top-0 right-0 w-[800px] h-[800px] bg-[radial-gradient(circle_at_center,rgba(56,189,248,0.03)_0%,transparent_70%)] pointer-events-none" />
-              <div className="absolute bottom-0 left-0 w-[600px] h-[600px] bg-[radial-gradient(circle_at_center,rgba(255,255,255,0.02)_0%,transparent_70%)] pointer-events-none" />
-
-              {/* Header Title */}
-              <div className="flex items-center gap-4 pr-6 mb-12 relative z-10">
-                <div className="w-14 h-14 rounded-2xl bg-sky-500/10 border border-sky-500/20 text-sky-400 flex items-center justify-center shadow-[0_0_20px_rgba(56,189,248,0.1)]">
-                  <AnimatedIcon Icon={BookOpen} size={28} />
+          <div className="p-6">
+            <div className="flex items-center justify-between p-4 rounded-[2rem] bg-[var(--bg-card)] border border-[var(--border-color)] cursor-pointer hover:border-[var(--border-highlight)] transition-all group hover-spotlight">
+              <div className="flex items-center gap-4">
+                <div className="w-10 h-10 rounded-full bg-[var(--bg-base)] border border-[var(--border-color)] flex items-center justify-center">
+                  <Cpu size={18} className="text-[var(--text-muted)] group-hover:text-[rgb(var(--rgb-accent-main))]" />
                 </div>
                 <div>
-                  <h1 className="font-outfit text-3xl font-bold tracking-widest uppercase text-white m-0 drop-shadow-md">Journal</h1>
-                  <p className="font-mono text-xs tracking-[0.2em] text-white/40 uppercase mt-1">Daily Reflections & Summaries</p>
+                  <div className="text-xs font-bold uppercase tracking-widest mb-1">Guapdad 4K</div>
+                  <div className="text-[9px] font-space-mono text-[rgb(var(--rgb-accent-main))] uppercase tracking-[0.2em] flex items-center gap-1">
+                    <div className="w-1.5 h-1.5 rounded-full bg-[rgb(var(--rgb-accent-main))] animate-pulse" /> Online
+                  </div>
                 </div>
               </div>
-
-              {journal.length > 0 ? (
-                <div className="flex flex-col gap-8 relative z-10 w-full mb-20 max-w-5xl mx-auto">
-                  {journal.map((entry, i) => {
-                    // Safe date parsing
-                    let dayNum = '--';
-                    let monthStr = '---';
-                    let yearStr = '----';
-
-                    if (entry.date) {
-                      const d = new Date(entry.date);
-                      if (!isNaN(d.getTime())) {
-                        dayNum = d.getDate().toString().padStart(2, '0');
-                        monthStr = d.toLocaleDateString('en-US', { month: 'short' }).toUpperCase();
-                        yearStr = d.getFullYear().toString();
-                      }
-                    }
-
-                    return (
-                      <div key={i} className="group flex flex-col md:flex-row glass-panel rounded-[2rem] border border-white/10 overflow-hidden hover:border-white/20 transition-all duration-700 bg-gradient-to-br from-white/[0.03] to-transparent relative shadow-none hover:shadow-[0_20px_50px_rgba(0,0,0,0.4)]">
-                        {/* Hover Glow Core */}
-                        <div className="absolute inset-0 bg-gradient-to-br from-sky-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-700 pointer-events-none" />
-
-                        {/* Date Column (Left) */}
-                        <div className="w-full md:w-[140px] bg-white/[0.01] border-b md:border-b-0 md:border-r border-white/5 p-8 flex flex-col items-center justify-center shrink-0 relative transition-colors duration-500 group-hover:bg-sky-500/[0.02]">
-                          <div className="font-outfit text-6xl md:text-7xl font-light text-white/80 tracking-tighter tabular-nums drop-shadow-[0_2px_10px_rgba(255,255,255,0.1)] group-hover:text-white transition-colors duration-500">{dayNum}</div>
-                          <div className="flex flex-col items-center mt-2">
-                            <span className="font-mono text-xs font-bold tracking-[0.2em] text-sky-400 uppercase drop-shadow-[0_0_8px_rgba(56,189,248,0.3)]">{monthStr}</span>
-                            <span className="font-mono text-[0.6rem] tracking-[0.3em] text-white/30 uppercase mt-1 group-hover:text-white/40 transition-colors duration-500">{yearStr}</span>
-                          </div>
-                        </div>
-
-                        {/* Content Column (Right) */}
-                        <div className="flex-1 p-8 md:p-10 flex flex-col relative z-10">
-                          {/* Top accent line */}
-                          <div className="w-12 h-0.5 bg-gradient-to-r from-sky-500/50 to-transparent mb-6 rounded-full opacity-50 group-hover:opacity-100 group-hover:w-24 transition-all duration-700" />
-
-                          <div className="font-inter text-base md:text-lg text-white/75 leading-[1.8] whitespace-pre-wrap font-light group-hover:text-white/90 transition-colors duration-500">
-                            {entry.content}
-                          </div>
-
-                          {/* Aesthetic watermark */}
-                          <div className="absolute bottom-8 right-8 mix-blend-overlay opacity-0 group-hover:opacity-5 transform translate-y-4 group-hover:translate-y-0 transition-all duration-700 pointer-events-none">
-                            <AnimatedIcon Icon={BookOpen} size={120} />
-                          </div>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              ) : (
-                <div className="glass-panel rounded-3xl border border-white/10 p-20 flex flex-col items-center justify-center text-center mt-8 relative z-10 max-w-3xl mx-auto">
-                  <div className="w-24 h-24 rounded-full bg-white/5 border border-white/10 flex items-center justify-center mb-6 shadow-[inset_0_0_20px_rgba(255,255,255,0.02)]">
-                    <BookOpen size={40} className="text-white/20" />
-                  </div>
-                  <h3 className="font-outfit text-2xl text-white/80 tracking-wide mb-2">No Journal Entries Found</h3>
-                  <p className="font-mono text-sm text-white/40 uppercase tracking-widest">Entries are auto-generated daily to capture your reflections.</p>
-                </div>
-              )}
-            </div>
-          )}
-
-          {activePage === 'cortex' && <CortexView />}
-
-        </section>
-      </main>
-
-      {/* ═══ MODALS ═══ */}
-      {activeModal === 'quickAdd' && (
-        <div className="modal-overlay active">
-          <div className="modal">
-            <div className="modal-header"><span className="modal-title">Quick Add</span><button className="modal-close" onClick={() => setActiveModal(null)}>✕</button></div>
-            <div className="grid-3" style={{ padding: '20px' }}>
-              {['Task', 'Finance', 'Stream', 'Habit', 'Note'].map(type => (
-                <div key={type} className="card" style={{ textAlign: 'center', cursor: 'pointer' }} onClick={() => setActiveModal(`new${type}`)}>
-                  {type.toUpperCase()}
-                </div>
-              ))}
             </div>
           </div>
-        </div>
-      )}
+        </motion.aside>
 
-      {/* Finance Modal */}
-      {activeModal === 'newFinance' && (
-        <div className="modal-overlay active">
-          <div className="modal">
-            <div className="modal-header"><span className="modal-title">New Transaction</span><button className="modal-close" onClick={() => setActiveModal(null)}>✕</button></div>
-            <div className="modal-body">
-              <input className="form-input" id="finTitle" placeholder="Description" />
-              <input className="form-input" id="finAmount" type="number" placeholder="Amount" />
-              <select className="form-select" id="finType"><option value="expense">Expense</option><option value="income">Income</option></select>
-              <select className="form-select" id="finCat"><option value="food">Food</option><option value="gear">Gear</option><option value="music">Music</option></select>
+        {/* Main Content */}
+        <main className="flex-1 flex flex-col min-w-0 z-10 relative bg-transparent">
+          <header className="h-[88px] px-10 flex items-center justify-between shrink-0">
+            <div className="flex items-center gap-4 text-xs font-space-mono text-[var(--text-muted)]">
+              <div className="flex items-center gap-3">
+                <span className="uppercase tracking-[0.3em] text-[10px]">sys://root</span>
+                <span className="text-[var(--text-faint)]">/</span>
+                <span className="uppercase tracking-[0.3em] text-[10px] font-bold text-[var(--text-main)] opacity-90">
+                  <ScrambleText text={activeTab.replace('-', '_')} activeTab={activeTab} theme={currentTheme} />
+                </span>
+              </div>
             </div>
-            <div className="modal-footer">
-              <button className="btn btn-primary" onClick={() => {
-                API.create('finances', {
-                  title: document.getElementById('finTitle').value,
-                  amount: document.getElementById('finAmount').value,
-                  type: document.getElementById('finType').value,
-                  category: document.getElementById('finCat').value
-                });
-                setActiveModal(null);
-              }}>Save</button>
+            <div className="flex items-center gap-4">
+              <Button variant="ghost" icon={Play}>Run Sync</Button>
+              <Button variant="accent" icon={Plus}>Execute</Button>
+            </div>
+          </header>
+
+          <div className="flex-1 overflow-y-auto p-10">
+            <div className="max-w-7xl mx-auto h-full">
+              <AnimatePresence mode="wait">
+                <motion.div key={activeTab} initial={{ opacity: 0, scale: 0.98, y: 10 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 1.02, y: -10 }} transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }} className="h-full">
+                  {renderContent()}
+                </motion.div>
+              </AnimatePresence>
             </div>
           </div>
-        </div>
-      )}
-
-      {/* Task Modal */}
-      {activeModal === 'newTask' && (
-        <div className="modal-overlay active">
-          <div className="modal">
-            <div className="modal-header"><span className="modal-title">New Task</span><button className="modal-close" onClick={() => setActiveModal(null)}>✕</button></div>
-            <div className="modal-body">
-              <input className="form-input" id="taskTitle" placeholder="Task Description" />
-              <select className="form-select" id="taskPriority"><option value="high">High</option><option value="medium">Medium</option><option value="low">Low</option></select>
-            </div>
-            <div className="modal-footer">
-              <button className="btn btn-primary" onClick={() => {
-                API.create('tasks', {
-                  description: document.getElementById('taskTitle').value,
-                  priority: document.getElementById('taskPriority').value
-                });
-                setActiveModal(null);
-              }}>Save</button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Habit Modal */}
-      {activeModal === 'newHabit' && (
-        <div className="modal-overlay active">
-          <div className="modal">
-            <div className="modal-header"><span className="modal-title">New Habit</span><button className="modal-close" onClick={() => setActiveModal(null)}>✕</button></div>
-            <div className="modal-body">
-              <input className="form-input" id="habitName" placeholder="Habit Name" />
-              <input className="form-input" id="habitIcon" placeholder="Icon (emoji)" />
-            </div>
-            <div className="modal-footer">
-              <button className="btn btn-primary" onClick={() => {
-                API.create('habits', {
-                  name: document.getElementById('habitName').value,
-                  icon: document.getElementById('habitIcon').value || '✨'
-                });
-                setActiveModal(null);
-              }}>Save</button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Note Modal */}
-      {activeModal === 'newNote' && (
-        <div className="modal-overlay active">
-          <div className="modal">
-            <div className="modal-header"><span className="modal-title">New Note</span><button className="modal-close" onClick={() => setActiveModal(null)}>✕</button></div>
-            <div className="modal-body">
-              <input className="form-input" id="noteTitle" placeholder="Title" />
-              <textarea className="form-input" id="noteContent" placeholder="Content..." style={{ height: '100px' }}></textarea>
-            </div>
-            <div className="modal-footer">
-              <button className="btn btn-primary" onClick={() => {
-                API.create('notes', {
-                  title: document.getElementById('noteTitle').value,
-                  content: document.getElementById('noteContent').value
-                });
-                setActiveModal(null);
-              }}>Save</button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Stream Modal */}
-      {activeModal === 'newStream' && (
-        <div className="modal-overlay active">
-          <div className="modal">
-            <div className="modal-header"><span className="modal-title">Schedule New Stream</span><button className="modal-close" onClick={() => setActiveModal(null)}>✕</button></div>
-            <div className="modal-body">
-              <input className="form-input" id="streamTitle" placeholder="Stream Title" />
-              <input className="form-input" id="streamDate" type="date" />
-              <input className="form-input" id="streamTime" type="time" />
-              <select className="form-select" id="streamPlatform">
-                <option value="Twitch">Twitch</option>
-                <option value="YouTube">YouTube</option>
-                <option value="Instagram">Instagram Live</option>
-                <option value="TikTok">TikTok Live</option>
-                <option value="Discord">Discord Stage</option>
-                <option value="Other">Other</option>
-              </select>
-              <textarea className="form-input" id="streamDesc" placeholder="Stream Description / Agenda..." style={{ height: '60px' }}></textarea>
-              <input className="form-input" id="streamGuests" placeholder="Special Guests (comma separated)" />
-              <input className="form-input" id="streamChat" placeholder="Chat Activations / Engagement Plans" />
-            </div>
-            <div className="modal-footer">
-              <button className="btn btn-primary" onClick={async () => {
-                const p = document.getElementById('streamPlatform').value;
-                const t = document.getElementById('streamTitle').value;
-                const d = document.getElementById('streamDate').value;
-                const ti = document.getElementById('streamTime').value;
-                if (p === 'Twitch' && t && d && ti) {
-                  await fetch('/api/twitch/schedule', {
-                    method: 'POST',
-                    headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({title: t, startTime: d+'T'+ti+':00Z', timezone: 'America/Los_Angeles', duration: 60, is_recurring: false})
-                  });
-                  alert('Scheduled on Twitch!');
-                } else {
-                API.create('streams', {
-                  title: document.getElementById('streamTitle').value,
-                  scheduledDate: document.getElementById('streamDate').value,
-                  scheduledTime: document.getElementById('streamTime').value,
-                  platform: document.getElementById('streamPlatform').value,
-                  description: document.getElementById('streamDesc').value,
-                  guests: document.getElementById('streamGuests').value,
-                  chatActivations: document.getElementById('streamChat').value
-                });
-                }
-                setActiveModal(null);
-              }}>Schedule Stream</button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Edit Stream Modal */}
-      {activeModal === 'editStream' && (
-        <div className="modal-overlay active">
-          <div className="modal">
-            <div className="modal-header"><span className="modal-title">Edit Stream</span><button className="modal-close" onClick={() => setActiveModal(null)}>✕</button></div>
-            <div className="modal-body">
-              <input type="hidden" id="editStreamId" />
-              <input className="form-input" id="editStreamTitle" placeholder="Stream Title" />
-              <input className="form-input" id="editStreamDate" type="date" />
-              <input className="form-input" id="editStreamTime" type="time" />
-              <select className="form-select" id="editStreamPlatform">
-                <option value="Twitch">Twitch</option>
-                <option value="YouTube">YouTube</option>
-                <option value="Instagram">Instagram Live</option>
-                <option value="TikTok">TikTok Live</option>
-                <option value="Discord">Discord Stage</option>
-                <option value="Other">Other</option>
-              </select>
-              <textarea className="form-input" id="editStreamDesc" placeholder="Stream Description / Agenda..." style={{ height: '60px' }}></textarea>
-              <input className="form-input" id="editStreamGuests" placeholder="Special Guests (comma separated)" />
-              <input className="form-input" id="editStreamChat" placeholder="Chat Activations / Engagement Plans" />
-            </div>
-            <div className="modal-footer">
-              <button className="btn btn-primary" onClick={() => {
-                const id = document.getElementById('editStreamId').value;
-                API.update('streams', id, {
-                  title: document.getElementById('editStreamTitle').value,
-                  scheduledDate: document.getElementById('editStreamDate').value,
-                  scheduledTime: document.getElementById('editStreamTime').value,
-                  platform: document.getElementById('editStreamPlatform').value,
-                  description: document.getElementById('editStreamDesc').value,
-                  guests: document.getElementById('editStreamGuests').value,
-                  chatActivations: document.getElementById('editStreamChat').value
-                });
-                setActiveModal(null);
-              }}>Update Stream</button>
-              <button className="btn btn-danger" onClick={async () => { const id=document.getElementById("editStreamId").value; if(id.startsWith("twitch-")){ await fetch("/api/twitch/schedule/"+id.replace("twitch-",""), {method:"DELETE"}); alert("Deleted!"); } else { API.delete("streams",id); } setActiveModal(null); }}>Delete Stream</button>
-            </div>
-          </div>
-        </div>
-      )}
-
-    </div>
+        </main>
+      </div>
+    </>
   );
 }
-
-export default App;

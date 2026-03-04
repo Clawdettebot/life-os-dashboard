@@ -5,6 +5,8 @@ import {
   SortDesc, Save, ChevronDown, ChevronUp,
   StickyNote, Archive, Calendar as CalendarIcon
 } from 'lucide-react';
+import { LobsterScrollArea } from './ui/LobsterScrollBar';
+import { motion, AnimatePresence } from 'framer-motion';
 
 export default function NotesView({ notes = [], api }) {
   const [searchQuery, setSearchQuery] = useState('');
@@ -291,7 +293,7 @@ export default function NotesView({ notes = [], api }) {
         </div>
       )}
 
-      {/* Notes Display Grid */}
+      {/* Notes Display Grid - with Lobster Scroll */}
       <div className="relative z-10 w-full mb-20">
         {filteredNotes.length === 0 ? (
           <div className="glass-panel rounded-3xl border border-white/10 p-20 flex flex-col items-center justify-center text-center mt-8">
@@ -306,8 +308,9 @@ export default function NotesView({ notes = [], api }) {
             )}
           </div>
         ) : (
-          <div className="grid grid-cols-1 xl:grid-cols-2 gap-8">
-            {filteredNotes.map((note, index) => (
+          <LobsterScrollArea className="max-h-[calc(100vh-300px)]">
+            <div className="grid grid-cols-1 xl:grid-cols-2 gap-8 pb-8">
+              {filteredNotes.map((note, index) => (
               <NoteWidget
                 key={note.id || index}
                 note={note}
@@ -320,7 +323,8 @@ export default function NotesView({ notes = [], api }) {
                 onTagClick={toggleTag}
               />
             ))}
-          </div>
+            </div>
+          </LobsterScrollArea>
         )}
       </div>
     </div>
