@@ -6,11 +6,12 @@ import {
 import AnimatedIcon from './AnimatedIcon';
 import { WidgetCard } from './ui/WidgetCard';
 import { GlassyPill } from './ui/GlassyPill';
+import { LobsterScrollArea } from './ui/LobsterScrollArea';
 
 const statusConfig = {
-  draft: { color: '#f59e0b', label: 'Draft', glass: 'bg-amber-500/10 border-amber-500/20 text-amber-400' },
+  draft: { color: '#f59e0b', label: 'Draft', glass: 'bg-[var(--bg-card)]mber-500/10 border-[rgba(var(--rgb-accent-sec),0.2)] text-amber-400' },
   published: { color: '#10b981', label: 'Published', glass: 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400' },
-  archived: { color: '#64748b', label: 'Archived', glass: 'bg-gray-500/10 border-gray-500/20 text-gray-400' }
+  archived: { color: '#64748b', label: 'Archived', glass: 'bg-gray-500/10 border-gray-500/20 text-[var(--text-muted)]' }
 };
 
 export default function BlogVoiceView({ api }) {
@@ -148,18 +149,18 @@ export default function BlogVoiceView({ api }) {
     p.title?.toLowerCase().includes(searchQuery.toLowerCase()) ||
     p.content?.toLowerCase().includes(searchQuery.toLowerCase())
   );
-  
+
   console.log('[Blog] posts:', posts.length, 'filtered:', filteredPosts.length, 'search:', searchQuery);
 
   const stats = [
-    { label: 'Drafts', value: draftPosts.length, icon: FileText, color: 'text-amber-400', bg: 'bg-amber-500/10' },
+    { label: 'Drafts', value: draftPosts.length, icon: FileText, color: 'text-amber-400', bg: 'bg-[var(--bg-card)]mber-500/10' },
     { label: 'Published', value: publishedPosts.length, icon: Globe, color: 'text-emerald-400', bg: 'bg-emerald-500/10' },
     { label: 'Voice Drops', value: posts.filter(p => p.source === 'voice-drop').length, icon: Mic, color: 'text-violet-400', bg: 'bg-violet-500/10' },
-    { label: 'Suggestions', value: pendingSuggestions.length, icon: Lightbulb, color: 'text-cyan-400', bg: 'bg-cyan-500/10' }
+    { label: 'Suggestions', value: pendingSuggestions.length, icon: Lightbulb, color: 'text-cyan-400', bg: 'bg-[var(--bg-panel)]yan-500/10' }
   ];
 
   return (
-    <div className="flex flex-col h-full animate-in-fade gap-6 pb-[150px] overflow-y-auto glass-scroll pr-2 pt-2">
+    <LobsterScrollArea direction="vertical" className="h-full" contentClassName="flex flex-col gap-6 pb-[150px] pr-2 pt-2 animate-in-fade">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
@@ -167,7 +168,7 @@ export default function BlogVoiceView({ api }) {
             <AnimatedIcon Icon={BookOpen} className="w-8 h-8 text-violet-400" />
             Blog & Voice
           </h1>
-          <p className="text-sm text-gray-400 mt-1 uppercase tracking-widest font-bold font-mono">
+          <p className="text-sm text-[var(--text-muted)] mt-1 uppercase tracking-widest font-bold font-space-mono">
             Voice notes → Written content
           </p>
         </div>
@@ -186,13 +187,13 @@ export default function BlogVoiceView({ api }) {
       {/* Stats Row */}
       <div className="grid grid-cols-4 gap-4">
         {stats.map((stat, i) => (
-          <div key={i} className={`${stat.bg} border border-white/5 rounded-2xl p-4 flex items-center gap-3`}>
+          <div key={i} className={`${stat.bg} border border-[var(--border-color)] rounded-2xl p-4 flex items-center gap-3`}>
             <div className={`w-10 h-10 rounded-xl ${stat.bg} flex items-center justify-center`}>
               <AnimatedIcon Icon={stat.icon} className={`w-5 h-5 ${stat.color}`} />
             </div>
             <div>
               <div className={`text-2xl font-bold font-outfit ${stat.color}`}>{stat.value}</div>
-              <div className="text-xs text-gray-500 uppercase tracking-wider">{stat.label}</div>
+              <div className="text-xs text-[var(--text-muted)] uppercase tracking-wider">{stat.label}</div>
             </div>
           </div>
         ))}
@@ -200,16 +201,16 @@ export default function BlogVoiceView({ api }) {
 
       {/* Release Status */}
       {releases.length > 0 && releases[0]?.needs_attention && (
-        <WidgetCard className="bg-amber-500/10 border-amber-500/30 p-4">
+        <WidgetCard className="bg-[var(--bg-card)]mber-500/10 border-rgb(var(--rgb-accent-sec))/30 p-4">
           <div className="flex items-center gap-4">
-            <div className="w-12 h-12 rounded-full bg-amber-500/20 flex items-center justify-center flex-shrink-0">
-              <AnimatedIcon Icon={AlertTriangle} className="w-6 h-6 text-amber-500" />
+            <div className="w-12 h-12 rounded-full bg-[var(--bg-card)]mber-500/20 flex items-center justify-center flex-shrink-0">
+              <AnimatedIcon Icon={AlertTriangle} className="w-6 h-6 text-[rgb(var(--rgb-accent-sec))]" />
             </div>
             <div className="flex-1">
               <h3 className="text-amber-400 font-bold text-lg font-outfit uppercase tracking-wider">
                 Release: {releases[0].name}
               </h3>
-              <div className="flex gap-4 mt-2 text-sm text-amber-200/80 font-mono">
+              <div className="flex gap-4 mt-2 text-sm text-amber-200/80 font-space-mono">
                 <span>{releases[0].days_until} days</span>
                 <span className="flex items-center gap-1">
                   Cover: {releases[0].assets?.cover_art ? <CheckCircle className="w-4 h-4 text-emerald-400" /> : <XCircle className="w-4 h-4 text-red-400" />}
@@ -223,13 +224,13 @@ export default function BlogVoiceView({ api }) {
       {/* Search & Tabs */}
       <div className="flex items-center gap-4">
         <div className="flex-1 relative">
-          <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
+          <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--text-muted)]" />
           <input
             type="text"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             placeholder="Search posts..."
-            className="w-full bg-black/40 border border-white/5 rounded-xl pl-12 pr-4 py-3 text-sm text-white placeholder-gray-600 focus:outline-none focus:border-violet-500/30"
+            className="w-full bg-[var(--bg-card)]lack/40 border border-[var(--border-color)] rounded-xl pl-12 pr-4 py-3 text-sm text-[var(--text-main)] placeholder-gray-600 focus:outline-none focus:border-violet-500/30"
           />
         </div>
         <div className="flex gap-2">
@@ -254,15 +255,15 @@ export default function BlogVoiceView({ api }) {
             {isLoading ? (
               <WidgetCard className="p-12 text-center">
                 <AnimatedIcon Icon={RefreshCw} className="w-8 h-8 text-violet-400 animate-spin mx-auto" />
-                <p className="text-gray-500 mt-4">Loading posts...</p>
+                <p className="text-[var(--text-muted)] mt-4">Loading posts...</p>
               </WidgetCard>
             ) : filteredPosts.length === 0 ? (
-              <WidgetCard className="p-12 text-center border-dashed border-white/10">
+              <WidgetCard className="p-12 text-center border-dashed border-[var(--border-color)]">
                 <div className="w-16 h-16 rounded-2xl bg-violet-500/10 flex items-center justify-center mx-auto mb-4">
                   <FileText className="w-8 h-8 text-violet-400" />
                 </div>
-                <h3 className="text-xl font-outfit font-bold text-white mb-2">No posts yet</h3>
-                <p className="text-gray-500 mb-6">Create your first blog post or voice drop</p>
+                <h3 className="text-xl font-outfit font-bold text-[var(--text-main)] mb-2">No posts yet</h3>
+                <p className="text-[var(--text-muted)] mb-6">Create your first blog post or voice drop</p>
                 <GlassyPill variant="primary" onClick={() => setShowNewPost(true)} className="inline-flex">
                   <Plus className="w-4 h-4" /> Create Post
                 </GlassyPill>
@@ -278,14 +279,14 @@ export default function BlogVoiceView({ api }) {
                   >
                     <div className="p-5">
                       <div className="flex items-start justify-between gap-4 mb-3">
-                        <h3 className="text-lg font-outfit font-bold text-white line-clamp-1">{post.title}</h3>
+                        <h3 className="text-lg font-outfit font-bold text-[var(--text-main)] line-clamp-1">{post.title}</h3>
                         <span className={`px-3 py-1 rounded-full text-xs font-semibold ${status.glass}`}>
                           {status.label}
                         </span>
                       </div>
-                      <p className="text-sm text-gray-400 line-clamp-2 mb-4">{post.excerpt || post.content?.substring(0, 200) + '...' || 'No content'}</p>
+                      <p className="text-sm text-[var(--text-muted)] line-clamp-2 mb-4">{post.excerpt || post.content?.substring(0, 200) + '...' || 'No content'}</p>
                       <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2 text-xs text-gray-500">
+                        <div className="flex items-center gap-2 text-xs text-[var(--text-muted)]">
                           <Clock className="w-3 h-3" />
                           {post.published_at ? new Date(post.published_at).toLocaleDateString() : 'Draft'}
                           {post.source === 'voice-drop' && (
@@ -314,9 +315,9 @@ export default function BlogVoiceView({ api }) {
             {selectedPost ? (
               <WidgetCard className="p-6 sticky top-4">
                 <div className="flex items-center justify-between mb-4">
-                  <h3 className="text-lg font-outfit font-bold text-white">Preview</h3>
-                  <button onClick={() => setSelectedPost(null)} className="p-2 hover:bg-white/5 rounded-lg">
-                    <X className="w-4 h-4 text-gray-500" />
+                  <h3 className="text-lg font-outfit font-bold text-[var(--text-main)]">Preview</h3>
+                  <button onClick={() => setSelectedPost(null)} className="p-2 hover:bg-[var(--bg-overlay)] rounded-lg">
+                    <X className="w-4 h-4 text-[var(--text-muted)]" />
                   </button>
                 </div>
                 <div className="prose prose-invert prose-sm max-w-none">
@@ -328,16 +329,16 @@ export default function BlogVoiceView({ api }) {
                   </div>
                   <div className="prose prose-invert prose-sm max-w-none" dangerouslySetInnerHTML={{ __html: selectedPost.content || selectedPost.transcript || 'No content yet' }}></div>
                 </div>
-                <div className="flex gap-2 mt-6 pt-4 border-t border-white/5">
+                <div className="flex gap-2 mt-6 pt-4 border-t border-[var(--border-color)]">
                   <GlassyPill onClick={() => deletePost(selectedPost.id)} className="flex-1 !py-2 text-red-400">
                     <Trash2 className="w-4 h-4" /> Delete
                   </GlassyPill>
                 </div>
               </WidgetCard>
             ) : (
-              <WidgetCard className="p-8 text-center border-dashed border-white/10">
-                <Eye className="w-8 h-8 text-gray-600 mx-auto mb-3" />
-                <p className="text-gray-500 text-sm">Select a post to preview</p>
+              <WidgetCard className="p-8 text-center border-dashed border-[var(--border-color)]">
+                <Eye className="w-8 h-8 text-[var(--text-faint)] mx-auto mb-3" />
+                <p className="text-[var(--text-muted)] text-sm">Select a post to preview</p>
               </WidgetCard>
             )}
           </div>
@@ -359,19 +360,19 @@ export default function BlogVoiceView({ api }) {
           }
         >
           {pendingSuggestions.length === 0 ? (
-            <div className="text-gray-500 text-center py-12">
+            <div className="text-[var(--text-muted)] text-center py-12">
               <div className="w-16 h-16 rounded-2xl bg-violet-500/10 flex items-center justify-center mx-auto mb-4">
                 <Lightbulb className="w-8 h-8 text-violet-400" />
               </div>
-              <h3 className="text-lg font-outfit font-bold text-white mb-2">No ideas yet</h3>
+              <h3 className="text-lg font-outfit font-bold text-[var(--text-main)] mb-2">No ideas yet</h3>
               <p className="text-sm mb-4">Click "Generate Ideas" to scan your content for blog topics</p>
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {pendingSuggestions.map(sug => (
-                <div key={sug.id} className="p-5 bg-black/40 border border-violet-500/20 rounded-xl hover:bg-black/60 transition-colors">
+                <div key={sug.id} className="p-5 bg-[var(--bg-card)]lack/40 border border-violet-500/20 rounded-xl hover:bg-[var(--bg-card)]lack/60 transition-colors">
                   <div className="font-bold text-violet-100 mb-2 font-outfit">{sug.suggested_topic || sug.title}</div>
-                  <div className="text-sm text-gray-400 mb-4 line-clamp-2">{sug.full_context || sug.content}</div>
+                  <div className="text-sm text-[var(--text-muted)] mb-4 line-clamp-2">{sug.full_context || sug.content}</div>
                   <div className="flex gap-2">
                     <GlassyPill onClick={() => approveSuggestion(sug.id)} className="flex items-center gap-1 text-xs">
                       <Check className="w-3 h-3 text-emerald-400" /> Use
@@ -389,55 +390,55 @@ export default function BlogVoiceView({ api }) {
 
       {/* New Post Modal */}
       {showNewPost && (
-        <div className="fixed inset-0 bg-black/80 backdrop-blur-xl z-[100] flex items-center justify-center p-4">
-          <WidgetCard className="w-full max-w-2xl bg-[#0a0f18] border-white/10 shadow-2xl relative max-h-[90vh] overflow-y-auto">
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-md backdrop-blur-xl z-[100] flex items-center justify-center p-4">
+          <WidgetCard className="w-full max-w-2xl bg-[#0a0f18] border-[var(--border-color)] shadow-2xl relative max-h-[90vh] overflow-y-auto">
             <button
               onClick={() => setShowNewPost(false)}
-              className="absolute top-4 right-4 p-2 text-gray-500 hover:text-white bg-white/5 rounded-full"
+              className="absolute top-4 right-4 p-2 text-[var(--text-muted)] hover:text-[var(--text-main)] bg-[var(--bg-overlay)] rounded-full"
             >
               <X className="w-5 h-5" />
             </button>
             <div className="p-6">
-              <h2 className="text-2xl font-outfit font-bold text-white mb-6 flex items-center gap-3">
+              <h2 className="text-2xl font-outfit font-bold text-[var(--text-main)] mb-6 flex items-center gap-3">
                 <Mic className="w-6 h-6 text-violet-400" />
                 New Blog Post
               </h2>
 
               <div className="space-y-5">
                 <div>
-                  <label className="block text-xs uppercase tracking-widest font-bold text-gray-500 mb-2">Title</label>
+                  <label className="block text-xs uppercase tracking-widest font-bold text-[var(--text-muted)] mb-2">Title</label>
                   <input
                     type="text"
                     value={newPostTitle}
                     onChange={e => setNewPostTitle(e.target.value)}
                     placeholder="Post title..."
-                    className="w-full bg-black/60 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-gray-600 focus:outline-none focus:border-violet-500/50 focus:ring-1 focus:ring-violet-500/50"
+                    className="w-full bg-[var(--bg-card)]lack/60 border border-[var(--border-color)] rounded-xl px-4 py-3 text-[var(--text-main)] placeholder-gray-600 focus:outline-none focus:border-violet-500/50 focus:ring-1 focus:ring-violet-500/50"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-xs uppercase tracking-widest font-bold text-gray-500 mb-2">Content</label>
+                  <label className="block text-xs uppercase tracking-widest font-bold text-[var(--text-muted)] mb-2">Content</label>
                   <textarea
                     value={newPostContent}
                     onChange={e => setNewPostContent(e.target.value)}
                     placeholder="Write your post or paste a voice transcript..."
                     rows={10}
-                    className="w-full bg-black/60 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-gray-600 focus:outline-none focus:border-violet-500/50 focus:ring-1 focus:ring-violet-500/50 resize-none font-mono text-sm"
+                    className="w-full bg-[var(--bg-card)]lack/60 border border-[var(--border-color)] rounded-xl px-4 py-3 text-[var(--text-main)] placeholder-gray-600 focus:outline-none focus:border-violet-500/50 focus:ring-1 focus:ring-violet-500/50 resize-none font-space-mono text-sm"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-xs uppercase tracking-widest font-bold text-gray-500 mb-2">Tags (comma separated)</label>
+                  <label className="block text-xs uppercase tracking-widest font-bold text-[var(--text-muted)] mb-2">Tags (comma separated)</label>
                   <input
                     type="text"
                     value={newPostTags}
                     onChange={e => setNewPostTags(e.target.value)}
                     placeholder="voice-drop, music, update..."
-                    className="w-full bg-black/60 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-gray-600 focus:outline-none focus:border-violet-500/50 focus:ring-1 focus:ring-violet-500/50"
+                    className="w-full bg-[var(--bg-card)]lack/60 border border-[var(--border-color)] rounded-xl px-4 py-3 text-[var(--text-main)] placeholder-gray-600 focus:outline-none focus:border-violet-500/50 focus:ring-1 focus:ring-violet-500/50"
                   />
                 </div>
 
-                <div className="flex gap-3 justify-end pt-4 border-t border-white/5">
+                <div className="flex gap-3 justify-end pt-4 border-t border-[var(--border-color)]">
                   <GlassyPill onClick={() => setShowNewPost(false)}>Cancel</GlassyPill>
                   <GlassyPill
                     variant="primary"
@@ -453,6 +454,6 @@ export default function BlogVoiceView({ api }) {
           </WidgetCard>
         </div>
       )}
-    </div>
+    </LobsterScrollArea>
   );
 }

@@ -1,6 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 
+// --- UNIVERSAL SCROLLBAR EXPORTS ---
+export { LobsterScrollArea } from './LobsterScrollArea';
+
 // --- UNIVERSAL ANIMATION UTILS ---
 export const staggerContainer = {
   hidden: { opacity: 0 },
@@ -16,7 +19,7 @@ export const staggerItem = {
 export const ScrambleText = ({ text, activeTab, theme }) => {
   const [displayText, setDisplayText] = useState(String(text));
   const chars = '!<>-_\\/[]{}—=+*^?#________';
-  
+
   useEffect(() => {
     let iteration = 0;
     let interval = null;
@@ -32,7 +35,7 @@ export const ScrambleText = ({ text, activeTab, theme }) => {
     }, 30);
     return () => clearInterval(interval);
   }, [text, activeTab, theme]);
-  
+
   return <span>{displayText}</span>;
 };
 
@@ -55,7 +58,7 @@ export const Badge = ({ children, variant = 'outline', className = '' }) => {
     PLANNED: 'bg-blue-500/10 text-blue-400 border border-blue-500/30 shadow-[0_0_10px_rgba(59,130,246,0.2)]',
     black: 'bg-[var(--logo-bg)] text-[var(--logo-text)] font-bold shadow-[0_0_15px_var(--border-highlight)]',
   };
-  
+
   return (
     <span className={`px-2 py-1 rounded-full text-[9px] font-space-mono uppercase tracking-widest transition-colors duration-500 ${styles[variant] || styles.outline} ${className}`}>
       {children}
@@ -66,7 +69,7 @@ export const Badge = ({ children, variant = 'outline', className = '' }) => {
 // Button Component
 export const Button = ({ children, icon: Icon, variant = 'primary', className = '', onClick }) => {
   const base = "inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-full text-xs font-bold uppercase tracking-widest transition-all active:scale-95 duration-500 relative overflow-hidden group hover-spotlight";
-  
+
   if (variant === 'primary') {
     return (
       <button className={`${base} bg-[var(--logo-bg)] text-[var(--logo-text)] hover:opacity-80 shadow-[0_0_15px_var(--border-highlight)] hover:shadow-[0_0_25px_var(--border-highlight)] ${className}`} onClick={onClick}>
@@ -75,7 +78,7 @@ export const Button = ({ children, icon: Icon, variant = 'primary', className = 
       </button>
     );
   }
-  
+
   if (variant === 'accent') {
     return (
       <button className={`${base} bg-transparent text-[var(--text-main)] border border-[var(--border-color)] hover:border-[rgb(var(--rgb-accent-main))] ${className}`} onClick={onClick}>
@@ -85,7 +88,7 @@ export const Button = ({ children, icon: Icon, variant = 'primary', className = 
       </button>
     );
   }
-  
+
   return (
     <button className={`${base} bg-transparent text-[var(--text-muted)] hover:text-[var(--text-main)] border border-transparent hover:border-[var(--border-color)] hover:bg-[var(--bg-overlay)] ${className}`} onClick={onClick}>
       {Icon && <Icon size={16} className="relative z-10" />}

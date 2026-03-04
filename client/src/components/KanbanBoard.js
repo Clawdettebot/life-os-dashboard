@@ -5,6 +5,7 @@ import {
 } from 'lucide-react';
 import { WidgetCard } from './ui/WidgetCard';
 import { GlassyPill } from './ui/GlassyPill';
+import { LobsterScrollArea } from './ui/LobsterScrollArea';
 
 const columns = [
   { id: 'backlog', label: 'Backlog', color: '#94a3b8', glowClass: 'shadow-[0_0_15px_rgba(148,163,184,0.3)]', bgClass: 'bg-slate-400' },
@@ -153,7 +154,7 @@ export default function KanbanBoard({ tasks = [], api }) {
 
   return (
     <div className="animate-in-fade-slide h-full">
-      <div className="flex gap-4 overflow-x-auto glass-scroll pb-6 min-h-[500px] h-full items-start snap-x pr-4">
+      <LobsterScrollArea direction="horizontal" className="h-full" contentClassName="flex gap-4 pb-6 min-h-[500px] h-full items-start snap-x pr-4">
         {columns.map(column => (
           <WidgetCard
             key={column.id}
@@ -219,7 +220,7 @@ export default function KanbanBoard({ tasks = [], api }) {
               )}
 
               {/* Task Cards Container */}
-              <div className="flex-1 overflow-y-auto glass-scroll px-3 pb-4 space-y-3">
+              <LobsterScrollArea direction="vertical" size="small" className="flex-1" contentClassName="px-3 pb-4 space-y-3">
                 {(kanbanTasks[column.id] || []).map(task => {
                   const dueInfo = formatDueDate(task.dueDate);
                   const prior = priorityConfig[task.priority] || priorityConfig.medium;
@@ -303,11 +304,11 @@ export default function KanbanBoard({ tasks = [], api }) {
                     </div>
                   );
                 })}
-              </div>
+              </LobsterScrollArea>
             </div>
           </WidgetCard>
         ))}
-      </div>
+      </LobsterScrollArea>
     </div>
   );
 }

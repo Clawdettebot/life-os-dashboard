@@ -2,30 +2,31 @@ import React, { useEffect, useRef } from 'react';
 import AnimatedIcon from '../AnimatedIcon';
 import { Calendar, MapPin, Star, Users } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { LobsterScrollArea } from '../ui/LobsterScrollArea';
 
 // Animation variants for staggered timeline entries
 const timelineItemVariants = {
-  initial: { opacity: 0, x: -30, scale: 0.95 },
-  animate: (i) => ({
-    opacity: 1,
-    x: 0,
-    scale: 1,
-    transition: { type: 'spring', stiffness: 300, damping: 24, delay: i * 0.08 }
-  })
+    initial: { opacity: 0, x: -30, scale: 0.95 },
+    animate: (i) => ({
+        opacity: 1,
+        x: 0,
+        scale: 1,
+        transition: { type: 'spring', stiffness: 300, damping: 24, delay: i * 0.08 }
+    })
 };
 
 // Card hover animation
 const cardHoverVariants = {
-  rest: { scale: 1, y: 0, boxShadow: '0 4px 6px rgba(0,0,0,0.1)' },
-  hover: { scale: 1.03, y: -4, boxShadow: '0 8px 25px rgba(0,0,0,0.25)', transition: { duration: 0.2 } },
-  tap: { scale: 0.98 }
+    rest: { scale: 1, y: 0, boxShadow: '0 4px 6px rgba(0,0,0,0.1)' },
+    hover: { scale: 1.03, y: -4, boxShadow: '0 8px 25px rgba(0,0,0,0.25)', transition: { duration: 0.2 } },
+    tap: { scale: 0.98 }
 };
 
 // Detail reveal animation
 const detailVariants = {
-  initial: { opacity: 0, y: 20 },
-  animate: { opacity: 1, y: 0, transition: { duration: 0.3, ease: 'easeOut' } },
-  exit: { opacity: 0, y: -20, transition: { duration: 0.2 } }
+    initial: { opacity: 0, y: 20 },
+    animate: { opacity: 1, y: 0, transition: { duration: 0.3, ease: 'easeOut' } },
+    exit: { opacity: 0, y: -20, transition: { duration: 0.2 } }
 };
 
 // Helper to safely render any array item
@@ -66,7 +67,7 @@ export default function LayoutTimeline({ entries, color, onSelectEntry, selected
 
     return (
         <div className="timeline-horizontal-layout">
-            <div className="timeline-horizontal-track glass-scroll" ref={scrollRef}>
+            <LobsterScrollArea direction="horizontal" className="w-full" contentClassName="timeline-horizontal-track">
                 <div className="timeline-horizontal-line" style={{ backgroundColor: color }}></div>
                 <AnimatePresence>
                     {sortedEntries.map((entry, idx) => (
@@ -87,7 +88,7 @@ export default function LayoutTimeline({ entries, color, onSelectEntry, selected
                         </motion.div>
                     ))}
                 </AnimatePresence>
-            </div>
+            </LobsterScrollArea>
 
             <AnimatePresence mode="wait">
                 {selectedEntry && (
@@ -124,7 +125,7 @@ function CardTimelineHorizontal({ entry, color, index, isActive, onClick }) {
             initial="rest"
             whileHover="hover"
             whileTap="tap"
-            style={{ 
+            style={{
                 animationDelay: `${index * 0.05}s`,
                 borderColor: isActive ? color : 'transparent',
                 borderWidth: '2px',
@@ -159,8 +160,8 @@ function DetailEmerald({ entry, color }) {
     }
 
     return (
-        <motion.div 
-            className="timeline-detail-box glass-panel" 
+        <motion.div
+            className="timeline-detail-box glass-panel"
             style={{ borderLeft: `4px solid ${color}` }}
             initial={{ opacity: 0, x: 20 }}
             animate={{ opacity: 1, x: 0 }}
@@ -174,8 +175,8 @@ function DetailEmerald({ entry, color }) {
             </div>
 
             {parsedContent?.key_figures?.length > 0 && (
-                <motion.div 
-                    className="detail-section" 
+                <motion.div
+                    className="detail-section"
                     style={{ marginBottom: '24px', background: 'rgba(255,255,255,0.03)', padding: '16px', borderRadius: '12px' }}
                     initial={{ opacity: 0, y: 10 }}
                     animate={{ opacity: 1, y: 0 }}
@@ -184,8 +185,8 @@ function DetailEmerald({ entry, color }) {
                     <h4 style={{ color: color, marginBottom: '8px', display: 'flex', alignItems: 'center' }}><Users size={16} className="mr-2" /> Key Figures</h4>
                     <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
                         {parsedContent?.key_figures.map((f, i) => (
-                            <motion.span 
-                                key={i} 
+                            <motion.span
+                                key={i}
                                 style={{ background: 'rgba(255,255,255,0.1)', padding: '4px 12px', borderRadius: '16px', fontSize: '0.85rem' }}
                                 initial={{ opacity: 0, scale: 0.8 }}
                                 animate={{ opacity: 1, scale: 1 }}
@@ -199,8 +200,8 @@ function DetailEmerald({ entry, color }) {
             )}
 
             {parsedContent?.summary && (
-                <motion.p 
-                    className="entry-summary" 
+                <motion.p
+                    className="entry-summary"
                     style={{ lineHeight: 1.6, fontSize: '1.1rem', marginBottom: '24px' }}
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
@@ -211,8 +212,8 @@ function DetailEmerald({ entry, color }) {
             )}
 
             {parsedContent?.timeline_events?.length > 0 && (
-                <motion.div 
-                    className="detail-section" 
+                <motion.div
+                    className="detail-section"
                     style={{ marginBottom: '24px' }}
                     initial={{ opacity: 0, y: 10 }}
                     animate={{ opacity: 1, y: 0 }}
@@ -221,8 +222,8 @@ function DetailEmerald({ entry, color }) {
                     <h4 style={{ color: color, marginBottom: '12px', display: 'flex', alignItems: 'center' }}><Calendar size={16} className="mr-2" /> Timeline of Events</h4>
                     <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: '12px' }}>
                         {parsedContent?.timeline_events.map((e, i) => (
-                            <motion.li 
-                                key={i} 
+                            <motion.li
+                                key={i}
                                 style={{ display: 'flex', gap: '16px', background: 'rgba(255,255,255,0.02)', padding: '12px', borderLeft: `2px solid rgba(255,255,255,0.1)` }}
                                 initial={{ opacity: 0, x: -10 }}
                                 animate={{ opacity: 1, x: 0 }}

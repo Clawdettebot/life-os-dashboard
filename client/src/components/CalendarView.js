@@ -274,12 +274,12 @@ export default function CalendarView({ events = [], api, googleConnected = false
       <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-6">
         <div className="flex flex-col gap-1">
           <div className="flex items-center gap-4">
-            <h1 className="text-3xl font-black text-white font-premium tracking-tight">
-              {monthNames[currentDate.getMonth()]} <span className="text-amber-500/80">{currentDate.getFullYear()}</span>
+            <h1 className="text-3xl font-black text-[var(--text-main)] font-space-grotesk tracking-tight">
+              {monthNames[currentDate.getMonth()]} <span className="text-[rgb(var(--rgb-accent-sec))]/80">{currentDate.getFullYear()}</span>
             </h1>
             <div className="flex gap-2">
               <button
-                className="w-8 h-8 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-gray-400 hover:text-white hover:bg-white/10 transition-all"
+                className="w-8 h-8 rounded-full bg-[var(--bg-overlay)] border border-[var(--border-color)] flex items-center justify-center text-[var(--text-muted)] hover:text-[var(--text-main)] hover:bg-[var(--bg-overlay)] transition-all"
                 onClick={() => navigateDate(-1)}
               >
                 <ChevronLeft size={16} />
@@ -291,27 +291,27 @@ export default function CalendarView({ events = [], api, googleConnected = false
                 Temporal Present
               </GlassyPill>
               <button
-                className="w-8 h-8 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-gray-400 hover:text-white hover:bg-white/10 transition-all"
+                className="w-8 h-8 rounded-full bg-[var(--bg-overlay)] border border-[var(--border-color)] flex items-center justify-center text-[var(--text-muted)] hover:text-[var(--text-main)] hover:bg-[var(--bg-overlay)] transition-all"
                 onClick={() => navigateDate(1)}
               >
                 <ChevronRight size={16} />
               </button>
             </div>
           </div>
-          <p className="text-[10px] font-bold text-gray-500 uppercase tracking-[0.3em]">Master Schedule & Temporal Alignment</p>
+          <p className="text-[10px] font-bold text-[var(--text-muted)] uppercase tracking-[0.3em]">Master Schedule & Temporal Alignment</p>
         </div>
 
         <div className="flex flex-wrap items-center gap-4 self-stretch lg:self-auto">
           {/* Google Calendar Status */}
           <div className={`
             flex items-center gap-2.5 px-4 py-2 rounded-2xl border transition-all duration-500
-            ${googleConnected ? 'bg-green-500/5 border-green-500/20 text-green-400' : 'bg-white/5 border-white/10 text-gray-500'}
+            ${googleConnected ? 'bg-green-500/5 border-green-500/20 text-green-400' : 'bg-[var(--bg-overlay)] border-[var(--border-color)] text-[var(--text-muted)]'}
           `}>
             <Cloud size={14} className={googleConnected ? 'animate-pulse' : ''} />
             {!googleConnected && authUrl ? (
               <a
                 href={authUrl}
-                className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded text-[10px] font-black uppercase tracking-widest transition-all"
+                className="bg-[var(--bg-card)]lue-600 hover:bg-[var(--bg-card)]lue-700 text-[var(--text-main)] px-3 py-1 rounded text-[10px] font-black uppercase tracking-widest transition-all"
               >
                 Connect Google
               </a>
@@ -328,14 +328,14 @@ export default function CalendarView({ events = [], api, googleConnected = false
                 <select
                   value={selectedCalendar}
                   onChange={(e) => setSelectedCalendar(e.target.value)}
-                  className="bg-white/5 border border-white/10 rounded-2xl px-4 py-2 text-[10px] font-bold text-gray-300 uppercase tracking-widest outline-none appearance-none hover:bg-white/10 transition-all cursor-pointer pr-10"
+                  className="bg-[var(--bg-overlay)] border border-[var(--border-color)] rounded-2xl px-4 py-2 text-[10px] font-bold text-gray-300 uppercase tracking-widest outline-none appearance-none hover:bg-[var(--bg-overlay)] transition-all cursor-pointer pr-10"
                 >
                   <option value="primary">Main Matrix</option>
                   {calendars.filter(c => c.id !== 'primary').map(cal => (
                     <option key={cal.id} value={cal.id}>{cal.summary}</option>
                   ))}
                 </select>
-                <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-gray-500">
+                <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-[var(--text-muted)]">
                   <ChevronRight size={12} className="rotate-90" />
                 </div>
               </div>
@@ -356,13 +356,13 @@ export default function CalendarView({ events = [], api, googleConnected = false
             </>
           )}
 
-          <div className="flex bg-white/5 p-1 rounded-2xl border border-white/10 ml-auto lg:ml-0">
+          <div className="flex bg-[var(--bg-overlay)] p-1 rounded-2xl border border-[var(--border-color)] ml-auto lg:ml-0">
             {['month', 'week', 'day'].map(mode => (
               <button
                 key={mode}
                 className={`
                   px-4 py-1.5 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all
-                  ${viewMode === mode ? 'bg-amber-500 text-black shadow-[0_0_15px_rgba(245,158,11,0.4)]' : 'text-gray-500 hover:text-white'}
+                  ${viewMode === mode ? 'bg-[var(--bg-card)]mber-500 text-black shadow-[0_0_15px_rgba(245,158,11,0.4)]' : 'text-[var(--text-muted)] hover:text-[var(--text-main)]'}
                 `}
                 onClick={() => setViewMode(mode)}
               >
@@ -377,15 +377,15 @@ export default function CalendarView({ events = [], api, googleConnected = false
       <WidgetCard className="p-4 flex flex-wrap items-center justify-between gap-6 overflow-hidden">
         <div className="flex gap-6">
           <div className="flex items-center gap-2.5">
-            <div className="w-2.5 h-2.5 rounded-full bg-blue-500 shadow-[0_0_8px_rgba(59,130,246,0.6)]"></div>
-            <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Local Matrix</span>
-            <span className="text-[10px] font-mono text-white bg-white/5 px-2 py-0.5 rounded-full">{localCount}</span>
+            <div className="w-2.5 h-2.5 rounded-full bg-[var(--bg-card)]lue-500 shadow-[0_0_8px_rgba(59,130,246,0.6)]"></div>
+            <span className="text-[10px] font-bold text-[var(--text-muted)] uppercase tracking-widest">Local Matrix</span>
+            <span className="text-[10px] font-space-mono text-[var(--text-main)] bg-[var(--bg-overlay)] px-2 py-0.5 rounded-full">{localCount}</span>
           </div>
           {googleConnected && (
             <div className="flex items-center gap-2.5">
               <div className="w-2.5 h-2.5 rounded-full bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.6)]"></div>
-              <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Google Cloud</span>
-              <span className="text-[10px] font-mono text-white bg-white/5 px-2 py-0.5 rounded-full">{googleCount}</span>
+              <span className="text-[10px] font-bold text-[var(--text-muted)] uppercase tracking-widest">Google Cloud</span>
+              <span className="text-[10px] font-space-mono text-[var(--text-main)] bg-[var(--bg-overlay)] px-2 py-0.5 rounded-full">{googleCount}</span>
             </div>
           )}
         </div>
@@ -393,8 +393,8 @@ export default function CalendarView({ events = [], api, googleConnected = false
         <div className="flex items-center gap-4 ml-auto">
           {isLoading && (
             <div className="flex items-center gap-2">
-              <RefreshCw size={12} className="animate-spin text-amber-500" />
-              <span className="text-[10px] font-bold text-amber-500/80 uppercase tracking-widest animate-pulse">Scanning Frequencies...</span>
+              <RefreshCw size={12} className="animate-spin text-[rgb(var(--rgb-accent-sec))]" />
+              <span className="text-[10px] font-bold text-[rgb(var(--rgb-accent-sec))]/80 uppercase tracking-widest animate-pulse">Scanning Frequencies...</span>
             </div>
           )}
           <GlassyPill variant="primary" className="!px-4 !py-1.5" onClick={() => { setSelectedDate(new Date()); setShowAddModal(true); }}>
@@ -407,16 +407,16 @@ export default function CalendarView({ events = [], api, googleConnected = false
       {/* Main Calendar Viewport */}
       <div className="relative">
         {viewMode === 'month' && (
-          <WidgetCard className="overflow-hidden border-white/5 shadow-2xl">
-            <div className="grid grid-cols-7 border-b border-white/5">
+          <WidgetCard className="overflow-hidden border-[var(--border-color)] shadow-2xl">
+            <div className="grid grid-cols-7 border-b border-[var(--border-color)]">
               {weekDays.map(day => (
-                <div key={day} className="py-4 text-center text-[10px] font-black text-gray-500 uppercase tracking-[0.2em] bg-white/[0.02]">
+                <div key={day} className="py-4 text-center text-[10px] font-black text-[var(--text-muted)] uppercase tracking-[0.2em] bg-[var(--bg-overlay)]">
                   {day}
                 </div>
               ))}
             </div>
 
-            <div className="grid grid-cols-7 gap-[1px] bg-white/5">
+            <div className="grid grid-cols-7 gap-[1px] bg-[var(--bg-overlay)]">
               {getDaysInMonth().map((date, index) => {
                 const isCurrentMonth = date.getMonth() === currentDate.getMonth();
                 const isToday = date.toDateString() === new Date().toDateString();
@@ -426,10 +426,10 @@ export default function CalendarView({ events = [], api, googleConnected = false
                   <div
                     key={index}
                     className={`
-                      min-h-[140px] p-2 bg-[#0a0a0b] transition-all duration-300 relative group/cell
+                      min-h-[140px] p-2 bg-[var(--bg-panel)] transition-all duration-300 relative group/cell
                       ${!isCurrentMonth ? 'opacity-20' : 'opacity-100'}
-                      ${isToday ? 'bg-amber-500/5' : ''}
-                      hover:bg-white/[0.02] cursor-pointer
+                      ${isToday ? 'bg-[rgba(var(--rgb-accent-sec),0.05)]' : ''}
+                      hover:bg-[var(--bg-overlay)] cursor-pointer
                     `}
                     onDragOver={handleDragOver}
                     onDrop={(e) => handleDrop(e, date)}
@@ -439,13 +439,13 @@ export default function CalendarView({ events = [], api, googleConnected = false
                     }}
                   >
                     {isToday && (
-                      <div className="absolute inset-0 border-t-2 border-amber-500/30 glow-amber-sm pointer-events-none"></div>
+                      <div className="absolute inset-0 border-t-2 border-rgb(var(--rgb-accent-sec))/30 glow-amber-sm pointer-events-none"></div>
                     )}
 
                     <div className="flex justify-between items-start mb-2">
                       <span className={`
-                        text-xs font-bold font-mono tracking-tighter w-7 h-7 flex items-center justify-center rounded-full transition-all
-                        ${isToday ? 'bg-amber-500 text-black shadow-[0_0_15px_rgba(245,158,11,0.5)]' : 'text-gray-500 group-hover/cell:text-gray-300'}
+                        text-xs font-bold font-space-mono tracking-tighter w-7 h-7 flex items-center justify-center rounded-full transition-all
+                        ${isToday ? 'bg-[var(--bg-card)]mber-500 text-black shadow-[0_0_15px_rgba(245,158,11,0.5)]' : 'text-[var(--text-muted)] group-hover/cell:text-gray-300'}
                       `}>
                         {date.getDate()}
                       </span>
@@ -466,7 +466,7 @@ export default function CalendarView({ events = [], api, googleConnected = false
                             }}
                             className={`
                               px-2 py-1 text-[9px] font-bold tracking-tight rounded-md flex items-center gap-1.5 truncate border transition-all
-                              ${isGoogle ? 'border-green-500/20 bg-green-500/5 text-green-300' : 'border-white/5 bg-white/5 text-gray-300'}
+                              ${isGoogle ? 'border-green-500/20 bg-green-500/5 text-green-300' : 'border-[var(--border-color)] bg-[var(--bg-overlay)] text-gray-300'}
                               hover:translate-x-1 active:scale-95 cursor-pointer
                             `}
                             style={{
@@ -474,13 +474,13 @@ export default function CalendarView({ events = [], api, googleConnected = false
                               borderLeftWidth: '3px'
                             }}
                           >
-                            {isGoogle ? <Cloud size={8} /> : <div className="w-1 h-1 rounded-full bg-current"></div>}
+                            {isGoogle ? <Cloud size={8} /> : <div className="w-1 h-1 rounded-full bg-[var(--bg-panel)]urrent"></div>}
                             <span className="truncate">{event.title}</span>
                           </div>
                         );
                       })}
                       {dayEvents.length > 4 && (
-                        <div className="text-[8px] font-black text-gray-600 uppercase tracking-widest px-2 py-1">
+                        <div className="text-[8px] font-black text-[var(--text-faint)] uppercase tracking-widest px-2 py-1">
                           + {dayEvents.length - 4} more signals
                         </div>
                       )}
@@ -501,15 +501,15 @@ export default function CalendarView({ events = [], api, googleConnected = false
               const isToday = date.toDateString() === new Date().toDateString();
 
               return (
-                <WidgetCard key={i} className={`flex flex-col min-h-[500px] border-white/5 ${isToday ? 'border-amber-500/20 shadow-[0_0_30px_rgba(245,158,11,0.05)]' : ''}`}>
+                <WidgetCard key={i} className={`flex flex-col min-h-[500px] border-[var(--border-color)] ${isToday ? 'border-[rgba(var(--rgb-accent-sec),0.2)] shadow-[0_0_30px_rgba(245,158,11,0.05)]' : ''}`}>
                   <div className={`
-                    p-4 flex flex-col items-center gap-1 border-b border-white/5
-                    ${isToday ? 'bg-amber-500/5' : 'bg-white/[0.02]'}
+                    p-4 flex flex-col items-center gap-1 border-b border-[var(--border-color)]
+                    ${isToday ? 'bg-[rgba(var(--rgb-accent-sec),0.05)]' : 'bg-[var(--bg-overlay)]'}
                   `}>
-                    <span className="text-[9px] font-black text-gray-500 uppercase tracking-[0.2em]">{weekDays[i]}</span>
+                    <span className="text-[9px] font-black text-[var(--text-muted)] uppercase tracking-[0.2em]">{weekDays[i]}</span>
                     <span className={`
-                      text-2xl font-black font-premium tracking-tighter
-                      ${isToday ? 'text-amber-500' : 'text-white/80'}
+                      text-2xl font-black font-space-grotesk tracking-tighter
+                      ${isToday ? 'text-[rgb(var(--rgb-accent-sec))]' : 'text-[var(--text-main)]/80'}
                     `}>{date.getDate()}</span>
                   </div>
 
@@ -524,7 +524,7 @@ export default function CalendarView({ events = [], api, googleConnected = false
                           onDragStart={() => handleDragStart(event)}
                           onClick={() => setEditingEvent(event)}
                           className={`
-                            p-3 rounded-xl border border-white/5 bg-white/[0.03] hover:bg-white/[0.06] transition-all cursor-pointer group/ev
+                            p-3 rounded-xl border border-[var(--border-color)] bg-[var(--bg-overlay)] hover:bg-[var(--bg-overlay)] transition-all cursor-pointer group/ev
                           `}
                           style={{ borderLeft: `3px solid ${isGoogle ? '#22c55e' : colors.bg}` }}
                         >
@@ -534,11 +534,11 @@ export default function CalendarView({ events = [], api, googleConnected = false
                               {event.type}
                             </span>
                           </div>
-                          <div className="text-xs font-bold text-white mb-2 leading-snug group-hover/ev:text-amber-500 transition-colors">
+                          <div className="text-xs font-bold text-[var(--text-main)] mb-2 leading-snug group-hover/ev:text-[rgb(var(--rgb-accent-sec))] transition-colors">
                             {event.title}
                           </div>
                           {event.start && (
-                            <div className="flex items-center gap-1.5 text-[9px] font-mono text-gray-500 uppercase tracking-tighter">
+                            <div className="flex items-center gap-1.5 text-[9px] font-space-mono text-[var(--text-muted)] uppercase tracking-tighter">
                               <Clock size={10} className="opacity-60" />
                               {formatTime(event.start)}
                             </div>
@@ -555,12 +555,12 @@ export default function CalendarView({ events = [], api, googleConnected = false
 
         {viewMode === 'day' && (
           <WidgetCard className="max-w-4xl mx-auto overflow-hidden">
-            <div className="p-8 bg-white/[0.02] border-b border-white/5 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+            <div className="p-6 bg-[var(--bg-overlay)] border-b border-[var(--border-color)] flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
               <div>
-                <h3 className="text-2xl font-black text-white font-premium tracking-tight mb-1">
+                <h3 className="text-2xl font-black text-[var(--text-main)] font-space-grotesk tracking-tight mb-1">
                   {currentDate.toLocaleDateString('en-US', { weekday: 'long' })}
                 </h3>
-                <p className="text-[10px] font-bold text-gray-500 uppercase tracking-[0.3em]">
+                <p className="text-[10px] font-bold text-[var(--text-muted)] uppercase tracking-[0.3em]">
                   {currentDate.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}
                 </p>
               </div>
@@ -569,10 +569,10 @@ export default function CalendarView({ events = [], api, googleConnected = false
               </GlassyPill>
             </div>
 
-            <div className="p-8 space-y-4">
+            <div className="p-6 space-y-4">
               {getEventsForDate(currentDate).length === 0 ? (
                 <div className="py-20 text-center flex flex-col items-center justify-center opacity-30">
-                  <div className="w-16 h-16 rounded-full border border-dashed border-white/20 flex items-center justify-center mb-6">
+                  <div className="w-16 h-16 rounded-full border border-dashed border-[var(--border-color)] flex items-center justify-center mb-6">
                     <CalendarIcon size={32} />
                   </div>
                   <p className="text-xs font-bold uppercase tracking-[0.3em]">No temporal markers identified</p>
@@ -585,7 +585,7 @@ export default function CalendarView({ events = [], api, googleConnected = false
                     <div
                       key={event.id}
                       onClick={() => setEditingEvent(event)}
-                      className="group flex flex-col md:flex-row gap-6 p-6 rounded-2xl bg-white/[0.02] border border-white/5 hover:bg-white/[0.05] hover:border-white/10 transition-all cursor-pointer relative overflow-hidden"
+                      className="group flex flex-col md:flex-row gap-6 p-6 rounded-2xl bg-[var(--bg-overlay)] border border-[var(--border-color)] hover:bg-[var(--bg-overlay)] hover:border-[var(--border-color)] transition-all cursor-pointer relative overflow-hidden"
                     >
                       <div className="absolute top-0 left-0 bottom-0 w-1" style={{ backgroundColor: isGoogle ? '#22c55e' : colors.bg }}></div>
 
@@ -598,19 +598,19 @@ export default function CalendarView({ events = [], api, googleConnected = false
                           {isGoogle && <div className="flex items-center gap-1.5 text-[9px] font-bold text-green-500 uppercase tracking-widest"><Cloud size={10} /> Cloud Link</div>}
                         </div>
 
-                        <h4 className="text-xl font-bold text-white font-premium tracking-tight mb-3 group-hover:text-amber-500 transition-colors">
+                        <h4 className="text-xl font-bold text-[var(--text-main)] font-space-grotesk tracking-tight mb-3 group-hover:text-[rgb(var(--rgb-accent-sec))] transition-colors">
                           {event.title}
                         </h4>
 
                         {event.description && (
-                          <p className="text-sm text-gray-500 leading-relaxed max-w-2xl italic mb-4">
+                          <p className="text-sm text-[var(--text-muted)] leading-relaxed max-w-2xl italic mb-4">
                             "{event.description}"
                           </p>
                         )}
 
-                        <div className="flex flex-wrap gap-6 text-[10px] font-mono text-gray-500 uppercase tracking-widest">
+                        <div className="flex flex-wrap gap-6 text-[10px] font-space-mono text-[var(--text-muted)] uppercase tracking-widest">
                           <div className="flex items-center gap-2">
-                            <Clock size={12} className="text-amber-500/60" />
+                            <Clock size={12} className="text-[rgba(var(--rgb-accent-sec),0.6)]" />
                             {formatTime(event.start)} — {formatTime(event.end)}
                           </div>
                           {event.location && (
@@ -650,22 +650,22 @@ export default function CalendarView({ events = [], api, googleConnected = false
       {showAddModal && (
         <div className="fixed inset-0 z-[1000] flex items-center justify-center p-4 animate-in-fade">
           <div className="absolute inset-0 bg-black/80 backdrop-blur-sm" onClick={() => setShowAddModal(false)}></div>
-          <WidgetCard className="relative w-full max-w-lg overflow-visible animate-in-slide-up">
-            <div className="p-8 border-b border-white/5 flex justify-between items-center">
+          <WidgetCard className="relative w-full max-w-md overflow-visible animate-in-slide-up">
+            <div className="p-6 border-b border-[var(--border-color)] flex justify-between items-center">
               <div>
-                <h3 className="text-xl font-black text-white font-premium tracking-tight uppercase tracking-widest">Temporal Entry</h3>
-                <p className="text-[9px] font-bold text-gray-500 uppercase tracking-widest">{selectedDate?.toLocaleDateString()}</p>
+                <h3 className="text-xl font-black text-[var(--text-main)] font-space-grotesk tracking-tight uppercase tracking-widest">Temporal Entry</h3>
+                <p className="text-[9px] font-bold text-[var(--text-muted)] uppercase tracking-widest">{selectedDate?.toLocaleDateString()}</p>
               </div>
-              <button onClick={() => setShowAddModal(false)} className="text-gray-500 hover:text-white transition-colors">
+              <button onClick={() => setShowAddModal(false)} className="text-[var(--text-muted)] hover:text-[var(--text-main)] transition-colors">
                 <X size={18} />
               </button>
             </div>
 
-            <div className="p-8 space-y-6">
+            <div className="p-6 space-y-6">
               <div className="space-y-1.5">
-                <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest ml-1">Operation Designation</label>
+                <label className="text-[10px] font-black text-[var(--text-muted)] uppercase tracking-widest ml-1">Operation Designation</label>
                 <input
-                  className="w-full bg-white/[0.03] border border-white/10 rounded-xl p-4 text-white text-sm outline-none focus:border-amber-500/50 transition-all font-bold placeholder:text-gray-600"
+                  className="w-full bg-[var(--bg-overlay)] border border-[var(--border-color)] rounded-xl p-4 text-[var(--text-main)] text-sm outline-none focus:border-[rgba(var(--rgb-accent-sec),0.5)] transition-all font-bold placeholder:text-[var(--text-faint)]"
                   placeholder="Designate event title..."
                   value={newEvent.title}
                   onChange={e => setNewEvent({ ...newEvent, title: e.target.value })}
@@ -674,27 +674,27 @@ export default function CalendarView({ events = [], api, googleConnected = false
 
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-1.5">
-                  <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest ml-1">Frequency Group</label>
+                  <label className="text-[10px] font-black text-[var(--text-muted)] uppercase tracking-widest ml-1">Frequency Group</label>
                   <select
-                    className="w-full bg-white/[0.03] border border-white/10 rounded-xl p-4 text-white text-sm outline-none focus:border-amber-500/50 transition-all font-bold appearance-none cursor-pointer"
+                    className="w-full bg-[var(--bg-overlay)] border border-[var(--border-color)] rounded-xl p-4 text-[var(--text-main)] text-sm outline-none focus:border-[rgba(var(--rgb-accent-sec),0.5)] transition-all font-bold appearance-none cursor-pointer"
                     value={newEvent.type}
                     onChange={e => setNewEvent({ ...newEvent, type: e.target.value })}
                   >
                     {Object.keys(eventTypeColors).map(type => (
-                      <option key={type} value={type} className="bg-[#0a0a0b]">{type.toUpperCase()}</option>
+                      <option key={type} value={type} className="bg-[var(--bg-panel)] text-[var(--text-main)]">{type.toUpperCase()}</option>
                     ))}
                   </select>
                 </div>
                 <div className="space-y-1.5">
-                  <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest ml-1">Primary Calendar</label>
+                  <label className="text-[10px] font-black text-[var(--text-muted)] uppercase tracking-widest ml-1">Primary Calendar</label>
                   <select
-                    className="w-full bg-white/[0.03] border border-white/10 rounded-xl p-4 text-white text-sm outline-none focus:border-amber-500/50 transition-all font-bold appearance-none cursor-pointer"
+                    className="w-full bg-[var(--bg-overlay)] border border-[var(--border-color)] rounded-xl p-4 text-[var(--text-main)] text-sm outline-none focus:border-[rgba(var(--rgb-accent-sec),0.5)] transition-all font-bold appearance-none cursor-pointer"
                     value={selectedCalendar}
                     onChange={(e) => setSelectedCalendar(e.target.value)}
                   >
-                    <option value="primary" className="bg-[#0a0a0b]">PRIMARY MATRIX</option>
+                    <option value="primary" className="bg-[var(--bg-panel)] text-[var(--text-main)]">PRIMARY MATRIX</option>
                     {calendars.filter(c => c.id !== 'primary').map(cal => (
-                      <option key={cal.id} value={cal.id} className="bg-[#0a0a0b]">{cal.summary.toUpperCase()}</option>
+                      <option key={cal.id} value={cal.id} className="bg-[var(--bg-panel)] text-[var(--text-main)]">{cal.summary.toUpperCase()}</option>
                     ))}
                   </select>
                 </div>
@@ -702,18 +702,18 @@ export default function CalendarView({ events = [], api, googleConnected = false
 
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-1.5">
-                  <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest ml-1">Temporal Start</label>
+                  <label className="text-[10px] font-black text-[var(--text-muted)] uppercase tracking-widest ml-1">Temporal Start</label>
                   <input
-                    className="w-full bg-white/[0.03] border border-white/10 rounded-xl p-4 text-white text-sm outline-none focus:border-amber-500/50 transition-all font-mono"
+                    className="w-full bg-[var(--bg-overlay)] border border-[var(--border-color)] rounded-xl p-4 text-[var(--text-main)] text-sm outline-none focus:border-[rgba(var(--rgb-accent-sec),0.5)] transition-all font-space-mono"
                     type="time"
                     value={newEvent.startTime}
                     onChange={e => setNewEvent({ ...newEvent, startTime: e.target.value })}
                   />
                 </div>
                 <div className="space-y-1.5">
-                  <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest ml-1">Temporal End</label>
+                  <label className="text-[10px] font-black text-[var(--text-muted)] uppercase tracking-widest ml-1">Temporal End</label>
                   <input
-                    className="w-full bg-white/[0.03] border border-white/10 rounded-xl p-4 text-white text-sm outline-none focus:border-amber-500/50 transition-all font-mono"
+                    className="w-full bg-[var(--bg-overlay)] border border-[var(--border-color)] rounded-xl p-4 text-[var(--text-main)] text-sm outline-none focus:border-[rgba(var(--rgb-accent-sec),0.5)] transition-all font-space-mono"
                     type="time"
                     value={newEvent.endTime}
                     onChange={e => setNewEvent({ ...newEvent, endTime: e.target.value })}
@@ -722,9 +722,9 @@ export default function CalendarView({ events = [], api, googleConnected = false
               </div>
 
               <div className="space-y-1.5">
-                <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest ml-1">Operational Area</label>
+                <label className="text-[10px] font-black text-[var(--text-muted)] uppercase tracking-widest ml-1">Operational Area</label>
                 <input
-                  className="w-full bg-white/[0.03] border border-white/10 rounded-xl p-4 text-white text-sm outline-none focus:border-amber-500/50 transition-all font-bold placeholder:text-gray-600"
+                  className="w-full bg-[var(--bg-overlay)] border border-[var(--border-color)] rounded-xl p-4 text-[var(--text-main)] text-sm outline-none focus:border-[rgba(var(--rgb-accent-sec),0.5)] transition-all font-bold placeholder:text-[var(--text-faint)]"
                   placeholder="Location (optional)"
                   value={newEvent.location}
                   onChange={e => setNewEvent({ ...newEvent, location: e.target.value })}
@@ -732,9 +732,9 @@ export default function CalendarView({ events = [], api, googleConnected = false
               </div>
 
               <div className="space-y-1.5">
-                <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest ml-1">Mission Details</label>
+                <label className="text-[10px] font-black text-[var(--text-muted)] uppercase tracking-widest ml-1">Mission Details</label>
                 <textarea
-                  className="w-full bg-white/[0.03] border border-white/10 rounded-xl p-4 text-white text-sm outline-none focus:border-amber-500/50 transition-all font-medium placeholder:text-gray-600 min-h-[100px] resize-none"
+                  className="w-full bg-[var(--bg-overlay)] border border-[var(--border-color)] rounded-xl p-4 text-[var(--text-main)] text-sm outline-none focus:border-[rgba(var(--rgb-accent-sec),0.5)] transition-all font-medium placeholder:text-[var(--text-faint)] min-h-[100px] resize-none"
                   placeholder="Detailed description..."
                   value={newEvent.description}
                   onChange={e => setNewEvent({ ...newEvent, description: e.target.value })}
@@ -747,14 +747,14 @@ export default function CalendarView({ events = [], api, googleConnected = false
                     <div className={`absolute top-1 w-4 h-4 rounded-full bg-white transition-all ${newEvent.syncToGoogle ? 'left-5' : 'left-1'}`}></div>
                   </div>
                   <div className="flex flex-col">
-                    <span className="text-[10px] font-black text-white uppercase tracking-widest">Cloud Matrix Synchronization</span>
-                    <p className="text-[8px] font-bold text-gray-500 uppercase tracking-widest">Propagate entry to Google Calendar</p>
+                    <span className="text-[10px] font-black text-[var(--text-main)] uppercase tracking-widest">Cloud Matrix Synchronization</span>
+                    <p className="text-[8px] font-bold text-[var(--text-muted)] uppercase tracking-widest">Propagate entry to Google Calendar</p>
                   </div>
                 </div>
               )}
             </div>
 
-            <div className="p-8 bg-white/[0.01] border-t border-white/5 flex gap-3">
+            <div className="p-6 bg-[var(--bg-overlay)] border-t border-[var(--border-color)] flex gap-3">
               <GlassyPill className="flex-1 !py-4" onClick={() => setShowAddModal(false)}>
                 <span className="text-[10px] font-black uppercase tracking-widest">Abort Process</span>
               </GlassyPill>
@@ -771,38 +771,38 @@ export default function CalendarView({ events = [], api, googleConnected = false
       {editingEvent && (
         <div className="fixed inset-0 z-[1000] flex items-center justify-center p-4 animate-in-fade">
           <div className="absolute inset-0 bg-black/80 backdrop-blur-sm" onClick={() => setEditingEvent(null)}></div>
-          <WidgetCard className="relative w-full max-w-lg overflow-visible animate-in-slide-up">
-            <div className="p-8 border-b border-white/5 flex justify-between items-center">
+          <WidgetCard className="relative w-full max-w-md overflow-visible animate-in-slide-up">
+            <div className="p-6 border-b border-[var(--border-color)] flex justify-between items-center">
               <div className="flex items-center gap-3">
-                {editingEvent.source === 'google' ? <Cloud size={20} className="text-green-500" /> : <Edit2 size={20} className="text-amber-500" />}
+                {editingEvent.source === 'google' ? <Cloud size={20} className="text-green-500" /> : <Edit2 size={20} className="text-[rgb(var(--rgb-accent-sec))]" />}
                 <div>
-                  <h3 className="text-xl font-black text-white font-premium tracking-tight uppercase tracking-widest">
+                  <h3 className="text-xl font-black text-[var(--text-main)] font-space-grotesk tracking-tight uppercase tracking-widest">
                     {editingEvent.source === 'google' ? 'Protocol Locked' : 'Update Vector'}
                   </h3>
-                  <p className="text-[9px] font-bold text-gray-500 uppercase tracking-widest">Signal Modification Mode</p>
+                  <p className="text-[9px] font-bold text-[var(--text-muted)] uppercase tracking-widest">Signal Modification Mode</p>
                 </div>
               </div>
-              <button onClick={() => setEditingEvent(null)} className="text-gray-500 hover:text-white transition-colors">
+              <button onClick={() => setEditingEvent(null)} className="text-[var(--text-muted)] hover:text-[var(--text-main)] transition-colors">
                 <X size={18} />
               </button>
             </div>
 
-            <div className="p-8 space-y-6">
+            <div className="p-6 space-y-6">
               {editingEvent.source === 'google' ? (
                 <div className="space-y-6">
-                  <WidgetCard className="p-6 bg-white/[0.02]">
-                    <h4 className="text-lg font-bold text-white mb-2">{editingEvent.title}</h4>
-                    <p className="text-sm text-gray-400 italic mb-4">"{editingEvent.description || 'No description provided'}"</p>
-                    <div className="flex flex-wrap gap-4 text-[10px] font-mono text-gray-500 uppercase tracking-widest">
-                      <div className="flex items-center gap-2"><Clock size={12} className="text-amber-500/60" /> {formatTime(editingEvent.start)} - {formatTime(editingEvent.end)}</div>
+                  <WidgetCard className="p-6 bg-[var(--bg-overlay)]">
+                    <h4 className="text-lg font-bold text-[var(--text-main)] mb-2">{editingEvent.title}</h4>
+                    <p className="text-sm text-[var(--text-muted)] italic mb-4">"{editingEvent.description || 'No description provided'}"</p>
+                    <div className="flex flex-wrap gap-4 text-[10px] font-space-mono text-[var(--text-muted)] uppercase tracking-widest">
+                      <div className="flex items-center gap-2"><Clock size={12} className="text-[rgba(var(--rgb-accent-sec),0.6)]" /> {formatTime(editingEvent.start)} - {formatTime(editingEvent.end)}</div>
                     </div>
                   </WidgetCard>
 
-                  <div className="p-6 bg-amber-500/5 border border-amber-500/20 rounded-2xl flex gap-4">
-                    <AlertCircle size={24} className="text-amber-500 shrink-0" />
+                  <div className="p-6 bg-[rgba(var(--rgb-accent-sec),0.05)] border border-[rgba(var(--rgb-accent-sec),0.2)] rounded-2xl flex gap-4">
+                    <AlertCircle size={24} className="text-[rgb(var(--rgb-accent-sec))] shrink-0" />
                     <div>
-                      <h5 className="text-xs font-black text-amber-500 uppercase tracking-widest mb-1">External Control Active</h5>
-                      <p className="text-[10px] text-amber-500/70 font-bold leading-relaxed uppercase tracking-widest">
+                      <h5 className="text-xs font-black text-[rgb(var(--rgb-accent-sec))] uppercase tracking-widest mb-1">External Control Active</h5>
+                      <p className="text-[10px] text-[rgb(var(--rgb-accent-sec))]/70 font-bold leading-relaxed uppercase tracking-widest">
                         This entry is managed by an external cloud node. Local modifications are restricted.
                       </p>
                     </div>
@@ -811,31 +811,31 @@ export default function CalendarView({ events = [], api, googleConnected = false
               ) : (
                 <>
                   <div className="space-y-1.5">
-                    <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest ml-1">Operation Designation</label>
+                    <label className="text-[10px] font-black text-[var(--text-muted)] uppercase tracking-widest ml-1">Operation Designation</label>
                     <input
-                      className="w-full bg-white/[0.03] border border-white/10 rounded-xl p-4 text-white text-sm outline-none focus:border-amber-500/50 transition-all font-bold"
+                      className="w-full bg-[var(--bg-overlay)] border border-[var(--border-color)] rounded-xl p-4 text-[var(--text-main)] text-sm outline-none focus:border-[rgba(var(--rgb-accent-sec),0.5)] transition-all font-bold"
                       value={editingEvent.title}
                       onChange={e => setEditingEvent({ ...editingEvent, title: e.target.value })}
                     />
                   </div>
 
                   <div className="space-y-1.5">
-                    <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest ml-1">Frequency Group</label>
+                    <label className="text-[10px] font-black text-[var(--text-muted)] uppercase tracking-widest ml-1">Frequency Group</label>
                     <select
-                      className="w-full bg-white/[0.03] border border-white/10 rounded-xl p-4 text-white text-sm outline-none focus:border-amber-500/50 transition-all font-bold appearance-none cursor-pointer"
+                      className="w-full bg-[var(--bg-overlay)] border border-[var(--border-color)] rounded-xl p-4 text-[var(--text-main)] text-sm outline-none focus:border-[rgba(var(--rgb-accent-sec),0.5)] transition-all font-bold appearance-none cursor-pointer"
                       value={editingEvent.type}
                       onChange={e => setEditingEvent({ ...editingEvent, type: e.target.value })}
                     >
                       {Object.keys(eventTypeColors).map(type => (
-                        <option key={type} value={type} className="bg-[#0a0a0b]">{type.toUpperCase()}</option>
+                        <option key={type} value={type} className="bg-[var(--bg-panel)] text-[var(--text-main)]">{type.toUpperCase()}</option>
                       ))}
                     </select>
                   </div>
 
                   <div className="space-y-1.5">
-                    <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest ml-1">Mission Details</label>
+                    <label className="text-[10px] font-black text-[var(--text-muted)] uppercase tracking-widest ml-1">Mission Details</label>
                     <textarea
-                      className="w-full bg-white/[0.03] border border-white/10 rounded-xl p-4 text-white text-sm outline-none focus:border-amber-500/50 transition-all font-medium min-h-[120px] resize-none"
+                      className="w-full bg-[var(--bg-overlay)] border border-[var(--border-color)] rounded-xl p-4 text-[var(--text-main)] text-sm outline-none focus:border-[rgba(var(--rgb-accent-sec),0.5)] transition-all font-medium min-h-[120px] resize-none"
                       value={editingEvent.description || ''}
                       onChange={e => setEditingEvent({ ...editingEvent, description: e.target.value })}
                     />
@@ -844,10 +844,10 @@ export default function CalendarView({ events = [], api, googleConnected = false
               )}
             </div>
 
-            <div className="p-8 bg-white/[0.01] border-t border-white/5 flex flex-wrap gap-3">
+            <div className="p-6 bg-[var(--bg-overlay)] border-t border-[var(--border-color)] flex flex-wrap gap-3">
               {editingEvent.source !== 'google' && (
                 <button
-                  className="flex-1 bg-red-500/10 hover:bg-red-500 border border-red-500/30 text-red-500 hover:text-white rounded-2xl py-4 px-6 text-[10px] font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2"
+                  className="flex-1 bg-red-500/10 hover:bg-red-500 border border-red-500/30 text-red-500 hover:text-[var(--text-main)] rounded-2xl py-4 px-6 text-[10px] font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2"
                   onClick={() => handleDeleteEvent(editingEvent.id)}
                 >
                   <Trash2 size={16} /> Signal Terminate

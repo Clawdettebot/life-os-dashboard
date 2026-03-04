@@ -1,13 +1,13 @@
 // Life OS Dashboard - Full Design Integration
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { 
-  LayoutDashboard, Users, Brain, CheckSquare, Briefcase, Calendar, Radio, Box, 
-  CalendarClock, Mic, Lightbulb, DollarSign, Activity, FileText, Settings, Plus, 
-  ChevronDown, ChevronRight, Circle, Play, MoreHorizontal, Search, Cpu, Book, 
-  Zap, MessageSquare, Clock, Filter, AlertCircle, Sparkles, CheckCircle2, Flame, 
-  Utensils, Compass, History, Navigation, Leaf, Droplet, Tent, Send, Edit2, 
-  Trash2, BarChart2, Globe, Video, PenTool, Eye, RefreshCw, ChevronLeft, 
+import {
+  LayoutDashboard, Users, Brain, CheckSquare, Briefcase, Calendar, Radio, Box,
+  CalendarClock, Mic, Lightbulb, DollarSign, Activity, FileText, Settings, Plus,
+  ChevronDown, ChevronRight, Circle, Play, MoreHorizontal, Search, Cpu, Book,
+  Zap, MessageSquare, Clock, Filter, AlertCircle, Sparkles, CheckCircle2, Flame,
+  Utensils, Compass, History, Navigation, Leaf, Droplet, Tent, Send, Edit2,
+  Trash2, BarChart2, Globe, Video, PenTool, Eye, RefreshCw, ChevronLeft,
   Folder, Archive, Home, Wallet, TrendingUp, TrendingDown, Coffee, HomeIcon,
   Car, Heart, Briefcase as WorkIcon, Gift
 } from 'lucide-react';
@@ -42,33 +42,43 @@ const websiteSupabase = createClient(WEBSITE_SUPABASE_URL, WEBSITE_SUPABASE_KEY)
 
 // Navigation
 const NAV_SECTIONS = [
-  { id: 'command', title: "Command", items: [
-    { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
-    { id: 'round-table', label: 'The Round Table', icon: Users },
-    { id: 'knight', label: 'Knowledge Knight', icon: Brain },
-  ]},
-  { id: 'work', title: "Work", items: [
-    { id: 'tasks', label: 'Tasks', icon: CheckSquare },
-    { id: 'projects', label: 'Projects', icon: Briefcase },
-    { id: 'calendar', label: 'Calendar', icon: Calendar },
-    { id: 'streams', label: 'Streams', icon: Radio },
-    { id: 'inventory', label: 'Inventory', icon: Box },
-  ]},
-  { id: 'content', title: "Content", items: [
-    { id: 'scheduler', label: 'Scheduler', icon: CalendarClock },
-    { id: 'blog', label: 'Blog & Voice', icon: Mic },
-    { id: 'ideas', label: 'Ideas', icon: Lightbulb },
-  ]},
-  { id: 'life', title: "Life", items: [
-    { id: 'finances', label: 'Finances', icon: DollarSign },
-    { id: 'habits', label: 'Habits', icon: Activity },
-  ]},
-  { id: 'second-brain', title: "Second Brain", items: [
-    { id: 'notes', label: 'Notes', icon: FileText },
-    { id: 'journal', label: 'Journal', icon: Book },
-    { id: 'cortex', label: 'Cortex', icon: Brain },
-    { id: 'contacts', label: 'Contacts', icon: Users },
-  ]}
+  {
+    id: 'command', title: "Command", items: [
+      { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
+      { id: 'round-table', label: 'The Round Table', icon: Users },
+      { id: 'knight', label: 'Knowledge Knight', icon: Brain },
+    ]
+  },
+  {
+    id: 'work', title: "Work", items: [
+      { id: 'tasks', label: 'Tasks', icon: CheckSquare },
+      { id: 'projects', label: 'Projects', icon: Briefcase },
+      { id: 'calendar', label: 'Calendar', icon: Calendar },
+      { id: 'streams', label: 'Streams', icon: Radio },
+      { id: 'inventory', label: 'Inventory', icon: Box },
+    ]
+  },
+  {
+    id: 'content', title: "Content", items: [
+      { id: 'scheduler', label: 'Scheduler', icon: CalendarClock },
+      { id: 'blog', label: 'Blog & Voice', icon: Mic },
+      { id: 'ideas', label: 'Ideas', icon: Lightbulb },
+    ]
+  },
+  {
+    id: 'life', title: "Life", items: [
+      { id: 'finances', label: 'Finances', icon: DollarSign },
+      { id: 'habits', label: 'Habits', icon: Activity },
+    ]
+  },
+  {
+    id: 'second-brain', title: "Second Brain", items: [
+      { id: 'notes', label: 'Notes', icon: FileText },
+      { id: 'journal', label: 'Journal', icon: Book },
+      { id: 'cortex', label: 'Cortex', icon: Brain },
+      { id: 'contacts', label: 'Contacts', icon: Users },
+    ]
+  }
 ];
 
 // Animation utils
@@ -79,7 +89,7 @@ const staggerItem = { hidden: { opacity: 0, y: 20, filter: 'blur(4px)' }, visibl
 const ScrambleText = ({ text, activeTab, theme }) => {
   const [displayText, setDisplayText] = useState(String(text));
   const chars = '!<>-_\\/[]{}—=+*^?#________';
-  
+
   useEffect(() => {
     let iteration = 0;
     const strText = String(text);
@@ -93,7 +103,7 @@ const ScrambleText = ({ text, activeTab, theme }) => {
     }, 30);
     return () => clearInterval(interval);
   }, [text]);
-  
+
   return <span>{displayText}</span>;
 };
 
@@ -192,12 +202,31 @@ const getIcon = (iconName) => {
 };
 
 export default function App() {
-  const [activeTab, setActiveTab] = useState('dashboard');
-  const [themeIndex, setThemeIndex] = useState(0);
+  const [activeTab, setActiveTab] = useState(() => localStorage.getItem('activeTab') || 'dashboard');
+  const [themeIndex, setThemeIndex] = useState(() => {
+    const saved = localStorage.getItem('themeIndex');
+    return saved !== null ? parseInt(saved, 10) : 0;
+  });
   const containerRef = useRef(null);
   const currentTheme = THEMES[themeIndex];
-  const [expandedSections, setExpandedSections] = useState({ 'command': true, 'work': true, 'content': true, 'life': false, 'second-brain': false });
-  
+  const [expandedSections, setExpandedSections] = useState(() => {
+    const saved = localStorage.getItem('expandedSections');
+    return saved ? JSON.parse(saved) : { 'command': true, 'work': true, 'content': true, 'life': false, 'second-brain': false };
+  });
+
+  // Persist state changes
+  useEffect(() => {
+    localStorage.setItem('activeTab', activeTab);
+  }, [activeTab]);
+
+  useEffect(() => {
+    localStorage.setItem('themeIndex', themeIndex.toString());
+  }, [themeIndex]);
+
+  useEffect(() => {
+    localStorage.setItem('expandedSections', JSON.stringify(expandedSections));
+  }, [expandedSections]);
+
   const [data, setData] = useState({ tasks: [], projects: [], finances: [], habits: [], cortex: [], ideas: [], blog: [], notes: [], contacts: [], streams: [] });
   const [loading, setLoading] = useState(true);
 
@@ -293,6 +322,7 @@ export default function App() {
           --border-color: rgba(255, 255, 255, 0.1); --border-highlight: rgba(255, 255, 255, 0.2);
           --bg-overlay: rgba(255, 255, 255, 0.05); --rgb-accent-main: 249, 115, 22; --rgb-accent-sec: 234, 179, 8; --rgb-accent-red: 239, 68, 68;
           --tech-grid: rgba(255, 255, 255, 0.03); --logo-bg: #ffffff; --logo-text: #000000;
+          --blob-1: rgba(255, 255, 255, 0.02); --blob-2: rgba(255, 255, 255, 0.04);
         }
         [data-theme="light"] {
           --bg-base: #e4e4e7; --bg-panel: #f4f4f5; --bg-card: #ffffff; --bg-sidebar: rgba(244, 244, 245, 0.85);
@@ -300,6 +330,7 @@ export default function App() {
           --border-color: rgba(0, 0, 0, 0.1); --border-highlight: rgba(0, 0, 0, 0.2);
           --bg-overlay: rgba(0, 0, 0, 0.05); --rgb-accent-main: 234, 88, 12; --rgb-accent-sec: 202, 138, 4; --rgb-accent-red: 220, 38, 38;
           --tech-grid: rgba(0, 0, 0, 0.05); --logo-bg: #09090b; --logo-text: #ffffff;
+          --blob-1: rgba(0, 0, 0, 0.03); --blob-2: rgba(0, 0, 0, 0.05);
         }
         [data-theme="eva"] {
           --bg-base: #110926; --bg-panel: #1b0e3d; --bg-card: #271455; --bg-sidebar: rgba(27, 14, 61, 0.85);
@@ -307,9 +338,14 @@ export default function App() {
           --border-color: rgba(57, 255, 20, 0.2); --border-highlight: rgba(255, 102, 0, 0.5);
           --bg-overlay: rgba(57, 255, 20, 0.05); --rgb-accent-main: 255, 102, 0; --rgb-accent-sec: 57, 255, 20; --rgb-accent-red: 255, 0, 60;
           --tech-grid: rgba(57, 255, 20, 0.08); --logo-bg: #39ff14; --logo-text: #110926;
+          --blob-1: rgba(57, 255, 20, 0.05); --blob-2: rgba(255, 102, 0, 0.05);
         }
-        .bg-tech-grid { background-image: linear-gradient(var(--tech-grid) 1px, transparent 1px), linear-gradient(90deg, var(--tech-grid) 1px, transparent 1px); background-size: 30px 30px; }
+        .bg-tech-grid { background-image: linear-gradient(var(--tech-grid) 1px, transparent 1px), linear-gradient(90deg, var(--tech-grid) 1px, transparent 1px); background-size: 30px 30px; transition: background-image 0.5s ease; }
+        .globular-blob { filter: url('#goo'); }
         .scanlines { position: fixed; inset: 0; background: linear-gradient(to bottom, rgba(255,255,255,0), rgba(255,255,255,0) 50%, rgba(0,0,0,0.1) 50%, rgba(0,0,0,0.1)); background-size: 100% 4px; pointer-events: none; z-index: 50; opacity: 0.4; }
+        [data-theme="light"] .scanlines { opacity: 0.1; }
+        .scanline-bar { position: fixed; top: -10vh; left: 0; right: 0; height: 10vh; background: linear-gradient(to bottom, transparent, rgba(var(--rgb-accent-main), 0.05), transparent); pointer-events: none; z-index: 51; animation: scan 8s linear infinite; }
+        @keyframes scan { 0% { transform: translateY(0); } 100% { transform: translateY(120vh); } }
         .hover-spotlight { position: relative; }
         .hover-spotlight::before { content: ""; position: absolute; inset: 0; border-radius: inherit; padding: 1px; background: radial-gradient(800px circle at var(--mouse-x) var(--mouse-y), rgba(var(--rgb-accent-main), 0.4), transparent 40%); -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0); -webkit-mask-composite: xor; mask-composite: exclude; opacity: 0; transition: opacity 0.5s; pointer-events: none; z-index: 20; }
         .hover-spotlight:hover::before { opacity: 1; }
@@ -318,12 +354,29 @@ export default function App() {
         .scrollbar-hide::-webkit-scrollbar { display: none; }
         .scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
       `}</style>
-      
-      <div ref={containerRef} data-theme={currentTheme} className="relative flex h-screen w-full bg-[var(--bg-base)] text-[var(--text-main)] font-space-grotesk overflow-hidden selection:bg-[rgba(var(--rgb-accent-main),0.3)] transition-colors duration-700">
+
+      <svg className="hidden">
+        <defs>
+          <filter id="goo">
+            <feGaussianBlur in="SourceGraphic" stdDeviation="10" result="blur" />
+            <feColorMatrix in="blur" mode="matrix" values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 18 -7" result="goo" />
+            <feBlend in="SourceGraphic" in2="goo" />
+          </filter>
+        </defs>
+      </svg>
+
+      <div ref={containerRef} data-theme={currentTheme} className="relative flex h-screen w-full bg-[var(--bg-base)] text-[var(--text-main)] font-space-grotesk overflow-hidden selection:bg-[rgba(var(--rgb-accent-main),0.3)] transition-colors duration-700 ease-in-out">
         <div className="scanlines" />
-        <div className="fixed inset-0 z-0 pointer-events-none bg-tech-grid">
-          <div className="absolute left-[280px] top-0 bottom-0 w-[1px] bg-[var(--border-color)]" />
-          <div className="absolute left-0 right-0 top-[88px] h-[1px] bg-[var(--border-color)]" />
+        <div className="scanline-bar" />
+
+        <div className="fixed inset-0 z-0 pointer-events-none overflow-hidden bg-tech-grid">
+          <div className="absolute left-[280px] top-0 bottom-0 w-[1px] bg-[var(--border-color)] transition-colors duration-500" />
+          <div className="absolute left-0 right-0 top-[88px] h-[1px] bg-[var(--border-color)] transition-colors duration-500" />
+
+          <div className="absolute inset-0 opacity-100 globular-blob flex items-center justify-center">
+            <motion.div animate={{ scale: [1, 1.2, 0.9, 1], rotate: [0, 90, 180, 360], borderRadius: ["40%", "60%", "30%", "40%"] }} transition={{ duration: 20, repeat: Infinity, ease: "linear" }} className="w-[60vw] h-[60vw] bg-[var(--blob-1)] absolute transition-colors duration-700" />
+            <motion.div animate={{ scale: [0.9, 1.5, 1, 0.9], rotate: [360, 180, 90, 0], borderRadius: ["50%", "30%", "50%", "50%"] }} transition={{ duration: 25, repeat: Infinity, ease: "linear" }} className="w-[50vw] h-[50vw] bg-[var(--blob-2)] absolute translate-x-1/4 transition-colors duration-700" />
+          </div>
         </div>
 
         {/* Sidebar */}
@@ -341,7 +394,7 @@ export default function App() {
               const isExpanded = expandedSections[section.id];
               return (
                 <div key={section.id} className="space-y-2">
-                  <button onClick={() => toggleSection(section.id)} className="w-full flex items-center justify-between px-4 py-2 text-[9px] font-space-mono uppercase tracking-[0.3em] text-[var(--text-muted)] hover:text-[var(--text-main)]">
+                  <button onClick={() => toggleSection(section.id)} className="w-full flex items-center justify-between px-4 py-2 text-[9px] font-space-mono uppercase tracking-[0.3em] text-[var(--text-muted)] hover:text-[var(--text-main)] hover-spotlight transition-all rounded-full">
                     <span>{section.title}</span>
                     <motion.div animate={{ rotate: isExpanded ? 180 : 0 }} transition={{ type: "spring", stiffness: 300, damping: 30 }}>
                       <ChevronDown size={12} />
@@ -404,7 +457,7 @@ export default function App() {
             </div>
           </header>
 
-          <div className="flex-1 overflow-y-auto p-10">
+          <div className="flex-1 overflow-y-auto p-10 glass-scroll">
             <div className="max-w-7xl mx-auto h-full">
               <AnimatePresence mode="wait">
                 <motion.div key={activeTab} initial={{ opacity: 0, scale: 0.98, y: 10 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 1.02, y: -10 }} transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }} className="h-full">

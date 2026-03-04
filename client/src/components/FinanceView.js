@@ -1,6 +1,6 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { 
+import {
   Wallet, TrendingUp, TrendingDown, Plus, Search, X, MoreHorizontal,
   ShoppingBag, Coffee, Home, Car, Zap, Heart, Briefcase, Gift, DollarSign
 } from 'lucide-react';
@@ -37,13 +37,18 @@ const categoryColors = {
 };
 
 export default function FinanceView({ finances = [] }) {
-  const [activeTab, setActiveTab] = useState('transactions');
+  const [activeTab, setActiveTab] = useState(() => localStorage.getItem('financeActiveTab') || 'transactions');
   const [showAddForm, setShowAddForm] = useState(false);
   const [animateSir, setAnimateSir] = useState(false);
   const [newTransaction, setNewTransaction] = useState({
     description: '', amount: '', category: 'other', type: 'expense',
     date: new Date().toISOString().split('T')[0]
   });
+
+  // Persist tab choice
+  useEffect(() => {
+    localStorage.setItem('financeActiveTab', activeTab);
+  }, [activeTab]);
 
   // Trigger Sir Clawthchilds animation when form is submitted
   const handleAddTransaction = () => {
@@ -80,12 +85,23 @@ export default function FinanceView({ finances = [] }) {
       <div className="absolute inset-0 pointer-events-none z-0 opacity-30">
         <img src="/avatars/99f2a89b-8c51-4078-af63-10046a333434.png" alt="" className="w-full h-full object-contain object-center" />
       </div>
-      
+
       {/* Header */}
       <div className="flex items-center justify-between shrink-0 border-b border-[var(--border-color)] pb-4 relative z-10">
         <div className="flex items-center gap-4">
-          <div className="w-12 h-12 rounded-full bg-[rgb(var(--rgb-accent-sec))] text-black flex items-center justify-center font-bold font-space-mono shadow-[0_0_20px_rgba(var(--rgb-accent-sec),0.4)]">
-            <DollarSign size={20} />
+          <div className="flex items-end gap-3">
+            {/* Sir Clawthchilds SVG - animated on transaction add */}
+            <motion.div
+              className="w-12 h-[72px] cursor-pointer opacity-90 transition-transform flex items-end justify-center"
+              animate={animateSir ? { scale: [1, 1.2, 1.2, 1], rotate: [0, 10, -10, 0] } : { scale: 1, rotate: 0 }}
+              transition={{ duration: 0.5 }}
+              title="Sir Clawthchilds - Bull Market Warrior"
+            >
+              <SirClawthchilds className="w-full h-full drop-shadow-lg" size={null} />
+            </motion.div>
+            <div className="w-12 h-12 rounded-full bg-[rgb(var(--rgb-accent-sec))] text-black flex items-center justify-center font-bold font-space-mono shadow-[0_0_20px_rgba(var(--rgb-accent-sec),0.4)] relative z-10 shrink-0 mb-0.5">
+              <DollarSign size={20} />
+            </div>
           </div>
           <div>
             <h2 className="text-xl font-bold font-space-grotesk text-[var(--text-main)] uppercase tracking-widest flex items-center gap-3">
@@ -94,17 +110,7 @@ export default function FinanceView({ finances = [] }) {
             <p className="text-[10px] font-space-mono text-[var(--text-muted)] uppercase tracking-[0.2em]">Track Your Wealth & Expenses</p>
           </div>
         </div>
-        
-        {/* Sir Clawthchilds SVG - animated on transaction add */}
-        <motion.div 
-          className="w-20 h-20 cursor-pointer"
-          animate={animateSir ? { scale: [1, 1.2, 1], rotate: [0, 10, -10, 0] } : {}}
-          transition={{ duration: 0.5 }}
-          title="Sir Clawthchilds - Bull Market Warrior"
-        >
-          <SirClawthchilds />
-        </motion.div>
-        
+
         <div className="flex items-center gap-4">
           <div className="relative">
             <Search size={14} className="absolute left-4 top-1/2 -translate-y-1/2 text-[var(--text-muted)]" />
@@ -115,7 +121,7 @@ export default function FinanceView({ finances = [] }) {
           </button>
         </div>
       </div>
-      
+
       {/* Stats Cards */}
       <div className="grid grid-cols-3 gap-6 shrink-0">
         {[
@@ -134,21 +140,20 @@ export default function FinanceView({ finances = [] }) {
           </motion.div>
         ))}
       </div>
-      
+
       {/* Tabs */}
       <div className="flex items-center gap-2 bg-[var(--bg-panel)] p-1.5 rounded-full border border-[var(--border-color)] w-max shrink-0">
         {tabs.map(tab => (
           <button key={tab.id} onClick={() => setActiveTab(tab.id)}
-            className={`px-6 py-2 rounded-full text-[10px] font-space-mono uppercase tracking-widest transition-all ${
-              activeTab === tab.id 
-                ? 'bg-[rgb(var(--rgb-accent-sec))] text-black font-bold shadow-[0_0_15px_rgba(var(--rgb-accent-sec),0.4)]' 
-                : 'text-[var(--text-muted)] hover:text-[var(--text-main)]'
-            }`}>
+            className={`px-6 py-2 rounded-full text-[10px] font-space-mono uppercase tracking-widest transition-all ${activeTab === tab.id
+              ? 'bg-[rgb(var(--rgb-accent-sec))] text-black font-bold shadow-[0_0_15px_rgba(var(--rgb-accent-sec),0.4)]'
+              : 'text-[var(--text-muted)] hover:text-[var(--text-main)]'
+              }`}>
             {tab.label}
           </button>
         ))}
       </div>
-      
+
       {/* Content */}
       <div className="flex-1 overflow-hidden flex gap-6">
         <div className="flex-1 overflow-y-auto space-y-4 pr-2 scrollbar-hide">
@@ -193,7 +198,7 @@ export default function FinanceView({ finances = [] }) {
               )}
             </motion.div>
           )}
-          
+
           {activeTab === 'expenses' && (
             <div className="hover-spotlight bg-[var(--bg-card)] border border-[var(--border-color)] rounded-[2.5rem] p-6">
               <div className="flex justify-between items-center mb-6">
@@ -225,14 +230,14 @@ export default function FinanceView({ finances = [] }) {
               </div>
             </div>
           )}
-          
+
           {activeTab === 'opportunities' && (
             <div className="hover-spotlight bg-[var(--bg-card)] border border-[var(--border-color)] rounded-[2.5rem] p-12 text-center">
               <p className="text-[var(--text-muted)] font-space-mono">Investment insights coming soon</p>
             </div>
           )}
         </div>
-        
+
         {/* Add Form Panel */}
         <AnimatePresence>
           {showAddForm && (
@@ -242,29 +247,28 @@ export default function FinanceView({ finances = [] }) {
                 <Crosshair className="-top-[5px] -right-[5px]" />
                 <Crosshair className="-bottom-[5px] -left-[5px]" />
                 <Crosshair className="-bottom-[5px] -right-[5px]" />
-                
+
                 <div className="flex justify-between items-center mb-6 relative z-10">
                   <h3 className="text-sm font-bold tracking-widest uppercase text-[var(--text-main)] font-space-grotesk">New Transaction</h3>
                   <button onClick={() => setShowAddForm(false)}><X size={16} className="text-[var(--text-muted)] hover:text-[var(--text-main)]" /></button>
                 </div>
-                
+
                 <div className="space-y-4 relative z-10">
-                  <input type="text" value={newTransaction.description} onChange={(e) => setNewTransaction({...newTransaction, description: e.target.value})}
+                  <input type="text" value={newTransaction.description} onChange={(e) => setNewTransaction({ ...newTransaction, description: e.target.value })}
                     className="w-full bg-[var(--bg-panel)] border border-[var(--border-color)] rounded-xl px-4 py-3 text-sm text-[var(--text-main)] font-space-mono focus:outline-none focus:border-[var(--text-main)]" placeholder="Description" />
-                  <input type="number" value={newTransaction.amount} onChange={(e) => setNewTransaction({...newTransaction, amount: e.target.value})}
+                  <input type="number" value={newTransaction.amount} onChange={(e) => setNewTransaction({ ...newTransaction, amount: e.target.value })}
                     className="w-full bg-[var(--bg-panel)] border border-[var(--border-color)] rounded-xl px-4 py-3 text-sm text-[var(--text-main)] font-space-mono focus:outline-none focus:border-[var(--text-main)]" placeholder="0.00" />
-                  <select value={newTransaction.category} onChange={(e) => setNewTransaction({...newTransaction, category: e.target.value})}
+                  <select value={newTransaction.category} onChange={(e) => setNewTransaction({ ...newTransaction, category: e.target.value })}
                     className="w-full bg-[var(--bg-panel)] border border-[var(--border-color)] rounded-xl px-4 py-3 text-sm text-[var(--text-main)] font-space-mono focus:outline-none focus:border-[var(--text-main)]">
                     {Object.keys(categoryIcons).map(cat => (<option key={cat} value={cat}>{cat.toUpperCase()}</option>))}
                   </select>
                   <div className="flex gap-2">
                     {['expense', 'income'].map(type => (
-                      <button key={type} onClick={() => setNewTransaction({...newTransaction, type})}
-                        className={`flex-1 py-3 rounded-xl text-[10px] font-space-mono uppercase tracking-widest transition-all ${
-                          newTransaction.type === type 
-                            ? type === 'expense' ? 'bg-red-500/20 text-red-500 border border-red-500/30' : 'bg-green-500/20 text-green-500 border border-green-500/30'
-                            : 'bg-[var(--bg-panel)] text-[var(--text-muted)] border border-[var(--border-color)]'
-                        }`}>
+                      <button key={type} onClick={() => setNewTransaction({ ...newTransaction, type })}
+                        className={`flex-1 py-3 rounded-xl text-[10px] font-space-mono uppercase tracking-widest transition-all ${newTransaction.type === type
+                          ? type === 'expense' ? 'bg-red-500/20 text-red-500 border border-red-500/30' : 'bg-green-500/20 text-green-500 border border-green-500/30'
+                          : 'bg-[var(--bg-panel)] text-[var(--text-muted)] border border-[var(--border-color)]'
+                          }`}>
                         {type}
                       </button>
                     ))}
