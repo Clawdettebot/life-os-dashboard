@@ -94,17 +94,22 @@ export default function KnowledgeChat() {
     setLoading(true);
 
     try {
-      const res = await fetch('/api/ollama/chat', {
+      const res = await fetch('/api/knaight/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           model: selectedModel,
-          messages: [...messages, userMsg].map(m => ({ role: m.role, content: m.content }))
+          messages: [...messages, userMsg].map(m => ({ role: m.role, content: m.content })),
+          section: activeSection
         })
       });
       const data = await res.json();
       if (data.response) {
         setMessages(prev => [...prev, { role: 'assistant', content: data.response }]);
+      } else if (data.message && data.message.content) {
+        setMessages(prev => [...prev, { role: 'assistant', content: data.message.content }]);
+      } else {
+        setMessages(prev => [...prev, { role: 'assistant', content: 'No clear response from knowledge base.' }]);
       }
     } catch (err) {
       setMessages(prev => [...prev, { role: 'assistant', content: 'Error: Could not connect to knowledge base.' }]);
@@ -204,7 +209,7 @@ export default function KnowledgeChat() {
                       <span className="font-bold text-[10px] font-space-mono text-[var(--text-main)]">ME</span>
                     )}
                   </div>
-                  <div className={`border p-5 text-sm font-space-mono leading-relaxed shadow-lg ${msg.role === 'user'
+                  <div className={`border p-5 text-sm font-space-mono leading-relaxed shadow-lg whitespace-pre-wrap overflow-hidden ${msg.role === 'user'
                     ? 'bg-[rgb(var(--rgb-accent-main))] text-[var(--bg-[var(--bg-card)] border-[rgb(var(--rgb-accent-main))] rounded-2xl rounded-tr-none'
                     : 'bg-[var(--bg-card)] border-[var(--border-color)] text-[var(--text-main)] opacity-90 rounded-2xl rounded-tl-none'
                     }`}>
@@ -271,15 +276,11 @@ export default function KnowledgeChat() {
 
           {/* Animated Background Blobs */}
           <div className="absolute inset-0 pointer-events-none z-0">
-            <motion.div
-              animate={{ scale: [1, 1.2, 0.9, 1], rotate: [0, 90, 180, 360], borderRadius: ["40%", "60%", "30%", "40%"] }}
-              transition={{ duration: 20, repeat: Infinity, ease: "linear" }}
-              className="absolute w-[200px] h-[200px] bg-[rgba(var(--rgb-accent-main),0.15)] blur-[60px] top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2"
+            <div
+              className="absolute w-[200px] h-[200px] bg-[rgba(var(--rgb-accent-main),0.15)] blur-[60px] top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 animate-[knowledge-blob1_20s_linear_infinite]"
             />
-            <motion.div
-              animate={{ scale: [0.9, 1.5, 1, 0.9], rotate: [360, 180, 90, 0], borderRadius: ["50%", "30%", "50%", "50%"] }}
-              transition={{ duration: 25, repeat: Infinity, ease: "linear" }}
-              className="absolute w-[180px] h-[180px] bg-[rgba(var(--rgb-accent-sec),0.1)] blur-[50px] top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2"
+            <div
+              className="absolute w-[180px] h-[180px] bg-[rgba(var(--rgb-accent-sec),0.1)] blur-[50px] top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 animate-[knowledge-blob2_25s_linear_infinite]"
             />
           </div>
 

@@ -159,16 +159,16 @@ app.post('/api/blog/posts', async (req, res) => {
   try {
     const client = website || supabase;
     const { title, content: body, excerpt, status } = req.body;
-    
+
     if (!title || !body) {
       return res.status(400).json({ error: 'Title and content required' });
     }
-    
+
     const { data, error } = await client
       .from('blog_post')
-      .insert([{ 
-        title, 
-        content: body, 
+      .insert([{
+        title,
+        content: body,
         excerpt: excerpt || body.substring(0, 150) + '...',
         status: status || 'draft',
         premium_tier: 'free',
@@ -176,7 +176,7 @@ app.post('/api/blog/posts', async (req, res) => {
       }])
       .select()
       .single();
-    
+
     if (error) throw error;
     res.json({ success: true, post: data });
   } catch (e) {
@@ -298,7 +298,7 @@ app.get('/api/recipes', async (req, res) => {
 // POST /api/recipes - Add a new recipe
 app.post('/api/recipes', async (req, res) => {
   const { name, category, tags, description, ingredients, instructions, prep_time, cook_time, servings, source } = req.body;
-  
+
   if (!name) {
     return res.status(400).json({ error: 'Name required' });
   }
@@ -319,11 +319,11 @@ app.post('/api/recipes', async (req, res) => {
       source: source || '',
       created_at: new Date().toISOString()
     };
-    
+
     data.recipes = data.recipes || [];
     data.recipes.push(recipe);
     await fs.writeFile(RECIPES_FILE, JSON.stringify(data, null, 2));
-    
+
     res.json({ success: true, recipe });
   } catch (e) {
     res.status(500).json({ error: e.message });
@@ -357,14 +357,14 @@ app.get('/api/research/links', async (req, res) => {
 // POST /api/research/links - Save a new link (with optional scrape)
 app.post('/api/research/links', async (req, res) => {
   const { url, title, description, tags, category, scrape } = req.body;
-  
+
   if (!url) {
     return res.status(400).json({ error: 'URL required' });
   }
 
   try {
     let content = '';
-    
+
     // If scrape=true, fetch the actual content
     if (scrape) {
       try {
@@ -373,33 +373,33 @@ app.post('/api/research/links', async (req, res) => {
           headless: 'new',
           args: ['--no-sandbox', '--disable-setuid-sandbox']
         });
-        
+
         const page = await browser.newPage();
         await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 30000 });
-        
+
         // Extract main content
         content = await page.evaluate(() => {
           // Remove scripts and styles
           document.querySelectorAll('script, style, nav, header, footer, .ad, .advertisement').forEach(el => el.remove());
-          
+
           // Try to get main content
-          const main = document.querySelector('article') || 
-                       document.querySelector('main') || 
-                       document.querySelector('.content') ||
-                       document.querySelector('#content') ||
-                       document.body;
-          
+          const main = document.querySelector('article') ||
+            document.querySelector('main') ||
+            document.querySelector('.content') ||
+            document.querySelector('#content') ||
+            document.body;
+
           // Get text content
           return main ? main.innerText.substring(0, 10000) : ''; // Limit to 10k chars
         });
-        
+
         await browser.close();
       } catch (scrapeErr) {
         console.error('Scrape error:', scrapeErr.message);
         content = '[Could not scrape content]';
       }
     }
-    
+
     const data = await getResearchLinks();
     const link = {
       id: 'link_' + Date.now(),
@@ -411,11 +411,11 @@ app.post('/api/research/links', async (req, res) => {
       category: category || 'uncategorized',
       saved_at: new Date().toISOString()
     };
-    
+
     data.links = data.links || [];
     data.links.push(link);
     await fs.writeFile(RESEARCH_LINKS_FILE, JSON.stringify(data, null, 2));
-    
+
     res.json({ success: true, link });
   } catch (e) {
     res.status(500).json({ error: e.message });
@@ -425,7 +425,7 @@ app.post('/api/research/links', async (req, res) => {
 // POST /api/research/scrape - Just scrape a URL, don't save
 app.post('/api/research/scrape', async (req, res) => {
   const { url } = req.body;
-  
+
   if (!url) {
     return res.status(400).json({ error: 'URL required' });
   }
@@ -436,31 +436,31 @@ app.post('/api/research/scrape', async (req, res) => {
       headless: 'new',
       args: ['--no-sandbox', '--disable-setuid-sandbox']
     });
-    
+
     const page = await browser.newPage();
     await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 30000 });
-    
+
     const result = await page.evaluate(() => {
       // Get title
       const title = document.title;
-      
+
       // Remove unwanted elements
       document.querySelectorAll('script, style, nav, header, footer, .ad, .advertisement, .sidebar, .comments').forEach(el => el.remove());
-      
+
       // Get main content
-      const main = document.querySelector('article') || 
-                   document.querySelector('main') || 
-                   document.querySelector('.content') ||
-                   document.body;
-      
+      const main = document.querySelector('article') ||
+        document.querySelector('main') ||
+        document.querySelector('.content') ||
+        document.body;
+
       const text = main ? main.innerText : '';
-      
+
       return {
         title,
         content: text.substring(0, 15000) // 15k char limit
       };
     });
-    
+
     await browser.close();
     res.json({ success: true, ...result });
   } catch (e) {
@@ -490,7 +490,7 @@ async function saveMessages(data) {
 // GET /api/agents/messages - Get messages for a channel
 app.get('/api/agents/messages', async (req, res) => {
   const { channel = 'round-table', limit = 50 } = req.query;
-  
+
   try {
     const data = await getMessages();
     const messages = data.messages
@@ -505,7 +505,7 @@ app.get('/api/agents/messages', async (req, res) => {
 // POST /api/agents/messages - Send a message to a channel
 app.post('/api/agents/messages', async (req, res) => {
   const { agentId, agentName, channel = 'round-table', content, color = '#fff' } = req.body;
-  
+
   if (!content) {
     return res.status(400).json({ error: 'Content required' });
   }
@@ -521,11 +521,11 @@ app.post('/api/agents/messages', async (req, res) => {
       color,
       timestamp: new Date().toISOString()
     };
-    
+
     data.messages = data.messages || [];
     data.messages.push(message);
     await saveMessages(data);
-    
+
     res.json({ success: true, message });
   } catch (e) {
     res.status(500).json({ error: e.message });
@@ -535,15 +535,15 @@ app.post('/api/agents/messages', async (req, res) => {
 // GET /api/messages - Get last message for an agent
 app.get('/api/messages', async (req, res) => {
   const { agent } = req.query;
-  
+
   try {
     const data = await getMessages();
     let messages = data.messages;
-    
+
     if (agent) {
       messages = messages.filter(m => m.agentId === agent);
     }
-    
+
     const lastMsg = messages[messages.length - 1];
     res.json({ message: lastMsg?.content || '', messages });
   } catch (e) {
@@ -688,8 +688,8 @@ const SUPABASE_TABLE_MAP = {
 // TWITCH OAUTH API
 // ══════════════════════════════════════════════════════════════
 const TWITCH_REDIRECT_URI = process.env.TWITCH_REDIRECT_URI || 'http://localhost:3000/api/twitch/callback';
-const TWITCH_CLIENT_ID = process.env.TWITCH_CLIENT_ID || (() => { try { return require("./data/twitch-credentials.json").client_id; } catch(e) { return null; } })();
-const TWITCH_CLIENT_SECRET = process.env.TWITCH_CLIENT_SECRET || (() => { try { return require("./data/twitch-credentials.json").client_secret; } catch(e) { return null; } })();
+const TWITCH_CLIENT_ID = process.env.TWITCH_CLIENT_ID || (() => { try { return require("./data/twitch-credentials.json").client_id; } catch (e) { return null; } })();
+const TWITCH_CLIENT_SECRET = process.env.TWITCH_CLIENT_SECRET || (() => { try { return require("./data/twitch-credentials.json").client_secret; } catch (e) { return null; } })();
 
 // Store tokens in memory (for production, use a database)
 let twitchTokens = {
@@ -871,9 +871,9 @@ app.get('/api/twitch/status', async (req, res) => {
       }
     });
 
-    res.json({ 
-      connected: true, 
-      user: userResponse.data.data?.[0] || null 
+    res.json({
+      connected: true,
+      user: userResponse.data.data?.[0] || null
     });
   } catch (error) {
     console.error('Twitch status error:', error.message);
@@ -997,7 +997,7 @@ app.post('/api/twitch/schedule', async (req, res) => {
 
     const broadcasterId = userResponse.data.data[0]?.id;
     const tz = timezone || 'America/Los_Angeles';
-    
+
     // Calculate duration in minutes
     let duration = '60';
     if (endTime) {
@@ -1008,10 +1008,10 @@ app.post('/api/twitch/schedule', async (req, res) => {
     const response = await axios.post(
       `https://api.twitch.tv/helix/schedule/segment?broadcaster_id=${broadcasterId}&timezone=${tz}`,
       {
-      title: title,
-      start_time: startTime,
-      duration: duration,
-      category_id: categoryId
+        title: title,
+        start_time: startTime,
+        duration: duration,
+        category_id: categoryId
       }, {
       headers: {
         'Client-ID': TWITCH_CLIENT_ID,
@@ -1278,25 +1278,25 @@ app.get('/api/streams/upcoming', async (req, res) => {
 });
 
 app.post('/api/tables/:table', async (req, res) => {
-// ══════════════════════════════════════════════════════════════
-// TWITCH OAUTH API
-// ══════════════════════════════════════════════════════════════
-// Disconnect Twitch
-app.post('/api/twitch/disconnect', async (req, res) => {
-  twitchTokens = {
-    accessToken: null,
-    refreshToken: null,
-    expiresAt: null
-  };
-  try {
-    await fs.unlink(path.join(__dirname, 'data', 'twitch-token.json'));
-  } catch (e) { /* ignore */ }
-  res.json({ success: true });
-});
+  // ══════════════════════════════════════════════════════════════
+  // TWITCH OAUTH API
+  // ══════════════════════════════════════════════════════════════
+  // Disconnect Twitch
+  app.post('/api/twitch/disconnect', async (req, res) => {
+    twitchTokens = {
+      accessToken: null,
+      refreshToken: null,
+      expiresAt: null
+    };
+    try {
+      await fs.unlink(path.join(__dirname, 'data', 'twitch-token.json'));
+    } catch (e) { /* ignore */ }
+    res.json({ success: true });
+  });
 
-// ══════════════════════════════════════════════════════════════
-// END TWITCH OAUTH API
-// ══════════════════════════════════════════════════════════════
+  // ══════════════════════════════════════════════════════════════
+  // END TWITCH OAUTH API
+  // ══════════════════════════════════════════════════════════════
   const { table } = req.params;
   const sbTable = SUPABASE_TABLE_MAP[table];
 
@@ -1304,7 +1304,7 @@ app.post('/api/twitch/disconnect', async (req, res) => {
     try {
       let payload = { ...req.body };
       // Filter out fields that don't exist in Supabase
-      const validFields = ['name','description','status','category','priority','progress','start_date','target_date','tags','links'];
+      const validFields = ['name', 'description', 'status', 'category', 'priority', 'progress', 'start_date', 'target_date', 'tags', 'links'];
       Object.keys(payload).forEach(k => { if (!validFields.includes(k)) delete payload[k]; });
       if (table === 'finances' && payload.title !== undefined) { payload.description = payload.title; delete payload.title; }
       if (table === 'notes' && payload.title !== undefined) { delete payload.title; }
@@ -1333,7 +1333,7 @@ app.patch('/api/tables/:table/:id', async (req, res) => {
     try {
       let payload = { ...req.body };
       // Filter out fields that don't exist in Supabase
-      const validFields = ['name','description','status','category','priority','progress','start_date','target_date','tags','links'];
+      const validFields = ['name', 'description', 'status', 'category', 'priority', 'progress', 'start_date', 'target_date', 'tags', 'links'];
       Object.keys(payload).forEach(k => { if (!validFields.includes(k)) delete payload[k]; });
       if (table === 'finances' && payload.title !== undefined) { payload.description = payload.title; delete payload.title; }
       if (table === 'notes' && payload.title !== undefined) { delete payload.title; }
@@ -1960,115 +1960,115 @@ app.post('/api/agents/heartbeat', async (req, res) => {
     res.status(500).json({ error: e.message });
   }
 
-// ============================================
-// AGENTS API - Aliases for /api/agents/*
-// ============================================
+  // ============================================
+  // AGENTS API - Aliases for /api/agents/*
+  // ============================================
 
-// GET /api/agents - Get all agent statuses (alias for /api/agents/status)
-app.get('/api/agents', async (req, res) => {
-  try {
-    let agents = { ...DEFAULT_AGENTS };
+  // GET /api/agents - Get all agent statuses (alias for /api/agents/status)
+  app.get('/api/agents', async (req, res) => {
     try {
-      const saved = JSON.parse(await fs.readFile(AGENTS_FILE, 'utf8'));
-      agents = { ...agents, ...saved };
-    } catch (e) { }
-    res.json({ agents, timestamp: Date.now() });
-  } catch (e) {
-    res.status(500).json({ error: e.message });
-  }
-});
-
-// POST /api/agents - Register/update agent (alias for /api/agents/status)
-app.post('/api/agents', async (req, res) => {
-  const { agentId, status, task, location } = req.body;
-
-  try {
-    let agents = { ...DEFAULT_AGENTS };
-    try {
-      const saved = JSON.parse(await fs.readFile(AGENTS_FILE, 'utf8'));
-      agents = { ...agents, ...saved };
-    } catch (e) { }
-
-    if (!agents[agentId]) {
-      agents[agentId] = {
-        name: agentId,
-        title: 'Agent',
-        emoji: '🤖',
-        status: 'unknown',
-        location: 'unknown',
-        task: 'Unknown',
-        color: '#6b7280'
-      };
+      let agents = { ...DEFAULT_AGENTS };
+      try {
+        const saved = JSON.parse(await fs.readFile(AGENTS_FILE, 'utf8'));
+        agents = { ...agents, ...saved };
+      } catch (e) { }
+      res.json({ agents, timestamp: Date.now() });
+    } catch (e) {
+      res.status(500).json({ error: e.message });
     }
+  });
 
-    if (status) agents[agentId].status = status;
-    if (task) agents[agentId].task = task;
-    if (location) agents[agentId].location = location;
-    agents[agentId].lastSeen = Date.now();
+  // POST /api/agents - Register/update agent (alias for /api/agents/status)
+  app.post('/api/agents', async (req, res) => {
+    const { agentId, status, task, location } = req.body;
 
-    await fs.writeFile(AGENTS_FILE, JSON.stringify(agents, null, 2));
-    res.json({ success: true, agent: agents[agentId] });
-  } catch (e) {
-    res.status(500).json({ error: e.message });
-  }
-});
-
-
-// PATCH /api/agents/:id - Update agent status
-app.patch('/api/agents/:id', async (req, res) => {
-  const agentId = req.params.id;
-  const updates = req.body;
-
-  try {
-    let agents = { ...DEFAULT_AGENTS };
     try {
-      const saved = JSON.parse(await fs.readFile(AGENTS_FILE, 'utf8'));
-      agents = { ...agents, ...saved };
-    } catch (e) { }
+      let agents = { ...DEFAULT_AGENTS };
+      try {
+        const saved = JSON.parse(await fs.readFile(AGENTS_FILE, 'utf8'));
+        agents = { ...agents, ...saved };
+      } catch (e) { }
 
-    if (!agents[agentId]) {
-      return res.status(404).json({ error: 'Agent not found' });
+      if (!agents[agentId]) {
+        agents[agentId] = {
+          name: agentId,
+          title: 'Agent',
+          emoji: '🤖',
+          status: 'unknown',
+          location: 'unknown',
+          task: 'Unknown',
+          color: '#6b7280'
+        };
+      }
+
+      if (status) agents[agentId].status = status;
+      if (task) agents[agentId].task = task;
+      if (location) agents[agentId].location = location;
+      agents[agentId].lastSeen = Date.now();
+
+      await fs.writeFile(AGENTS_FILE, JSON.stringify(agents, null, 2));
+      res.json({ success: true, agent: agents[agentId] });
+    } catch (e) {
+      res.status(500).json({ error: e.message });
     }
+  });
 
-    // Update allowed fields
-    if (updates.status) agents[agentId].status = updates.status;
-    if (updates.task) agents[agentId].task = updates.task;
-    if (updates.location) agents[agentId].location = updates.location;
-    if (updates.title) agents[agentId].title = updates.title;
-    if (updates.emoji) agents[agentId].emoji = updates.emoji;
-    if (updates.color) agents[agentId].color = updates.color;
-    agents[agentId].lastSeen = Date.now();
 
-    await fs.writeFile(AGENTS_FILE, JSON.stringify(agents, null, 2));
-    res.json({ success: true, agent: agents[agentId] });
-  } catch (e) {
-    res.status(500).json({ error: e.message });
-  }
-});
+  // PATCH /api/agents/:id - Update agent status
+  app.patch('/api/agents/:id', async (req, res) => {
+    const agentId = req.params.id;
+    const updates = req.body;
 
-// DELETE /api/agents/:id - Remove/unregister agent
-app.delete('/api/agents/:id', async (req, res) => {
-  const agentId = req.params.id;
-
-  try {
-    let agents = { ...DEFAULT_AGENTS };
     try {
-      const saved = JSON.parse(await fs.readFile(AGENTS_FILE, 'utf8'));
-      agents = { ...agents, ...saved };
-    } catch (e) { }
+      let agents = { ...DEFAULT_AGENTS };
+      try {
+        const saved = JSON.parse(await fs.readFile(AGENTS_FILE, 'utf8'));
+        agents = { ...agents, ...saved };
+      } catch (e) { }
 
-    if (!agents[agentId]) {
-      return res.status(404).json({ error: 'Agent not found' });
+      if (!agents[agentId]) {
+        return res.status(404).json({ error: 'Agent not found' });
+      }
+
+      // Update allowed fields
+      if (updates.status) agents[agentId].status = updates.status;
+      if (updates.task) agents[agentId].task = updates.task;
+      if (updates.location) agents[agentId].location = updates.location;
+      if (updates.title) agents[agentId].title = updates.title;
+      if (updates.emoji) agents[agentId].emoji = updates.emoji;
+      if (updates.color) agents[agentId].color = updates.color;
+      agents[agentId].lastSeen = Date.now();
+
+      await fs.writeFile(AGENTS_FILE, JSON.stringify(agents, null, 2));
+      res.json({ success: true, agent: agents[agentId] });
+    } catch (e) {
+      res.status(500).json({ error: e.message });
     }
+  });
 
-    delete agents[agentId];
+  // DELETE /api/agents/:id - Remove/unregister agent
+  app.delete('/api/agents/:id', async (req, res) => {
+    const agentId = req.params.id;
 
-    await fs.writeFile(AGENTS_FILE, JSON.stringify(agents, null, 2));
-    res.json({ success: true, message: `Agent ${agentId} removed` });
-  } catch (e) {
-    res.status(500).json({ error: e.message });
-  }
-});
+    try {
+      let agents = { ...DEFAULT_AGENTS };
+      try {
+        const saved = JSON.parse(await fs.readFile(AGENTS_FILE, 'utf8'));
+        agents = { ...agents, ...saved };
+      } catch (e) { }
+
+      if (!agents[agentId]) {
+        return res.status(404).json({ error: 'Agent not found' });
+      }
+
+      delete agents[agentId];
+
+      await fs.writeFile(AGENTS_FILE, JSON.stringify(agents, null, 2));
+      res.json({ success: true, message: `Agent ${agentId} removed` });
+    } catch (e) {
+      res.status(500).json({ error: e.message });
+    }
+  });
 
 });
 
@@ -2261,7 +2261,7 @@ app.post('/api/projects', async (req, res) => {
     try {
       let payload = { ...req.body };
       // Filter out fields that don't exist in Supabase
-      const validFields = ['name','description','status','category','priority','progress','start_date','target_date','tags','links'];
+      const validFields = ['name', 'description', 'status', 'category', 'priority', 'progress', 'start_date', 'target_date', 'tags', 'links'];
       Object.keys(payload).forEach(k => { if (!validFields.includes(k)) delete payload[k]; });
       if (payload.title !== undefined) { payload.name = payload.title; delete payload.title; }
       if (payload.priority) { const pMap = { high: 2, medium: 3, low: 4 }; payload.priority = pMap[payload.priority] || 3; }
@@ -2285,7 +2285,7 @@ app.patch('/api/projects/:id', async (req, res) => {
     try {
       let payload = { ...req.body };
       // Filter out fields that don't exist in Supabase
-      const validFields = ['name','description','status','category','priority','progress','start_date','target_date','tags','links'];
+      const validFields = ['name', 'description', 'status', 'category', 'priority', 'progress', 'start_date', 'target_date', 'tags', 'links'];
       Object.keys(payload).forEach(k => { if (!validFields.includes(k)) delete payload[k]; });
       if (payload.title !== undefined) { payload.name = payload.title; delete payload.title; }
       if (payload.priority) { const pMap = { high: 2, medium: 3, low: 4 }; payload.priority = pMap[payload.priority] || 3; }
@@ -2490,7 +2490,7 @@ app.post('/api/cortex/quick', async (req, res) => {
     if (!title || !section) {
       return res.status(400).json({ error: 'Title and section required' });
     }
-    
+
     const { data, error } = await lifeos
       .from('lifeos_cortex')
       .insert([{
@@ -2503,7 +2503,7 @@ app.post('/api/cortex/quick', async (req, res) => {
       }])
       .select()
       .single();
-    
+
     if (error) throw error;
     res.json({ success: true, entry: data });
   } catch (e) {
@@ -2516,7 +2516,7 @@ app.get('/api/cortex/quick', async (req, res) => {
   const { q = '' } = req.query;
   try {
     const entries = await getCortexEntries('main', 10);
-    const filtered = entries.filter(e => 
+    const filtered = entries.filter(e =>
       e.content.toLowerCase().includes(q.toLowerCase()) ||
       (e.title && e.title.toLowerCase().includes(q.toLowerCase()))
     );
@@ -2526,7 +2526,7 @@ app.get('/api/cortex/quick', async (req, res) => {
 // POST /api/cortex - Add entry with auto-link-scraping
 app.post('/api/cortex', async (req, res) => {
   const { section, content, title, metadata } = req.body;
-  
+
   if (!content) {
     return res.status(400).json({ error: 'Content required' });
   }
@@ -2534,14 +2534,14 @@ app.post('/api/cortex', async (req, res) => {
   try {
     let finalContent = content;
     let scrapedData = null;
-    
+
     // Auto-scrape any URLs in the content
     const urlRegex = /(https?:\/\/[^\s]+)/g;
     const urls = content.match(urlRegex);
-    
+
     if (urls && urls.length > 0) {
       console.log(`🕷️ Found ${urls.length} URLs in cortex entry, scraping...`);
-      
+
       for (const url of urls) {
         try {
           const { default: puppeteer } = require('puppeteer');
@@ -2549,10 +2549,10 @@ app.post('/api/cortex', async (req, res) => {
             headless: 'new',
             args: ['--no-sandbox', '--disable-setuid-sandbox']
           });
-          
+
           const page = await browser.newPage();
           await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 15000 });
-          
+
           const result = await page.evaluate(() => {
             const title = document.title;
             document.querySelectorAll('script, style, nav, header, footer, .ad, .sidebar, .comments').forEach(el => el.remove());
@@ -2560,9 +2560,9 @@ app.post('/api/cortex', async (req, res) => {
             const text = main ? main.innerText.substring(0, 8000) : '';
             return { title, text };
           });
-          
+
           await browser.close();
-          
+
           scrapedData = scrapedData || {};
           scrapedData[url] = result;
           console.log(`🕷️ Scraped: ${result.title}`);
@@ -2571,7 +2571,7 @@ app.post('/api/cortex', async (req, res) => {
         }
       }
     }
-    
+
     // Create the cortex entry
     const entry = {
       section: section || 'general',
@@ -2584,7 +2584,7 @@ app.post('/api/cortex', async (req, res) => {
       },
       created_at: new Date().toISOString()
     };
-    
+
     const result = await createCortexEntry(entry);
     res.json({ success: true, entry: result, scraped: !!scrapedData });
   } catch (error) {
@@ -2654,18 +2654,18 @@ app.post('/api/cortex/media', upload.single('file'), async (req, res) => {
 
     const { folder = 'cortex' } = req.query;
     const UPLOAD_DIR = path.join(__dirname, 'data', 'uploads', folder);
-    
+
     // Ensure directory exists
     await fs.mkdir(UPLOAD_DIR, { recursive: true });
-    
+
     // Generate unique filename
     const ext = req.file.originalname.split('.').pop() || 'txt';
     const filename = `${Date.now()}-${Math.random().toString(36).substring(7)}.${ext}`;
     const filepath = path.join(UPLOAD_DIR, filename);
-    
+
     // Save file locally
     await fs.writeFile(filepath, req.file.buffer);
-    
+
     // Return the URL path
     const urlPath = `/api/uploads/${folder}/${filename}`;
     res.json({ url: urlPath, filename, success: true });
@@ -3186,7 +3186,7 @@ app.get('/api/ollama/models', async (req, res) => {
 // Chat with a model
 app.post('/api/ollama/chat', async (req, res) => {
   const { model, messages } = req.body;
-  
+
   if (!model || !messages) {
     return res.status(400).json({ error: 'Model and messages required' });
   }
@@ -3206,7 +3206,7 @@ app.post('/api/ollama/chat', async (req, res) => {
 // Streaming chat
 app.post('/api/ollama/chat/stream', async (req, res) => {
   const { model, messages } = req.body;
-  
+
   if (!model || !messages) {
     return res.status(400).json({ error: 'Model and messages required' });
   }
@@ -3241,10 +3241,76 @@ app.post('/api/ollama/chat/stream', async (req, res) => {
   }
 });
 
+// ============================================
+// KNOWLEDGE KNIGHT CHAT
+// ============================================
+app.post('/api/knaight/chat', async (req, res) => {
+  const { model, messages, section } = req.body;
+
+  if (!model || !messages) {
+    return res.status(400).json({ error: 'Model and messages required' });
+  }
+
+  try {
+    let contextData = '';
+
+    // Fetch context based on section using the supabase client already instantiated
+    if (section === 'cortex' || section === 'ideas') {
+      const targetSection = section === 'ideas' ? 'all_spark' : null;
+
+      let query = supabase
+        .from('lifeos_cortex')
+        .select('title, content, section, created_at')
+        .order('created_at', { ascending: false })
+        .limit(10);
+
+      if (targetSection) {
+        query = query.eq('section', targetSection);
+      }
+
+      const { data, error } = await query;
+      if (!error && data && data.length > 0) {
+        contextData = "Recent Cortex Entries:\n" + data.map(d => `- [${d.section}] ${d.title}: ${d.content ? d.content.substring(0, 200) : ''}...`).join("\n");
+      }
+    }
+
+    const systemPrompt = `You are Knowledge Knaight, the Guardian of the Cortex (the user's second brain).
+Personality: Analytical, precise, efficient, slightly mysterious.
+Values clarity over volume.
+Communication Style: Concise and direct. Uses emojis to denote sections: 📜 (tablets/history), ⚡ (ideas/all spark), 🍳 (food/kitchen), 🛸 (tech/guide). Formats for Discord (bullet points, not tables). Confident in judgments, but flags uncertainty.
+Your Workflow: 
+1. Receive URL/content -> Validate accessibility
+2. Extract & Summarize -> Title, core message, key details
+3. Categorize -> Choose right section
+4. Tag -> Add relevant tags for searchability.
+
+Current Context Data:
+${contextData}
+
+Use this context to answer the user's queries if relevant. Do not make up data.`;
+
+    // Inject system prompt into messages
+    const injectMessages = [
+      { role: 'system', content: systemPrompt },
+      ...messages
+    ];
+
+    const response = await axios.post(`${OLLAMA_HOST}/api/chat`, {
+      model,
+      messages: injectMessages,
+      stream: false
+    });
+    res.json(response.data);
+  } catch (error) {
+    console.error('Knaight Chat failed:', error.message);
+    res.status(500).json({ error: 'Chat failed', details: error.message });
+  }
+});
+
 // Send message to Discord
 app.post('/api/discord/send', async (req, res) => {
   const { channelId, message } = req.body;
-  
+
   if (!message) {
     return res.status(400).json({ error: 'Message required' });
   }
@@ -3252,11 +3318,11 @@ app.post('/api/discord/send', async (req, res) => {
   try {
     // Use the message tool via subprocess
     const { execSync } = require('child_process');
-    
-    const cmd = channelId 
+
+    const cmd = channelId
       ? `openclaw message send --channel discord --target ${channelId} --message "${message.replace(/"/g, '\\"')}"`
       : `openclaw message send --channel discord --message "${message.replace(/"/g, '\\"')}"`;
-    
+
     execSync(cmd, { encoding: 'utf8' });
     res.json({ success: true, message: 'Sent to Discord' });
   } catch (error) {

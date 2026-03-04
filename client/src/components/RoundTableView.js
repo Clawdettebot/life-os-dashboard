@@ -345,8 +345,8 @@ const TreeRender = ({ node, onSelect, selectedId }) => {
                   {/* Horizontal Spline connecting children */}
                   {!isOnly && (
                     <div className={`absolute top-0 h-[2px] ${isFirst ? 'left-1/2 right-0' :
-                        isLast ? 'left-0 right-1/2' :
-                          'left-0 right-0'
+                      isLast ? 'left-0 right-1/2' :
+                        'left-0 right-0'
                       }`}>
                       <DataFlowLine className="h-full w-full" reverse={isFirst} />
                     </div>
@@ -363,6 +363,194 @@ const TreeRender = ({ node, onSelect, selectedId }) => {
         </>
       )}
     </div>
+  );
+};
+
+// --- MISSION CONTROL COMMAND CENTER MODAL ---
+const CommandCenterModal = ({ isOpen, onClose }) => {
+  const [activePanel, setActivePanel] = useState('overview');
+  
+  if (!isOpen) return null;
+
+  const panels = [
+    { id: 'overview', label: 'Overview', icon: Terminal },
+    { id: 'agents', label: 'Agents', icon: Users },
+    { id: 'tasks', label: 'Tasks', icon: CheckSquare },
+    { id: 'tokens', label: 'Tokens', icon: Zap },
+    { id: 'spawn', label: 'Spawn', icon: Cpu },
+  ];
+
+  const agents = [
+    { id: 1, name: 'Claudnelius', status: 'active', role: 'Code Wizard', lastHeartbeat: '2m ago', tasks: 12 },
+    { id: 2, name: 'Knowledge Knaight', status: 'active', role: 'Research', lastHeartbeat: '5m ago', tasks: 8 },
+    { id: 3, name: 'Sir Clawthchilds', status: 'idle', role: 'Finance', lastHeartbeat: '15m ago', tasks: 3 },
+    { id: 4, name: 'Shrimp Soldier', status: 'active', role: 'Ideas', lastHeartbeat: '1m ago', tasks: 14 },
+  ];
+
+  const tokenUsage = [
+    { model: 'MiniMax M2.5', tokens: '2.4M', cost: '$12.40', percent: 65 },
+    { model: 'Kimi K2', tokens: '890K', cost: '$4.50', percent: 25 },
+    { model: 'Claude 3.5', tokens: '420K', cost: '$2.10', percent: 10 },
+  ];
+
+  const tasks = [
+    { id: 1, title: 'Review PR #42', status: 'review', priority: 'HIGH', agent: 'Claudnelius' },
+    { id: 2, title: 'Update documentation', status: 'todo', priority: 'MEDIUM', agent: 'Knowledge Knaight' },
+    { id: 3, title: 'Deploy to staging', status: 'in_progress', priority: 'HIGH', agent: 'Shrimp Soldier' },
+    { id: 4, title: 'Run tests', status: 'done', priority: 'LOW', agent: 'Sir Clawthchilds' },
+  ];
+
+  const renderPanel = () => {
+    switch(activePanel) {
+      case 'overview':
+        return (
+          <div className="grid grid-cols-2 gap-4">
+            <div className="bg-[var(--bg-card)] border border-[var(--border-color)] rounded-xl p-4">
+              <div className="text-[10px] font-space-mono text-[var(--text-muted)] uppercase tracking-widest mb-2">Active Agents</div>
+              <div className="text-3xl font-bold text-[var(--text-main)]">4</div>
+              <div className="text-[9px] font-space-mono text-emerald-500">+1 this week</div>
+            </div>
+            <div className="bg-[var(--bg-card)] border border-[var(--border-color)] rounded-xl p-4">
+              <div className="text-[10px] font-space-mono text-[var(--text-muted)] uppercase tracking-widest mb-2">Total Tasks</div>
+              <div className="text-3xl font-bold text-[var(--text-main)]">37</div>
+              <div className="text-[9px] font-space-mono text-[var(--text-faint)]">12 in progress</div>
+            </div>
+            <div className="bg-[var(--bg-card)] border border-[var(--border-color)] rounded-xl p-4">
+              <div className="text-[10px] font-space-mono text-[var(--text-muted)] uppercase tracking-widest mb-2">Tokens (30d)</div>
+              <div className="text-3xl font-bold text-[var(--text-main)]">3.7M</div>
+              <div className="text-[9px] font-space-mono text-[rgb(var(--rgb-accent-main))]">$19.00</div>
+            </div>
+            <div className="bg-[var(--bg-card)] border border-[var(--border-color)] rounded-xl p-4">
+              <div className="text-[10px] font-space-mono text-[var(--text-muted)] uppercase tracking-widest mb-2">Uptime</div>
+              <div className="text-3xl font-bold text-emerald-500">99.9%</div>
+              <div className="text-[9px] font-space-mono text-[var(--text-faint)]">7d 14h</div>
+            </div>
+          </div>
+        );
+      case 'agents':
+        return (
+          <div className="space-y-3">
+            {agents.map(agent => (
+              <div key={agent.id} className="bg-[var(--bg-card)] border border-[var(--border-color)] rounded-xl p-4 flex items-center justify-between hover:border-[var(--border-highlight)] transition-colors">
+                <div className="flex items-center gap-3">
+                  <div className={`w-3 h-3 rounded-full ${agent.status === 'active' ? 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.8)]' : 'bg-[var(--text-faint)]'}`} />
+                  <div>
+                    <div className="text-sm font-bold text-[var(--text-main)]">{agent.name}</div>
+                    <div className="text-[9px] font-space-mono text-[var(--text-muted)]">{agent.role}</div>
+                  </div>
+                </div>
+                <div className="text-right">
+                  <div className="text-[10px] font-space-mono text-[var(--text-muted)]">{agent.lastHeartbeat}</div>
+                  <div className="text-[9px] font-space-mono text-[rgb(var(--rgb-accent-main))]">{agent.tasks} tasks</div>
+                </div>
+              </div>
+            ))}
+          </div>
+        );
+      case 'tasks':
+        return (
+          <div className="space-y-2">
+            {tasks.map(task => (
+              <div key={task.id} className="bg-[var(--bg-card)] border border-[var(--border-color)] rounded-lg p-3 flex items-center gap-3">
+                <div className={`w-2 h-2 rounded-full ${
+                  task.status === 'done' ? 'bg-emerald-500' : 
+                  task.status === 'in_progress' ? 'bg-blue-500' :
+                  task.status === 'review' ? 'bg-yellow-500' : 'bg-[var(--text-faint)]'
+                }`} />
+                <div className="flex-1">
+                  <div className="text-xs font-medium text-[var(--text-main)]">{task.title}</div>
+                  <div className="text-[8px] font-space-mono text-[var(--text-muted)]">{task.agent}</div>
+                </div>
+                <span className={`text-[8px] font-space-mono px-2 py-1 rounded ${
+                  task.priority === 'HIGH' ? 'bg-red-500/20 text-red-500' :
+                  task.priority === 'MEDIUM' ? 'bg-yellow-500/20 text-yellow-500' :
+                  'bg-[var(--bg-overlay)] text-[var(--text-muted)]'
+                }`}>{task.priority}</span>
+              </div>
+            ))}
+          </div>
+        );
+      case 'tokens':
+        return (
+          <div className="space-y-4">
+            {tokenUsage.map((item, i) => (
+              <div key={i} className="bg-[var(--bg-card)] border border-[var(--border-color)] rounded-xl p-4">
+                <div className="flex justify-between items-center mb-2">
+                  <div className="text-sm font-bold text-[var(--text-main)]">{item.model}</div>
+                  <div className="text-xs font-space-mono text-[rgb(var(--rgb-accent-main))]">{item.cost}</div>
+                </div>
+                <div className="h-2 bg-[var(--bg-overlay)] rounded-full overflow-hidden">
+                  <div className="h-full bg-gradient-to-r from-[rgb(var(--rgb-accent-main))] to-[rgb(var(--rgb-accent-sec))]" style={{ width: `${item.percent}%` }} />
+                </div>
+                <div className="text-[9px] font-space-mono text-[var(--text-muted)] mt-1">{item.tokens} tokens</div>
+              </div>
+            ))}
+          </div>
+        );
+      case 'spawn':
+        return (
+          <div className="space-y-4">
+            <div className="bg-[var(--bg-card)] border border-[var(--border-color)] rounded-xl p-6 text-center">
+              <Cpu size={32} className="mx-auto mb-3 text-[rgb(var(--rgb-accent-main))]" />
+              <div className="text-sm font-bold text-[var(--text-main)] mb-2">Spawn New Agent</div>
+              <div className="text-[10px] font-space-mono text-[var(--text-muted)] mb-4">Configure agent capabilities and workspace</div>
+              <button className="px-6 py-2 bg-[var(--logo-bg)] text-[var(--logo-text)] rounded-full text-xs font-bold uppercase tracking-widest hover:opacity-80 transition-opacity">
+                Initialize Agent
+              </button>
+            </div>
+          </div>
+        );
+      default:
+        return null;
+    }
+  };
+
+  return (
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      className="fixed inset-0 z-[100] flex items-center justify-center"
+      onClick={onClose}
+    >
+      <div className="absolute inset-0 bg-black/80 backdrop-blur-xl" />
+      <motion.div
+        initial={{ scale: 0.9, y: 20 }}
+        animate={{ scale: 1, y: 0 }}
+        exit={{ scale: 0.9, y: 20 }}
+        onClick={(e) => e.stopPropagation()}
+        className="relative w-[900px] h-[600px] bg-[var(--bg-panel)] border border-[var(--border-color)] rounded-3xl shadow-[0_0_60px_rgba(0,0,0,0.8)] flex overflow-hidden"
+      >
+        <div className="absolute inset-0 bg-tech-grid opacity-30 pointer-events-none" />
+        <div className="absolute top-0 left-0 right-0 h-16 bg-gradient-to-b from-[var(--bg-card)] to-transparent z-10" />
+        <button onClick={onClose} className="absolute top-4 right-4 p-2 rounded-full hover:bg-[var(--bg-overlay)] transition-colors z-20">
+          <X size={20} className="text-[var(--text-muted)]" />
+        </button>
+        <div className="absolute top-4 left-6 z-10 flex items-center gap-3">
+          <Terminal size={20} className="text-[rgb(var(--rgb-accent-main))]" />
+          <h2 className="text-lg font-bold font-space-grotesk text-[var(--text-main)] uppercase tracking-widest">Mission Control</h2>
+        </div>
+        <div className="w-48 bg-[var(--bg-card)] border-r border-[var(--border-color)] p-4 pt-20 flex flex-col gap-2">
+          {panels.map(panel => (
+            <button
+              key={panel.id}
+              onClick={() => setActivePanel(panel.id)}
+              className={`flex items-center gap-3 px-4 py-3 rounded-xl text-left transition-all ${
+                activePanel === panel.id 
+                  ? 'bg-[var(--bg-overlay)] border border-[var(--border-highlight)] text-[var(--text-main)]' 
+                  : 'text-[var(--text-muted)] hover:text-[var(--text-main)] hover:bg-[var(--bg-overlay)]'
+              }`}
+            >
+              <panel.icon size={16} />
+              <span className="text-xs font-bold uppercase tracking-widest">{panel.label}</span>
+            </button>
+          ))}
+        </div>
+        <div className="flex-1 p-6 pt-20 overflow-y-auto">
+          {renderPanel()}
+        </div>
+      </motion.div>
+    </motion.div>
   );
 };
 
@@ -516,14 +704,14 @@ const CommandCenterWidget = () => {
         </p>
       </div>
 
-      {/* Box 2: Access Interface (Digital Swirl) */}
-      <div className="bg-[var(--bg-card)] backdrop-blur-xl border border-[var(--border-color)] p-4 rounded-sm shadow-lg flex flex-col items-center justify-center relative cursor-pointer group hover:bg-[var(--bg-overlay)] hover:border-[var(--border-highlight)] transition-all min-w-[140px]">
+      {/* Box 2: Access Interface (Digital Swirl) - CLICK TO OPEN COMMAND CENTER */}
+      <button onClick={() => setShowCommandCenter(true)} className="bg-[var(--bg-card)] backdrop-blur-xl border border-[var(--border-color)] p-4 rounded-sm shadow-lg flex flex-col items-center justify-center relative cursor-pointer group hover:bg-[var(--bg-overlay)] hover:border-[var(--border-highlight)] transition-all min-w-[140px]">
         <NodeCorner position="tl" /><NodeCorner position="br" />
         <DigitalLobsterSwirl />
         <span className="text-[7px] font-space-mono text-[var(--text-faint)] uppercase tracking-widest mt-3 group-hover:text-[rgb(var(--rgb-accent-main))] transition-colors">
           Command Center
         </span>
-      </div>
+      </button>
 
       {/* Box 3: Deploy Night Action */}
       <button className="bg-[rgba(var(--rgb-accent-main),0.05)] backdrop-blur-xl border border-[rgb(var(--rgb-accent-main))] p-4 rounded-sm shadow-[0_0_15px_rgba(var(--rgb-accent-main),0.1)] hover:bg-[rgba(var(--rgb-accent-main),0.15)] hover:shadow-[0_0_20px_rgba(var(--rgb-accent-main),0.3)] transition-all flex flex-col items-center justify-center relative group min-w-[140px] cursor-pointer">
@@ -545,6 +733,7 @@ const CommandCenterWidget = () => {
 export default function RoundTableView() {
   const [selectedNode, setSelectedNode] = useState(null);
   const [ripples, setRipples] = useState([]);
+  const [showCommandCenter, setShowCommandCenter] = useState(false);
   const canvasRef = useRef(null);
 
   const handleNodeSelect = (node, event) => {
@@ -577,6 +766,24 @@ export default function RoundTableView() {
         }
         .hover-spotlight:hover::before { opacity: 1; }
         .scrollbar-hide::-webkit-scrollbar { display: none; }
+        
+        @keyframes blob1-anim {
+          0% { transform: scale(1) rotate(0deg); border-radius: 40%; }
+          33% { transform: scale(1.2) rotate(90deg); border-radius: 60%; }
+          66% { transform: scale(0.9) rotate(180deg); border-radius: 30%; }
+          100% { transform: scale(1) rotate(360deg); border-radius: 40%; }
+        }
+        @keyframes blob2-anim {
+          0% { transform: scale(0.9) rotate(360deg); border-radius: 50%; }
+          33% { transform: scale(1.5) rotate(180deg); border-radius: 30%; }
+          66% { transform: scale(1) rotate(90deg); border-radius: 50%; }
+          100% { transform: scale(0.9) rotate(0deg); border-radius: 50%; }
+        }
+        @keyframes blob3-anim {
+          0% { transform: translateY(0) translateX(0) scale(1); }
+          50% { transform: translateY(-100px) translateX(50px) scale(0.8); }
+          100% { transform: translateY(0) translateX(0) scale(1); }
+        }
       `}} />
 
       {/* Hidden SVG Filter definition for gooey/globular effect */}
@@ -601,9 +808,9 @@ export default function RoundTableView() {
 
         {/* HOLOGRAPHIC AMBIENT BACKGROUND BLOBS */}
         <div className="absolute inset-0 opacity-100 globular-blob flex items-center justify-center pointer-events-none z-0">
-          <motion.div animate={{ scale: [1, 1.2, 0.9, 1], rotate: [0, 90, 180, 360], borderRadius: ["40%", "60%", "30%", "40%"] }} transition={{ duration: 20, repeat: Infinity, ease: "linear" }} className="w-[60vw] h-[60vw] bg-[var(--blob-1)] absolute transition-colors duration-700 blur-3xl mix-blend-screen" />
-          <motion.div animate={{ scale: [0.9, 1.5, 1, 0.9], rotate: [360, 180, 90, 0], borderRadius: ["50%", "30%", "50%", "50%"] }} transition={{ duration: 25, repeat: Infinity, ease: "linear" }} className="w-[50vw] h-[50vw] bg-[var(--blob-2)] absolute translate-x-1/4 transition-colors duration-700 blur-3xl mix-blend-screen" />
-          <motion.div animate={{ y: [0, -100, 0], x: [0, 50, 0], scale: [1, 0.8, 1] }} transition={{ duration: 15, repeat: Infinity, ease: "easeInOut" }} className="w-[30vw] h-[30vw] bg-[var(--blob-3)] absolute translate-y-1/3 transition-colors duration-700 blur-2xl rounded-full mix-blend-screen" />
+          <div className="w-[60vw] h-[60vw] bg-[var(--blob-1)] absolute transition-colors duration-700 blur-3xl mix-blend-screen animate-[blob1-anim_20s_linear_infinite]" />
+          <div className="w-[50vw] h-[50vw] bg-[var(--blob-2)] absolute translate-x-1/4 transition-colors duration-700 blur-3xl mix-blend-screen animate-[blob2-anim_25s_linear_infinite]" />
+          <div className="w-[30vw] h-[30vw] bg-[var(--blob-3)] absolute translate-y-1/3 transition-colors duration-700 blur-2xl rounded-full mix-blend-screen animate-[blob3-anim_15s_ease-in-out_infinite]" />
         </div>
 
         <div className="absolute inset-0 bg-tech-grid pointer-events-none z-0" />
@@ -644,6 +851,9 @@ export default function RoundTableView() {
             <InspectorPanel selectedNode={selectedNode} onClose={() => setSelectedNode(null)} />
           )}
         </AnimatePresence>
+
+        {/* Command Center Modal */}
+        <CommandCenterModal isOpen={showCommandCenter} onClose={() => setShowCommandCenter(false)} />
 
       </div>
     </div>

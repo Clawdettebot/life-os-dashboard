@@ -202,7 +202,7 @@ export const LobsterScrollArea = ({
               <motion.div
                 animate={{
                   scale: isDragging ? 1.2 : isHovered ? 1.1 : 1,
-                  rotate: isDragging ? [0, -5, 5, -5, 5, 0] : 0,
+                  rotate: isDragging ? [0, -5, 5, -5, 5, 0] : [0, 0, 0, 0, 0, 0],
                 }}
                 transition={{
                   rotate: { repeat: isDragging ? Infinity : 0, duration: 0.5 },

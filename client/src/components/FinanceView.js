@@ -93,7 +93,7 @@ export default function FinanceView({ finances = [] }) {
             {/* Sir Clawthchilds SVG - animated on transaction add */}
             <motion.div
               className="w-12 h-[72px] cursor-pointer opacity-90 transition-transform flex items-end justify-center"
-              animate={animateSir ? { scale: [1, 1.2, 1.2, 1], rotate: [0, 10, -10, 0] } : { scale: 1, rotate: 0 }}
+              animate={animateSir ? { scale: [1, 1.2, 1.2, 1], rotate: [0, 10, -10, 0] } : { scale: [1, 1, 1, 1], rotate: [0, 0, 0, 0] }}
               transition={{ duration: 0.5 }}
               title="Sir Clawthchilds - Bull Market Warrior"
             >

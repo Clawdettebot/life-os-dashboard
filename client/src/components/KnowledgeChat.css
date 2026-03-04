@@ -6,3 +6,47 @@
   -ms-overflow-style: none;
   scrollbar-width: none;
 }
+
+@keyframes knowledge-blob1 {
+  0% {
+    transform: scale(1) rotate(0deg);
+    border-radius: 40%;
+  }
+
+  33% {
+    transform: scale(1.2) rotate(90deg);
+    border-radius: 60%;
+  }
+
+  66% {
+    transform: scale(0.9) rotate(180deg);
+    border-radius: 30%;
+  }
+
+  100% {
+    transform: scale(1) rotate(360deg);
+    border-radius: 40%;
+  }
+}
+
+@keyframes knowledge-blob2 {
+  0% {
+    transform: scale(0.9) rotate(360deg);
+    border-radius: 50%;
+  }
+
+  33% {
+    transform: scale(1.5) rotate(180deg);
+    border-radius: 30%;
+  }
+
+  66% {
+    transform: scale(1) rotate(90deg);
+    border-radius: 50%;
+  }
+
+  100% {
+    transform: scale(0.9) rotate(0deg);
+    border-radius: 50%;
+  }
+}

@@ -201,6 +201,69 @@ const getIcon = (iconName) => {
   return icons[iconName] || Circle;
 };
 
+// Helper to determine which section a tab belongs to
+const getSectionForTab = (tabId) => {
+  for (const section of NAV_SECTIONS) {
+    if (section.items.find(item => item.id === tabId)) return section.id;
+  }
+  return null;
+};
+
+// --- TECHNICAL LOBSTER SVG COMPONENT ---
+const TacticalLobster = ({ isMoving, isHopping, isTyping }) => {
+  // Animation states based on activity priority (Typing > Hopping > Crawling)
+  const leftClawRot = isTyping ? [-35, 0, -35] : (isMoving && !isHopping ? [-15, 0, -15] : isHopping ? -45 : 0);
+  const rightClawRot = isTyping ? [35, 0, 35] : (isMoving && !isHopping ? [15, 0, 15] : isHopping ? 45 : 0);
+  const animDuration = isTyping ? 0.1 : 0.3;
+  const shouldRepeat = isTyping || (isMoving && !isHopping);
+
+  return (
+    <svg width="24" height="28" viewBox="0 0 24 36" fill="none" className="transform origin-center">
+      {/* Left Claw */}
+      <motion.path d="M 6 12 C 0 8 0 0 6 4 C 12 6 8 12 8 14 Z" fill="currentColor"
+        animate={{ rotate: leftClawRot }}
+        transition={{ repeat: shouldRepeat ? Infinity : 0, duration: animDuration }}
+        style={{ originX: '8px', originY: '14px' }}
+      />
+      {/* Right Claw */}
+      <motion.path d="M 18 12 C 24 8 24 0 18 4 C 12 6 16 12 16 14 Z" fill="currentColor"
+        animate={{ rotate: rightClawRot }}
+        transition={{ repeat: shouldRepeat ? Infinity : 0, duration: animDuration }}
+        style={{ originX: '16px', originY: '14px' }}
+      />
+
+      {/* Head/Antennae (Twitches while typing) */}
+      <motion.path d="M 10 10 L 8 4 M 14 10 L 16 4" stroke="currentColor" strokeWidth="1" strokeLinecap="round" opacity="0.6"
+        animate={{ rotate: isTyping ? [-5, 5, -5] : 0 }}
+        transition={{ repeat: isTyping ? Infinity : 0, duration: 0.1 }}
+        style={{ originY: '10px' }}
+      />
+
+      {/* Carapace */}
+      <rect x="8" y="12" width="8" height="14" rx="3" fill="currentColor" />
+      <path d="M 8 16 L 16 16 M 8 20 L 16 20" stroke="var(--bg-panel)" strokeWidth="1.5" />
+
+      {/* Tail (Stretches EXTREMELY when hopping) */}
+      <motion.path d="M 8 25 L 5 32 L 12 30 L 19 32 L 16 25 Z" fill="currentColor" strokeLinejoin="round"
+        animate={{ scaleY: isHopping ? 1.6 : 1 }}
+        style={{ originY: '25px' }}
+      />
+
+      {/* Legs */}
+      <motion.g animate={{ y: isMoving && !isHopping ? [-1, 1, -1] : isHopping ? -2 : 0 }} transition={{ repeat: isMoving && !isHopping ? Infinity : 0, duration: 0.2 }}>
+        <line x1="8" y1="15" x2="4" y2="18" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+        <line x1="16" y1="15" x2="20" y2="18" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+        <line x1="8" y1="23" x2="4" y2="26" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+        <line x1="16" y1="23" x2="20" y2="26" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+      </motion.g>
+      <motion.g animate={{ y: isMoving && !isHopping ? [1, -1, 1] : isHopping ? 2 : 0 }} transition={{ repeat: isMoving && !isHopping ? Infinity : 0, duration: 0.2 }}>
+        <line x1="8" y1="19" x2="3" y2="22" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+        <line x1="16" y1="19" x2="21" y2="22" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+      </motion.g>
+    </svg>
+  );
+};
+
 export default function App() {
   const [activeTab, setActiveTab] = useState(() => localStorage.getItem('activeTab') || 'dashboard');
   const [themeIndex, setThemeIndex] = useState(() => {
@@ -213,6 +276,134 @@ export default function App() {
     const saved = localStorage.getItem('expandedSections');
     return saved ? JSON.parse(saved) : { 'command': true, 'work': true, 'content': true, 'life': false, 'second-brain': false };
   });
+
+  // Physics & Tracking State
+  const itemRefs = useRef({});
+  const sidebarRef = useRef(null);
+  const scrollContainerRef = useRef(null);
+
+  const [lobsterState, setLobsterState] = useState({
+    y: 0,
+    dir: 1,
+    isMoving: false,
+    isHopping: false,
+    duration: 0
+  });
+
+  const [isTyping, setIsTyping] = useState(false);
+  const typingTimeoutRef = useRef(null);
+  const moveTimeout = useRef(null);
+
+  const prevTabRef = useRef(activeTab);
+  const targetTabRef = useRef(activeTab);
+
+  // Synchronous lock to prevent layout shifts from killing the hop animation
+  const isMovingLock = useRef(false);
+
+  // Global Keyboard Event Listener
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      // Ignore modifier keys alone
+      if (['Shift', 'Control', 'Alt', 'Meta', 'CapsLock', 'Tab'].includes(e.key)) return;
+
+      setIsTyping(true);
+      if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
+      typingTimeoutRef.current = setTimeout(() => setIsTyping(false), 200);
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
+
+  // Core function to recalculate the lobster's absolute Y position on the sidebar
+  const updateLobsterPosition = (reason = 'tab_change') => {
+    // CRITICAL FIX: If the lobster is mid-hop/crawl, ignore background layout scrolls
+    if (reason === 'scroll' && isMovingLock.current) return;
+
+    const targetEl = itemRefs.current[targetTabRef.current];
+    if (!targetEl || !sidebarRef.current) return;
+
+    const sidebarRect = sidebarRef.current.getBoundingClientRect();
+    const elRect = targetEl.getBoundingClientRect();
+
+    // Y center relative to the sidebar absolute space
+    const targetY = elRect.top - sidebarRect.top + (elRect.height / 2) - 14;
+
+    setLobsterState(prev => {
+      // Scroll event -> Instant pin, no animation
+      if (reason === 'scroll') {
+        return { ...prev, y: targetY, duration: 0, isHopping: false, isMoving: false };
+      }
+
+      const prevSection = getSectionForTab(prevTabRef.current);
+      const targetSection = getSectionForTab(targetTabRef.current);
+
+      // HOP vs CRAWL Logic: Hop if moving to a completely different section
+      const shouldHop = prevSection !== targetSection;
+      const dist = Math.abs(targetY - prev.y);
+
+      let calcDuration = 0;
+      if (shouldHop) {
+        calcDuration = 0.8; // Hops are a snappy fixed duration
+      } else {
+        // Slow crawl: speed depends on distance, clamped between 0.4s and 2.5s
+        calcDuration = Math.min(Math.max(dist * 0.005, 0.4), 2.5);
+      }
+
+      // Lock the physics engine synchronously so scrolls can't interrupt it
+      isMovingLock.current = true;
+
+      if (moveTimeout.current) clearTimeout(moveTimeout.current);
+      moveTimeout.current = setTimeout(() => {
+        isMovingLock.current = false;
+        setLobsterState(s => ({ ...s, isMoving: false, isHopping: false }));
+      }, calcDuration * 1000);
+
+      return {
+        y: targetY,
+        dir: targetY > prev.y ? 1 : -1,
+        isMoving: true,
+        isHopping: shouldHop,
+        duration: calcDuration
+      };
+    });
+
+    if (reason === 'tab_change') {
+      prevTabRef.current = targetTabRef.current;
+    }
+  };
+
+  // 1. Listen for Tab Clicks
+  useEffect(() => {
+    if (targetTabRef.current !== activeTab) {
+      targetTabRef.current = activeTab;
+      updateLobsterPosition('tab_change');
+    }
+  }, [activeTab]);
+
+  // 2. Listen for Scrolling (to keep lobster pinned smoothly)
+  useEffect(() => {
+    const scrollEl = scrollContainerRef.current;
+    if (!scrollEl) return;
+
+    const handleScroll = () => {
+      updateLobsterPosition('scroll');
+    };
+
+    scrollEl.addEventListener('scroll', handleScroll);
+    return () => scrollEl.removeEventListener('scroll', handleScroll);
+  }, []);
+
+  // 3. Listen for Accordion Expands (Track DOM shift)
+  useEffect(() => {
+    if (isMovingLock.current) return;
+    // Rapidly track the expanding accordion for 350ms so the lobster stays glued to the tab
+    const interval = setInterval(() => {
+      updateLobsterPosition('scroll');
+    }, 16);
+    setTimeout(() => clearInterval(interval), 350);
+    return () => clearInterval(interval);
+  }, [expandedSections]);
 
   // Persist state changes
   useEffect(() => {
@@ -353,6 +544,19 @@ export default function App() {
         .hover-spotlight:hover::after { opacity: 1; }
         .scrollbar-hide::-webkit-scrollbar { display: none; }
         .scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
+        
+        @keyframes blob1-anim {
+          0% { transform: scale(1) rotate(0deg); border-radius: 40%; }
+          33% { transform: scale(1.2) rotate(90deg); border-radius: 60%; }
+          66% { transform: scale(0.9) rotate(180deg); border-radius: 30%; }
+          100% { transform: scale(1) rotate(360deg); border-radius: 40%; }
+        }
+        @keyframes blob2-anim {
+          0% { transform: scale(0.9) rotate(360deg); border-radius: 50%; }
+          33% { transform: scale(1.5) rotate(180deg); border-radius: 30%; }
+          66% { transform: scale(1) rotate(90deg); border-radius: 50%; }
+          100% { transform: scale(0.9) rotate(0deg); border-radius: 50%; }
+        }
       `}</style>
 
       <svg className="hidden">
@@ -374,13 +578,44 @@ export default function App() {
           <div className="absolute left-0 right-0 top-[88px] h-[1px] bg-[var(--border-color)] transition-colors duration-500" />
 
           <div className="absolute inset-0 opacity-100 globular-blob flex items-center justify-center">
-            <motion.div animate={{ scale: [1, 1.2, 0.9, 1], rotate: [0, 90, 180, 360], borderRadius: ["40%", "60%", "30%", "40%"] }} transition={{ duration: 20, repeat: Infinity, ease: "linear" }} className="w-[60vw] h-[60vw] bg-[var(--blob-1)] absolute transition-colors duration-700" />
-            <motion.div animate={{ scale: [0.9, 1.5, 1, 0.9], rotate: [360, 180, 90, 0], borderRadius: ["50%", "30%", "50%", "50%"] }} transition={{ duration: 25, repeat: Infinity, ease: "linear" }} className="w-[50vw] h-[50vw] bg-[var(--blob-2)] absolute translate-x-1/4 transition-colors duration-700" />
+            <div className="w-[60vw] h-[60vw] bg-[var(--blob-1)] absolute transition-colors duration-700 animate-[blob1-anim_20s_linear_infinite]" />
+            <div className="w-[50vw] h-[50vw] bg-[var(--blob-2)] absolute translate-x-1/4 transition-colors duration-700 animate-[blob2-anim_25s_linear_infinite]" />
           </div>
         </div>
 
         {/* Sidebar */}
-        <motion.aside initial={{ x: -300 }} animate={{ x: 0 }} className="w-[280px] bg-[var(--bg-sidebar)] backdrop-blur-xl border-r border-[var(--border-color)] flex flex-col z-20 relative">
+        <motion.aside ref={sidebarRef} initial={{ x: -300 }} animate={{ x: 0 }} className="w-[280px] bg-[var(--bg-sidebar)] backdrop-blur-xl border-r border-[var(--border-color)] flex flex-col z-20 relative">
+          {/* THE FIXED VERTICAL RAIL (Perfectly aligned at 15px) */}
+          <div className="absolute left-[15px] top-[44px] bottom-0 w-[2px] bg-[var(--border-color)] shadow-[inset_0_0_5px_rgba(0,0,0,0.5)] z-0 pointer-events-none transition-colors duration-700" />
+
+          {/* THE PHYSICS-DRIVEN LOBSTER */}
+          <motion.div
+            animate={
+              lobsterState.isHopping
+                ? {
+                  y: lobsterState.y,
+                  x: [0, 80, 0],
+                  scale: [1, 2, 1],
+                  rotate: lobsterState.dir === 1 ? 180 : 0
+                }
+                : {
+                  y: lobsterState.y,
+                  x: 0,
+                  scale: 1,
+                  rotate: lobsterState.dir === 1 ? 180 : 0
+                }
+            }
+            transition={{
+              y: { duration: lobsterState.duration, ease: "easeInOut" },
+              x: { duration: lobsterState.duration, ease: "linear", times: [0, 0.5, 1] },
+              scale: { duration: lobsterState.duration, ease: "easeInOut", times: [0, 0.5, 1] },
+              rotate: { duration: 0.3 }
+            }}
+            className="absolute left-[4px] z-30 text-[rgb(var(--rgb-accent-main))] drop-shadow-[0_0_15px_rgba(var(--rgb-accent-main),0.8)] pointer-events-none"
+          >
+            <TacticalLobster isMoving={lobsterState.isMoving} isHopping={lobsterState.isHopping} isTyping={isTyping} />
+          </motion.div>
+
           <div className="h-[88px] flex items-center px-8 relative cursor-pointer group hover:bg-[var(--bg-overlay)]" onClick={toggleTheme}>
             <div className="flex items-center gap-4 w-full">
               <div className="w-10 h-10 bg-[var(--logo-bg)] text-[var(--logo-text)] rounded-full flex items-center justify-center font-bold font-space-mono text-sm shadow-[0_0_20px_var(--border-highlight)]">OS</div>
@@ -389,7 +624,7 @@ export default function App() {
             </div>
           </div>
 
-          <div className="flex-1 overflow-y-auto px-4 py-8 space-y-8 scrollbar-hide">
+          <div className="flex-1 overflow-y-auto px-4 py-8 space-y-8 scrollbar-hide" ref={scrollContainerRef}>
             {NAV_SECTIONS.map((section) => {
               const isExpanded = expandedSections[section.id];
               return (
@@ -407,7 +642,7 @@ export default function App() {
                           const isActive = activeTab === item.id;
                           const ItemIcon = getIcon(item.icon);
                           return (
-                            <button key={item.id} onClick={() => setActiveTab(item.id)} className={`w-full flex items-center gap-4 px-4 py-3 rounded-full text-xs font-bold uppercase tracking-widest transition-all hover-spotlight ${isActive ? 'text-[var(--text-main)]' : 'text-[var(--text-muted)] hover:text-[var(--text-main)]'}`}>
+                            <button key={item.id} ref={el => itemRefs.current[item.id] = el} onClick={() => setActiveTab(item.id)} className={`w-full flex items-center gap-4 px-4 py-3 rounded-full text-xs font-bold uppercase tracking-widest transition-all hover-spotlight ${isActive ? 'text-[var(--text-main)]' : 'text-[var(--text-muted)] hover:text-[var(--text-main)]'}`}>
                               {isActive && <motion.div layoutId="nav-active" className="absolute inset-0 bg-[var(--bg-overlay)] border border-[var(--border-color)] rounded-full" />}
                               <ItemIcon size={16} className={`relative z-10 ${isActive ? 'text-[rgb(var(--rgb-accent-main))]' : 'opacity-70'}`} />
                               <span className="relative z-10 font-space-grotesk">{item.label}</span>
