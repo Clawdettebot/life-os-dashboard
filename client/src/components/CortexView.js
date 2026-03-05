@@ -4,6 +4,7 @@ import {
   BookOpen, Flame, ChefHat, History, Search, Plus,
   Clock, Tag, Sparkles, Utensils, X, Upload, Send
 } from 'lucide-react';
+import LobsterScrollArea from './ui/LobsterScrollArea';
 
 import { SectionParticles } from './cortex/SectionBackground';
 import ViewModeToggle from './cortex/ViewModeToggle';
@@ -309,7 +310,7 @@ export default function CortexView() {
       {/* Legacy Entry Modal for detail viewing - can be upgraded later */}
       {selectedEntry && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-6 bg-black/80 backdrop-blur-sm" onClick={() => setSelectedEntry(null)}>
-          <div className="w-full max-w-2xl bg-[var(--bg-card)] border border-[var(--border-color)] rounded-[2.5rem] p-10 overflow-auto max-h-[90vh]" onClick={e => e.stopPropagation()}>
+          <LobsterScrollArea className="w-full max-w-2xl bg-[var(--bg-card)] border border-[var(--border-color)] rounded-[2.5rem] shadow-[0_0_60px_rgba(0,0,0,0.8)] max-h-[90vh]" contentClassName="p-10" onClick={e => e.stopPropagation()}>
             <div className="flex justify-between items-center mb-6">
               <h2 className="text-xl font-bold uppercase tracking-widest">{selectedEntry.title}</h2>
               <button onClick={() => setSelectedEntry(null)} className="text-[var(--text-muted)] hover:text-[var(--text-main)]"><X size={24} /></button>
@@ -318,7 +319,7 @@ export default function CortexView() {
             <div className="text-sm text-[var(--text-muted)] leading-relaxed whitespace-pre-wrap font-space-grotesk bg-[var(--bg-base)] p-6 rounded-2xl border border-[var(--border-color)]">
               {selectedEntry.content}
             </div>
-          </div>
+          </LobsterScrollArea>
         </div>
       )}
     </div>

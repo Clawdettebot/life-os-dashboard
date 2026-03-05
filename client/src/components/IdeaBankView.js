@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Plus, Lightbulb, Zap, FileText, Trash2, Send, RefreshCw, X, Star } from 'lucide-react';
 import { WidgetCard } from './ui/WidgetCard';
-import { LobsterScrollArea } from './ui/LobsterScrollBar';
+import LobsterScrollArea from './ui/LobsterScrollArea';
 
 const statusConfig = {
   raw: { label: 'Raw', color: 'text-[var(--text-muted)]', bg: 'bg-gray-500/10', glass: 'bg-gray-500/20 text-gray-300' },

@@ -6,6 +6,7 @@ import {
 import { WidgetCard } from './ui/WidgetCard';
 import { GlassyPill } from './ui/GlassyPill';
 import AnimatedIcon from './AnimatedIcon';
+import LobsterScrollArea from './ui/LobsterScrollArea';
 
 const CATEGORY_COLORS = {
   streaming: '#ef4444',
@@ -242,7 +243,7 @@ export default function ExpensesView({ finances = [], api }) {
             </div>
           </div>
 
-          <div className="overflow-x-auto glass-scroll">
+          <LobsterScrollArea direction="horizontal" contentClassName="glass-scroll">
             {filteredExpenses.length === 0 ? (
               <div className="p-20 flex flex-col items-center justify-center text-center">
                 <div className="w-16 h-16 rounded-full bg-white/5 border border-white/10 flex items-center justify-center mb-4">
@@ -312,7 +313,7 @@ export default function ExpensesView({ finances = [], api }) {
                 </tbody>
               </table>
             )}
-          </div>
+          </LobsterScrollArea>
         </WidgetCard>
       </div>
     </div>

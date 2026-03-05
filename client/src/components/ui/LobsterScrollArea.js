@@ -3,15 +3,19 @@ import { motion, useScroll, useTransform, useMotionValueEvent } from 'framer-mot
 
 const DOT_COUNT = 40;
 
-export const LobsterScrollArea = ({
+export const LobsterScrollArea = React.forwardRef(({
   children,
   className = '',
   contentClassName = '',
   direction = 'vertical',
   size = 'default'
-}) => {
+}, ref) => {
   const isVertical = direction === 'vertical';
   const contentRef = useRef(null);
+
+  // Forward the ref to the content container
+  React.useImperativeHandle(ref, () => contentRef.current);
+
   const trackRef = useRef(null);
   const [isDragging, setIsDragging] = useState(false);
   const [isHovered, setIsHovered] = useState(false);
@@ -256,6 +260,6 @@ export const LobsterScrollArea = ({
       `}} />
     </div>
   );
-};
+});
 
 export default LobsterScrollArea;

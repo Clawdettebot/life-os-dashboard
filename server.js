@@ -1325,12 +1325,24 @@ app.post('/api/tables/:table', async (req, res) => {
   if (lifeos && sbTable) {
     try {
       let payload = { ...req.body };
-      // Filter out fields that don't exist in Supabase
-      const validFields = ['name', 'description', 'status', 'category', 'priority', 'progress', 'start_date', 'target_date', 'tags', 'links'];
-      Object.keys(payload).forEach(k => { if (!validFields.includes(k)) delete payload[k]; });
-      if (table === 'finances' && payload.title !== undefined) { payload.description = payload.title; delete payload.title; }
+      
+      // For finances, allow amount, type, date fields
+      if (table !== 'finances') {
+        // Filter out fields that don't exist in Supabase for other tables
+        const validFields = ['name', 'description', 'status', 'category', 'priority', 'progress', 'start_date', 'target_date', 'tags', 'links'];
+        Object.keys(payload).forEach(k => { if (!validFields.includes(k)) delete payload[k]; });
+      }
+      
+      // Map frontend fields for finances
+      if (table === 'finances') {
+        if (payload.title !== undefined) { payload.description = payload.title; }
+        payload.type = payload.type || 'expense';
+        payload.amount = Number(payload.amount) || 0;
+      }
+      
       if (table === 'notes' && payload.title !== undefined) { delete payload.title; }
       if (table === 'projects' && payload.title !== undefined) { payload.name = payload.title; delete payload.title; }
+      
       const { data, error } = await lifeos
         .from(sbTable)
         .insert({ ...payload, created_at: new Date().toISOString() })

@@ -391,66 +391,68 @@ export default function BlogVoiceView({ api }) {
       {/* New Post Modal */}
       {showNewPost && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-md backdrop-blur-xl z-[100] flex items-center justify-center p-4">
-          <WidgetCard className="w-full max-w-2xl bg-[#0a0f18] border-[var(--border-color)] shadow-2xl relative max-h-[90vh] overflow-y-auto">
-            <button
-              onClick={() => setShowNewPost(false)}
-              className="absolute top-4 right-4 p-2 text-[var(--text-muted)] hover:text-[var(--text-main)] bg-[var(--bg-overlay)] rounded-full"
-            >
-              <X className="w-5 h-5" />
-            </button>
-            <div className="p-6">
-              <h2 className="text-2xl font-outfit font-bold text-[var(--text-main)] mb-6 flex items-center gap-3">
-                <Mic className="w-6 h-6 text-violet-400" />
-                New Blog Post
-              </h2>
+          <WidgetCard className="w-full max-w-2xl bg-[#0a0f18] border-[var(--border-color)] shadow-2xl relative max-h-[90vh]">
+            <LobsterScrollArea className="w-full h-full" contentClassName="p-6">
+              <button
+                onClick={() => setShowNewPost(false)}
+                className="absolute top-4 right-4 p-2 text-[var(--text-muted)] hover:text-[var(--text-main)] bg-[var(--bg-overlay)] rounded-full z-10"
+              >
+                <X className="w-5 h-5" />
+              </button>
+              <div>
+                <h2 className="text-2xl font-outfit font-bold text-[var(--text-main)] mb-6 flex items-center gap-3">
+                  <Mic className="w-6 h-6 text-violet-400" />
+                  New Blog Post
+                </h2>
 
-              <div className="space-y-5">
-                <div>
-                  <label className="block text-xs uppercase tracking-widest font-bold text-[var(--text-muted)] mb-2">Title</label>
-                  <input
-                    type="text"
-                    value={newPostTitle}
-                    onChange={e => setNewPostTitle(e.target.value)}
-                    placeholder="Post title..."
-                    className="w-full bg-[var(--bg-card)]lack/60 border border-[var(--border-color)] rounded-xl px-4 py-3 text-[var(--text-main)] placeholder-gray-600 focus:outline-none focus:border-violet-500/50 focus:ring-1 focus:ring-violet-500/50"
-                  />
-                </div>
+                <div className="space-y-5">
+                  <div>
+                    <label className="block text-xs uppercase tracking-widest font-bold text-[var(--text-muted)] mb-2">Title</label>
+                    <input
+                      type="text"
+                      value={newPostTitle}
+                      onChange={e => setNewPostTitle(e.target.value)}
+                      placeholder="Post title..."
+                      className="w-full bg-[var(--bg-card)]lack/60 border border-[var(--border-color)] rounded-xl px-4 py-3 text-[var(--text-main)] placeholder-gray-600 focus:outline-none focus:border-violet-500/50 focus:ring-1 focus:ring-violet-500/50"
+                    />
+                  </div>
 
-                <div>
-                  <label className="block text-xs uppercase tracking-widest font-bold text-[var(--text-muted)] mb-2">Content</label>
-                  <textarea
-                    value={newPostContent}
-                    onChange={e => setNewPostContent(e.target.value)}
-                    placeholder="Write your post or paste a voice transcript..."
-                    rows={10}
-                    className="w-full bg-[var(--bg-card)]lack/60 border border-[var(--border-color)] rounded-xl px-4 py-3 text-[var(--text-main)] placeholder-gray-600 focus:outline-none focus:border-violet-500/50 focus:ring-1 focus:ring-violet-500/50 resize-none font-space-mono text-sm"
-                  />
-                </div>
+                  <div>
+                    <label className="block text-xs uppercase tracking-widest font-bold text-[var(--text-muted)] mb-2">Content</label>
+                    <textarea
+                      value={newPostContent}
+                      onChange={e => setNewPostContent(e.target.value)}
+                      placeholder="Write your post or paste a voice transcript..."
+                      rows={10}
+                      className="w-full bg-[var(--bg-card)]lack/60 border border-[var(--border-color)] rounded-xl px-4 py-3 text-[var(--text-main)] placeholder-gray-600 focus:outline-none focus:border-violet-500/50 focus:ring-1 focus:ring-violet-500/50 resize-none font-space-mono text-sm"
+                    />
+                  </div>
 
-                <div>
-                  <label className="block text-xs uppercase tracking-widest font-bold text-[var(--text-muted)] mb-2">Tags (comma separated)</label>
-                  <input
-                    type="text"
-                    value={newPostTags}
-                    onChange={e => setNewPostTags(e.target.value)}
-                    placeholder="voice-drop, music, update..."
-                    className="w-full bg-[var(--bg-card)]lack/60 border border-[var(--border-color)] rounded-xl px-4 py-3 text-[var(--text-main)] placeholder-gray-600 focus:outline-none focus:border-violet-500/50 focus:ring-1 focus:ring-violet-500/50"
-                  />
-                </div>
+                  <div>
+                    <label className="block text-xs uppercase tracking-widest font-bold text-[var(--text-muted)] mb-2">Tags (comma separated)</label>
+                    <input
+                      type="text"
+                      value={newPostTags}
+                      onChange={e => setNewPostTags(e.target.value)}
+                      placeholder="voice-drop, music, update..."
+                      className="w-full bg-[var(--bg-card)]lack/60 border border-[var(--border-color)] rounded-xl px-4 py-3 text-[var(--text-main)] placeholder-gray-600 focus:outline-none focus:border-violet-500/50 focus:ring-1 focus:ring-violet-500/50"
+                    />
+                  </div>
 
-                <div className="flex gap-3 justify-end pt-4 border-t border-[var(--border-color)]">
-                  <GlassyPill onClick={() => setShowNewPost(false)}>Cancel</GlassyPill>
-                  <GlassyPill
-                    variant="primary"
-                    onClick={createPost}
-                    disabled={!newPostTitle.trim() || isLoading}
-                    className="bg-violet-600 hover:bg-violet-500 border-violet-500 flex items-center gap-2"
-                  >
-                    <Send className="w-4 h-4" /> Create Post
-                  </GlassyPill>
+                  <div className="flex gap-3 justify-end pt-4 border-t border-[var(--border-color)]">
+                    <GlassyPill onClick={() => setShowNewPost(false)}>Cancel</GlassyPill>
+                    <GlassyPill
+                      variant="primary"
+                      onClick={createPost}
+                      disabled={!newPostTitle.trim() || isLoading}
+                      className="bg-violet-600 hover:bg-violet-500 border-violet-500 flex items-center gap-2"
+                    >
+                      <Send className="w-4 h-4" /> Create Post
+                    </GlassyPill>
+                  </div>
                 </div>
               </div>
-            </div>
+            </LobsterScrollArea>
           </WidgetCard>
         </div>
       )}

@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Radio, CalendarDays, Activity, Plus, Edit2, CheckCircle, XCircle, Users, MessageSquare, Link2, Link2Off, RefreshCw } from 'lucide-react';
 import { WidgetCard } from './ui/WidgetCard';
 import { GlassyPill } from './ui/GlassyPill';
+import LobsterScrollArea from './ui/LobsterScrollArea';
 
 // Animation variants
 const pageVariants = {
@@ -16,18 +17,18 @@ const cardVariants = {
   animate: (i) => ({
     opacity: 1,
     y: 0,
-    transition: { 
-      delay: i * 0.1, 
-      duration: 0.4, 
-      ease: "easeOut" 
+    transition: {
+      delay: i * 0.1,
+      duration: 0.4,
+      ease: "easeOut"
     }
   })
 };
 
 const hoverVariants = {
   rest: { scale: 1, y: 0 },
-  hover: { 
-    scale: 1.02, 
+  hover: {
+    scale: 1.02,
     y: -4,
     transition: { duration: 0.2 }
   }
@@ -126,7 +127,7 @@ export default function StreamsView({ streams = [], twitchSchedule = [], setActi
             <p className="text-[10px] text-gray-500 font-bold uppercase tracking-widest mt-1">Broadcast Schedule & Management</p>
           </div>
         </div>
-        
+
         <div className="flex items-center gap-3">
           {/* Twitch Connection Status in Header */}
           {!loading && (
@@ -134,14 +135,14 @@ export default function StreamsView({ streams = [], twitchSchedule = [], setActi
               {twitchStatus.connected ? (
                 <>
                   {twitchStatus.user?.profile_image_url && (
-                    <img 
-                      src={twitchStatus.user.profile_image_url} 
+                    <img
+                      src={twitchStatus.user.profile_image_url}
                       alt={twitchStatus.user.display_name}
                       className="w-8 h-8 rounded-full ring-2 ring-purple-500/50"
                     />
                   )}
                   <span className="text-sm text-gray-300 font-medium">{twitchStatus.user?.display_name}</span>
-                  <button 
+                  <button
                     onClick={handleTwitchDisconnect}
                     className="p-2 rounded-lg bg-red-500/10 border border-red-500/30 text-red-400 hover:bg-red-500/20 transition-all"
                     title="Disconnect Twitch"
@@ -165,7 +166,7 @@ export default function StreamsView({ streams = [], twitchSchedule = [], setActi
               )}
             </div>
           )}
-          
+
           <GlassyPill variant="primary" onClick={() => setActiveModal('newStream')}>
             <Plus className="w-4 h-4" /> Schedule Stream
           </GlassyPill>
@@ -190,7 +191,7 @@ export default function StreamsView({ streams = [], twitchSchedule = [], setActi
           {plannedStreams.length > 0 ? (
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               {/* Next Stream - Featured */}
-              <motion.div 
+              <motion.div
                 variants={hoverVariants}
                 initial="rest"
                 whileHover="hover"
@@ -198,7 +199,7 @@ export default function StreamsView({ streams = [], twitchSchedule = [], setActi
               >
                 <div className="absolute inset-0 bg-gradient-to-br from-cyan-500/5 to-purple-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
                 <div className="absolute top-0 right-0 w-64 h-64 bg-cyan-500/20 blur-[100px] opacity-0 group-hover:opacity-100 transition-opacity" />
-                
+
                 <div className="relative z-10">
                   <div className="flex items-center gap-2 mb-3">
                     <span className="px-3 py-1 rounded-full bg-gradient-to-r from-cyan-500 to-purple-500 text-white text-[10px] font-black uppercase tracking-widest">
@@ -265,7 +266,7 @@ export default function StreamsView({ streams = [], twitchSchedule = [], setActi
               <p className="text-gray-600 font-mono text-xs mt-2">Initialize a new signal via the command island.</p>
             </div>
           ) : (
-            <div className="space-y-4 max-h-[500px] overflow-y-auto glass-scroll pr-2">
+            <LobsterScrollArea className="max-h-[500px]" contentClassName="space-y-4 glass-scroll pr-2">
               <AnimatePresence>
                 {activeStreams.map((stream, i) => (
                   <motion.div
@@ -286,8 +287,8 @@ export default function StreamsView({ streams = [], twitchSchedule = [], setActi
                         <div className="flex items-center gap-3 mb-2">
                           <h3 className="text-xl font-bold text-white font-premium">{stream.title}</h3>
                           <div className={`px-2.5 py-1 rounded-full text-[9px] font-black uppercase tracking-widest border ${stream.status === 'completed'
-                              ? 'bg-green-500/10 text-green-400 border-green-500/30'
-                              : 'bg-cyan-500/10 text-cyan-400 border-cyan-500/30'
+                            ? 'bg-green-500/10 text-green-400 border-green-500/30'
+                            : 'bg-cyan-500/10 text-cyan-400 border-cyan-500/30'
                             }`}>
                             {stream.status}
                           </div>
@@ -339,7 +340,7 @@ export default function StreamsView({ streams = [], twitchSchedule = [], setActi
                   </motion.div>
                 ))}
               </AnimatePresence>
-            </div>
+            </LobsterScrollArea>
           )}
         </WidgetCard>
       </motion.div>

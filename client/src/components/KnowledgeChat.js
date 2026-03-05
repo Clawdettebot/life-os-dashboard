@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import './KnowledgeChat.css';
 import { KnowledgeKnaight } from './knights';
 import { ChevronDown } from 'lucide-react';
+import LobsterScrollArea from './ui/LobsterScrollArea';
 
 const SECTION_KNIGHTS = {
   cortex: { name: 'Sir Clawthchilds', avatar: '/avatars/99f2a89b-8c51-4078-af63-10046a333434.png', color: '#fbbf24' },
@@ -173,7 +174,7 @@ export default function KnowledgeChat() {
         <div className="flex-1 flex flex-col bg-[var(--bg-panel)] border border-[var(--border-color)] rounded-[2.5rem] relative overflow-hidden group">
           <div className="absolute inset-0 bg-tech-grid opacity-30 pointer-events-none" />
 
-          <div className="p-4 border-b border-[var(--border-color)] flex gap-2 relative z-10 bg-[var(--bg-base)]/50 backdrop-blur-md overflow-x-auto scrollbar-hide shrink-0">
+          <LobsterScrollArea direction="horizontal" size="small" className="shrink-0" contentClassName="p-4 flex gap-2 relative z-10 bg-[var(--bg-base)]/50 backdrop-blur-md">
             {Object.entries(SECTION_KNIGHTS).map(([key, knight]) => (
               <button
                 key={key}
@@ -187,9 +188,9 @@ export default function KnowledgeChat() {
                 {knight.name.split(' ')[0]}
               </button>
             ))}
-          </div>
+          </LobsterScrollArea>
 
-          <div className="flex-1 overflow-y-auto p-6 space-y-6 scrollbar-hide relative z-10">
+          <LobsterScrollArea className="flex-1" contentClassName="p-6 space-y-6 relative z-10">
             <AnimatePresence>
               {messages.map((msg, idx) => (
                 <motion.div
@@ -248,7 +249,7 @@ export default function KnowledgeChat() {
               )}
               <div ref={messagesEndRef} />
             </AnimatePresence>
-          </div>
+          </LobsterScrollArea>
 
           <div className="p-4 border-t border-[var(--border-color)] relative z-10 bg-[var(--bg-base)]/80 backdrop-blur-xl shrink-0">
             <div className="relative flex items-center">

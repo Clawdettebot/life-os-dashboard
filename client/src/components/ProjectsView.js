@@ -7,6 +7,7 @@ import {
 } from 'lucide-react';
 import { GlassyPill } from './ui/GlassyPill';
 import { WidgetCard } from './ui/WidgetCard';
+import LobsterScrollArea from './ui/LobsterScrollArea';
 
 const categoryColors = {
   'Cinematic Universe': { bg: '#8b5cf6', glass: 'bg-violet-500/10 border-violet-500/20 text-violet-400' },
@@ -526,7 +527,7 @@ export default function ProjectsView({ api }) {
               </div>
             </div>
 
-            <div className="p-8 space-y-10 max-h-[calc(100vh-350px)] overflow-y-auto glass-scroll">
+            <LobsterScrollArea className="max-h-[calc(100vh-350px)]" contentClassName="p-8 space-y-10 glass-scroll">
               {/* Description */}
               <div className="space-y-4">
                 <div className="flex items-center gap-3">
@@ -633,12 +634,12 @@ export default function ProjectsView({ api }) {
                     </div>
                   </div>
                 ) : (
-                  <div className="bg-white/[0.02] border border-white/5 rounded-2xl p-6 text-xs text-gray-500 font-mono leading-relaxed whitespace-pre-wrap max-h-[300px] overflow-y-auto glass-scroll">
+                  <LobsterScrollArea className="max-h-[300px]" contentClassName="bg-white/[0.02] border border-white/5 rounded-2xl p-6 text-xs text-gray-500 font-mono leading-relaxed whitespace-pre-wrap glass-scroll">
                     {selectedProject.notes || 'No tactical log entries for this mission segment.'}
-                  </div>
+                  </LobsterScrollArea>
                 )}
               </div>
-            </div>
+            </LobsterScrollArea>
 
             <div className="p-8 bg-black/40 border-t border-white/5 flex justify-between items-center">
               <div className="flex flex-col gap-1">

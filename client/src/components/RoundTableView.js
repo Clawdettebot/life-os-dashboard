@@ -368,408 +368,46 @@ const TreeRender = ({ node, onSelect, selectedId }) => {
 
 // --- MISSION CONTROL COMMAND CENTER MODAL ---
 const CommandCenterModal = ({ isOpen, onClose }) => {
-  const [activePanel, setActivePanel] = useState('overview');
-  const [taskData, setTaskData] = useState([]);
-  const [newTaskTitle, setNewTaskTitle] = useState('');
-  const [newTaskPriority, setNewTaskPriority] = useState('MEDIUM');
-  const [newTaskStatus, setNewTaskStatus] = useState('todo');
-  const [isAddingTask, setIsAddingTask] = useState(false);
+  const MISSION_CONTROL_URL = 'http://localhost:3001';
   
   if (!isOpen) return null;
 
-  const panels = [
-    { id: 'overview', label: 'Overview', icon: Terminal },
-    { id: 'agents', label: 'Agents', icon: Users },
-    { id: 'tasks', label: 'Tasks', icon: CheckSquare },
-    { id: 'tokens', label: 'Tokens', icon: Zap },
-    { id: 'spawn', label: 'Spawn', icon: Cpu },
-  ];
-
-  const agents = [
-    { id: 1, name: 'Claudnelius', status: 'active', role: 'Code Wizard', lastHeartbeat: '2m ago', tasks: 12 },
-    { id: 2, name: 'Knowledge Knaight', status: 'active', role: 'Research', lastHeartbeat: '5m ago', tasks: 8 },
-    { id: 3, name: 'Sir Clawthchilds', status: 'idle', role: 'Finance', lastHeartbeat: '15m ago', tasks: 3 },
-    { id: 4, name: 'Shrimp Soldier', status: 'active', role: 'Ideas', lastHeartbeat: '1m ago', tasks: 14 },
-  ];
-
-  const tokenUsage = [
-    { model: 'MiniMax M2.5', tokens: '2.4M', cost: '$12.40', percent: 65 },
-    { model: 'Kimi K2', tokens: '890K', cost: '$4.50', percent: 25 },
-    { model: 'Claude 3.5', tokens: '420K', cost: '$2.10', percent: 10 },
-  ];
-
-  const tasks = [
-    { id: 1, title: 'Review PR #42', status: 'review', priority: 'HIGH', agent: 'Claudnelius' },
-    { id: 2, title: 'Update documentation', status: 'todo', priority: 'MEDIUM', agent: 'Knowledge Knaight' },
-    { id: 3, title: 'Deploy to staging', status: 'in_progress', priority: 'HIGH', agent: 'Shrimp Soldier' },
-    { id: 4, title: 'Run tests', status: 'done', priority: 'LOW', agent: 'Sir Clawthchilds' },
-  ];
-
-  const renderPanel = () => {
-    switch(activePanel) {
-      case 'overview':
-        return (
-          <div className="grid grid-cols-2 gap-4">
-            <div className="bg-[var(--bg-card)] border border-[var(--border-color)] rounded-xl p-4">
-              <div className="text-[10px] font-space-mono text-[var(--text-muted)] uppercase tracking-widest mb-2">Active Agents</div>
-              <div className="text-3xl font-bold text-[var(--text-main)]">4</div>
-              <div className="text-[9px] font-space-mono text-emerald-500">+1 this week</div>
-            </div>
-            <div className="bg-[var(--bg-card)] border border-[var(--border-color)] rounded-xl p-4">
-              <div className="text-[10px] font-space-mono text-[var(--text-muted)] uppercase tracking-widest mb-2">Total Tasks</div>
-              <div className="text-3xl font-bold text-[var(--text-main)]">37</div>
-              <div className="text-[9px] font-space-mono text-[var(--text-faint)]">12 in progress</div>
-            </div>
-            <div className="bg-[var(--bg-card)] border border-[var(--border-color)] rounded-xl p-4">
-              <div className="text-[10px] font-space-mono text-[var(--text-muted)] uppercase tracking-widest mb-2">Tokens (30d)</div>
-              <div className="text-3xl font-bold text-[var(--text-main)]">3.7M</div>
-              <div className="text-[9px] font-space-mono text-[rgb(var(--rgb-accent-main))]">$19.00</div>
-            </div>
-            <div className="bg-[var(--bg-card)] border border-[var(--border-color)] rounded-xl p-4">
-              <div className="text-[10px] font-space-mono text-[var(--text-muted)] uppercase tracking-widest mb-2">Uptime</div>
-              <div className="text-3xl font-bold text-emerald-500">99.9%</div>
-              <div className="text-[9px] font-space-mono text-[var(--text-faint)]">7d 14h</div>
-            </div>
-          </div>
-        );
-      case 'agents':
-        return (
-          <div className="space-y-3">
-            {agents.map(agent => (
-              <div key={agent.id} className="bg-[var(--bg-card)] border border-[var(--border-color)] rounded-xl p-4 flex items-center justify-between hover:border-[var(--border-highlight)] transition-colors">
-                <div className="flex items-center gap-3">
-                  <div className={`w-3 h-3 rounded-full ${agent.status === 'active' ? 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.8)]' : 'bg-[var(--text-faint)]'}`} />
-                  <div>
-                    <div className="text-sm font-bold text-[var(--text-main)]">{agent.name}</div>
-                    <div className="text-[9px] font-space-mono text-[var(--text-muted)]">{agent.role}</div>
-                  </div>
-                </div>
-                <div className="text-right">
-                  <div className="text-[10px] font-space-mono text-[var(--text-muted)]">{agent.lastHeartbeat}</div>
-                  <div className="text-[9px] font-space-mono text-[rgb(var(--rgb-accent-main))]">{agent.tasks} tasks</div>
-                </div>
-              </div>
-            ))}
-          </div>
-        );
-      case 'tasks':
-        // Add task form state - moved to component top level
-        
-        const handleAddTask = async () => {
-          if (!newTaskTitle.trim()) return;
-          setIsAddingTask(true);
-          try {
-            const res = await fetch('/api/tasks', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                title: newTaskTitle,
-                status: newTaskStatus,
-                priority: newTaskPriority,
-                tag: 'MISSION-CONTROL'
-              })
-            });
-            if (res.ok) {
-              setNewTaskTitle('');
-              // Refresh tasks
-              const tasksRes = await fetch('/api/tasks').then(r => r.json());
-              setTaskData(tasksRes.active?.length ? tasksRes.active : tasksRes.all || []);
-            }
-          } catch (err) {
-            console.error('Error creating task:', err);
-          } finally {
-            setIsAddingTask(false);
-          }
-        };
-        
-        return (
-          <div className="space-y-4">
-            {/* Add Task Form */}
-            <div className="bg-[var(--bg-card)] border border-[var(--border-color)] rounded-xl p-4">
-              <div className="text-xs font-bold text-[var(--text-main)] mb-3 uppercase tracking-wider">Add New Task</div>
-              <div className="space-y-3">
-                <input
-                  type="text"
-                  value={newTaskTitle}
-                  onChange={(e) => setNewTaskTitle(e.target.value)}
-                  placeholder="Task title..."
-                  className="w-full bg-[var(--bg-overlay)] border border-[var(--border-color)] rounded-lg px-3 py-2 text-xs text-[var(--text-main)] placeholder-[var(--text-fount)] focus:outline-none focus:border-[rgb(var(--rgb-accent-main))]"
-                />
-                <div className="flex gap-2">
-                  <select
-                    value={newTaskStatus}
-                    onChange={(e) => setNewTaskStatus(e.target.value)}
-                    className="bg-[var(--bg-overlay)] border border-[var(--border-color)] rounded-lg px-2 py-2 text-xs text-[var(--text-main)]"
-                  >
-                    <option value="backlog">Backlog</option>
-                    <option value="todo">Todo</option>
-                    <option value="in_progress">In Progress</option>
-                    <option value="done">Done</option>
-                  </select>
-                  <select
-                    value={newTaskPriority}
-                    onChange={(e) => setNewTaskPriority(e.target.value)}
-                    className="bg-[var(--bg-overlay)] border border-[var(--border-color)] rounded-lg px-2 py-2 text-xs text-[var(--text-main)]"
-                  >
-                    <option value="HIGH">High</option>
-                    <option value="MEDIUM">Medium</option>
-                    <option value="LOW">Low</option>
-                  </select>
-                  <button
-                    onClick={handleAddTask}
-                    disabled={isAddingTask || !newTaskTitle.trim()}
-                    className="flex-1 bg-[var(--logo-bg)] text-[var(--logo-text)] rounded-lg px-4 py-2 text-xs font-bold uppercase disabled:opacity-50 hover:opacity-80 transition-opacity"
-                  >
-                    {isAddingTask ? 'Adding...' : 'Add Task'}
-                  </button>
-                </div>
-              </div>
-            </div>
-            
-            {/* Task List */}
-            <div className="space-y-2 max-h-[400px] overflow-y-auto">
-              {taskData.length === 0 ? (
-                <div className="text-center text-[var(--text-muted)] py-8">No tasks found</div>
-              ) : (
-                taskData.slice(0, 20).map(task => (
-                  <div key={task.id} className="bg-[var(--bg-card)] border border-[var(--border-color)] rounded-lg p-3 flex items-center gap-3">
-                    <div className={`w-2 h-2 rounded-full ${
-                      task.status === 'done' ? 'bg-emerald-500' : 
-                      task.status === 'in_progress' ? 'bg-blue-500' :
-                      task.status === 'review' ? 'bg-yellow-500' : 'bg-[var(--text-faint)]'
-                    }`} />
-                    <div className="flex-1 min-w-0">
-                      <div className="text-xs font-medium text-[var(--text-main)] truncate">{task.title || task.content || 'Untitled'}</div>
-                      <div className="text-[8px] font-space-mono text-[var(--text-muted)]">{task.tag || task.tags?.[0] || 'No tag'}</div>
-                    </div>
-                    <span className={`text-[8px] font-space-mono px-2 py-1 rounded shrink-0 ${
-                      task.priority === 'HIGH' ? 'bg-red-500/20 text-red-500' :
-                      task.priority === 'MEDIUM' ? 'bg-yellow-500/20 text-yellow-500' :
-                      'bg-[var(--bg-overlay)] text-[var(--text-muted)]'
-                    }`}>{task.priority || 'LOW'}</span>
-                  </div>
-                ))
-              )}
-            </div>
-          </div>
-        );
-      case 'tokens':
-        return (
-          <div className="space-y-4">
-            {tokenUsage.map((item, i) => (
-              <div key={i} className="bg-[var(--bg-card)] border border-[var(--border-color)] rounded-xl p-4">
-                <div className="flex justify-between items-center mb-2">
-                  <div className="text-sm font-bold text-[var(--text-main)]">{item.model}</div>
-                  <div className="text-xs font-space-mono text-[rgb(var(--rgb-accent-main))]">{item.cost}</div>
-                </div>
-                <div className="h-2 bg-[var(--bg-overlay)] rounded-full overflow-hidden">
-                  <div className="h-full bg-gradient-to-r from-[rgb(var(--rgb-accent-main))] to-[rgb(var(--rgb-accent-sec))]" style={{ width: `${item.percent}%` }} />
-                </div>
-                <div className="text-[9px] font-space-mono text-[var(--text-muted)] mt-1">{item.tokens} tokens</div>
-              </div>
-            ))}
-          </div>
-        );
-      case 'spawn':
-        return (
-          <div className="space-y-4">
-            <div className="bg-[var(--bg-card)] border border-[var(--border-color)] rounded-xl p-6 text-center">
-              <Cpu size={32} className="mx-auto mb-3 text-[rgb(var(--rgb-accent-main))]" />
-              <div className="text-sm font-bold text-[var(--text-main)] mb-2">Spawn New Agent</div>
-              <div className="text-[10px] font-space-mono text-[var(--text-muted)] mb-4">Configure agent capabilities and workspace</div>
-              <button className="px-6 py-2 bg-[var(--logo-bg)] text-[var(--logo-text)] rounded-full text-xs font-bold uppercase tracking-widest hover:opacity-80 transition-opacity">
-                Initialize Agent
-              </button>
-            </div>
-          </div>
-        );
-      default:
-        return null;
-    }
-  };
-
   return (
-    <motion.div
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      exit={{ opacity: 0 }}
-      className="fixed inset-0 z-[100] flex items-center justify-center"
-      onClick={onClose}
-    >
-      <div className="absolute inset-0 bg-black/80 backdrop-blur-xl" />
-      <motion.div
-        initial={{ scale: 0.9, y: 20 }}
-        animate={{ scale: 1, y: 0 }}
-        exit={{ scale: 0.9, y: 20 }}
-        onClick={(e) => e.stopPropagation()}
-        className="relative w-[900px] h-[600px] bg-[var(--bg-panel)] border border-[var(--border-color)] rounded-3xl shadow-[0_0_60px_rgba(0,0,0,0.8)] flex overflow-hidden"
-      >
-        <div className="absolute inset-0 bg-tech-grid opacity-30 pointer-events-none" />
-        <div className="absolute top-0 left-0 right-0 h-16 bg-gradient-to-b from-[var(--bg-card)] to-transparent z-10" />
-        <button onClick={onClose} className="absolute top-4 right-4 p-2 rounded-full hover:bg-[var(--bg-overlay)] transition-colors z-20">
-          <X size={20} className="text-[var(--text-muted)]" />
-        </button>
-        <div className="absolute top-4 left-6 z-10 flex items-center gap-3">
-          <Terminal size={20} className="text-[rgb(var(--rgb-accent-main))]" />
-          <h2 className="text-lg font-bold font-space-grotesk text-[var(--text-main)] uppercase tracking-widest">Mission Control</h2>
-        </div>
-        <div className="w-48 bg-[var(--bg-card)] border-r border-[var(--border-color)] p-4 pt-20 flex flex-col gap-2">
-          {panels.map(panel => (
-            <button
-              key={panel.id}
-              onClick={() => setActivePanel(panel.id)}
-              className={`flex items-center gap-3 px-4 py-3 rounded-xl text-left transition-all ${
-                activePanel === panel.id 
-                  ? 'bg-[var(--bg-overlay)] border border-[var(--border-highlight)] text-[var(--text-main)]' 
-                  : 'text-[var(--text-muted)] hover:text-[var(--text-main)] hover:bg-[var(--bg-overlay)]'
-              }`}
-            >
-              <panel.icon size={16} />
-              <span className="text-xs font-bold uppercase tracking-widest">{panel.label}</span>
-            </button>
-          ))}
-        </div>
-        <div className="flex-1 p-6 pt-20 overflow-y-auto">
-          {renderPanel()}
-        </div>
-      </motion.div>
-    </motion.div>
-  );
-};
-
-// --- INSPECTION PANEL ---
-const InspectorPanel = ({ selectedNode, onClose }) => {
-  if (!selectedNode) return null;
-  const Icon = selectedNode.icon;
-  const knightId = selectedNode.knightId;
-  const KnightSVG = knightId ? knightSVGs[knightId] : null;
-
-  return (
-    <motion.div
-      initial={{ x: 400, opacity: 0 }}
-      animate={{ x: 0, opacity: 1 }}
-      exit={{ x: 400, opacity: 0 }}
-      transition={{ type: "spring", stiffness: 300, damping: 30 }}
-      className="absolute top-0 right-0 bottom-0 w-[400px] bg-[var(--bg-panel)] backdrop-blur-3xl border-l border-[var(--border-color)] shadow-[-30px_0_60px_rgba(0,0,0,0.8)] z-50 flex flex-col pointer-events-auto"
-    >
-      <div className="absolute inset-0 bg-tech-grid opacity-20 pointer-events-none" />
-
-      {/* Header */}
-      <div className={`p-8 border-b border-[var(--border-color)] relative overflow-hidden shrink-0 bg-gradient-to-b from-[var(--bg-overlay)] to-transparent`}>
-        <div className="flex justify-between items-start relative z-10 mb-6">
-          <div className={`w-16 h-16 rounded-md bg-[var(--bg-base)] border border-[var(--border-color)] flex items-center justify-center shadow-inner overflow-hidden relative`}>
-            {knightId ? (
-              <img src={`/avatars/${knightPNGs[knightId]}`} className="absolute inset-0 w-full h-full object-contain p-2" />
-            ) : (
-              <img src={`https://api.dicebear.com/7.x/bottts/svg?seed=${selectedNode.id}&backgroundColor=transparent`} className="absolute inset-0 w-full h-full opacity-30 mix-blend-screen filter brightness-110" />
-            )}
-            {!knightId && <Icon size={28} className="text-[rgb(var(--rgb-accent-main))] relative z-10 drop-shadow-[0_0_15px_rgba(var(--rgb-accent-main),0.8)]" />}
-
-            {KnightSVG && (
-              <div className="absolute bottom-1 right-1 w-5 h-5 opacity-50 z-20 text-[rgb(var(--rgb-accent-main))] drop-shadow-sm">
-                <KnightSVG />
-              </div>
-            )}
+    <div className="fixed inset-0 z-50 flex items-center justify-center">
+      {/* Backdrop */}
+      <div 
+        className="absolute inset-0 bg-black/80 backdrop-blur-sm"
+        onClick={onClose}
+      />
+      
+      {/* Modal */}
+      <div className="relative w-[95vw] h-[90vh] bg-[var(--bg-main)] border border-[var(--border-color)] rounded-2xl overflow-hidden shadow-2xl">
+        {/* Header */}
+        <div className="absolute top-0 left-0 right-0 h-12 bg-[var(--bg-card)] border-b border-[var(--border-color)] flex items-center justify-between px-4 z-10">
+          <div className="flex items-center gap-3">
+            <Terminal size={18} className="text-[var(--accent-main)]" />
+            <span className="font-space-mono text-sm font-bold text-[var(--text-main)]">MISSION CONTROL</span>
+            <span className="text-[10px] px-2 py-0.5 bg-emerald-500/20 text-emerald-400 rounded-full font-space-mono">LIVE</span>
           </div>
-          <button onClick={onClose} className="p-2 rounded-md bg-[var(--bg-overlay)] border border-[var(--border-color)] text-[var(--text-muted)] hover:text-[var(--text-main)] hover:bg-[var(--border-highlight)] transition-colors backdrop-blur-md">
-            <X size={16} />
+          <button 
+            onClick={onClose}
+            className="p-2 hover:bg-[var(--bg-hover)] rounded-lg transition-colors"
+          >
+            <X size={18} className="text-[var(--text-muted)]" />
           </button>
         </div>
-        <div className="relative z-10">
-          <h2 className="text-2xl font-bold font-space-grotesk text-[var(--text-main)] leading-tight mb-1 drop-shadow-md">{selectedNode.title}</h2>
-          <p className={`text-[10px] font-space-mono uppercase tracking-[0.3em] font-bold text-[rgb(var(--rgb-accent-main))] drop-shadow-sm`}>{selectedNode.role}</p>
-        </div>
+        
+        {/* Mission Control iframe */}
+        <iframe 
+          src={MISSION_CONTROL_URL}
+          className="w-full h-full pt-12"
+          title="Mission Control"
+        />
       </div>
-
-      <LobsterScrollArea className="flex-1 relative" contentClassName="p-8">
-        <div className="space-y-8">
-          <section>
-            <h3 className="text-[10px] font-space-mono text-[var(--text-muted)] uppercase tracking-[0.2em] mb-4 flex items-center gap-2 drop-shadow-sm">
-              <Activity size={12} className="text-[rgb(var(--rgb-accent-main))]" /> Core Diagnostics
-            </h3>
-            <div className="grid grid-cols-2 gap-4">
-              {selectedNode.stats.map((s, i) => (
-                <div key={i} className="bg-[var(--bg-overlay)] border border-[var(--border-color)] backdrop-blur-md rounded-md p-4 flex flex-col justify-center shadow-lg">
-                  <span className="text-[9px] font-space-mono uppercase tracking-widest text-[var(--text-faint)] mb-1">{s.label}</span>
-                  <span className={`text-lg font-bold font-space-mono text-[var(--text-main)] drop-shadow-sm`}>{s.val}</span>
-                </div>
-              ))}
-              <div className="col-span-2 bg-[var(--bg-overlay)] border border-[var(--border-color)] backdrop-blur-md rounded-md p-4 flex items-center justify-between shadow-lg">
-                <span className="text-[9px] font-space-mono uppercase tracking-widest text-[var(--text-faint)]">System Memory</span>
-                <div className="w-1/2 h-1.5 bg-[var(--bg-base)] rounded-sm overflow-hidden shadow-inner">
-                  <div className={`h-full bg-[rgb(var(--rgb-accent-main))] w-[68%] shadow-[0_0_8px_rgba(var(--rgb-accent-main),0.8)]`} />
-                </div>
-              </div>
-            </div>
-          </section>
-
-          <section>
-            <h3 className="text-[10px] font-space-mono text-[var(--text-muted)] uppercase tracking-[0.2em] mb-4 flex items-center gap-2 drop-shadow-sm">
-              <Settings size={12} className="text-[rgb(var(--rgb-accent-main))]" /> Interface Commands
-            </h3>
-            <div className="flex flex-col gap-3">
-              <button className={`w-full py-3 rounded-md border border-[rgba(var(--rgb-accent-main),0.5)] bg-[rgba(var(--rgb-accent-main),0.1)] text-[rgb(var(--rgb-accent-main))] text-[10px] font-space-mono uppercase tracking-widest font-bold hover:bg-[rgba(var(--rgb-accent-main),0.2)] transition-all shadow-[0_0_20px_rgba(var(--rgb-accent-main),0.2)] backdrop-blur-md`}>
-                Override Directives
-              </button>
-              <button className="w-full py-3 rounded-md border border-[var(--border-color)] bg-[var(--bg-overlay)] backdrop-blur-md text-[var(--text-muted)] text-[10px] font-space-mono uppercase tracking-widest hover:text-[var(--text-main)] hover:bg-[var(--border-highlight)] transition-all shadow-lg">
-                Ping Node
-              </button>
-            </div>
-          </section>
-        </div>
-      </LobsterScrollArea>
-    </motion.div>
-  );
-};
-
-// --- GLOBAL RIPPLE COMPONENT ---
-const Ripple = ({ x, y }) => (
-  <motion.div
-    initial={{ scale: 0, opacity: 0.8, borderWidth: '2px' }}
-    animate={{ scale: 15, opacity: 0, borderWidth: '0px' }}
-    transition={{ duration: 1.2, ease: "easeOut" }}
-    style={{
-      position: 'fixed',
-      left: x,
-      top: y,
-      width: '100px',
-      height: '100px',
-      marginLeft: '-50px',
-      marginTop: '-50px',
-      borderRadius: '50%',
-      borderColor: 'rgba(var(--rgb-accent-main), 0.8)',
-      borderStyle: 'solid',
-      pointerEvents: 'none',
-      zIndex: 5,
-      boxShadow: '0 0 20px rgba(var(--rgb-accent-main), 0.5) inset'
-    }}
-  />
-);
-
-// --- HOLOGRAPHIC DIGITAL LOBSTER SWIRL ---
-const DigitalLobsterSwirl = () => {
-  return (
-    <div className="relative w-14 h-14 flex items-center justify-center group">
-      {/* Concentric Swirl Rings */}
-      <motion.div animate={{ rotate: 360 }} transition={{ duration: 8, repeat: Infinity, ease: "linear" }} className="absolute inset-0 border border-dashed border-[var(--text-muted)] rounded-full opacity-40 pointer-events-none" />
-      <motion.div animate={{ rotate: -360 }} transition={{ duration: 12, repeat: Infinity, ease: "linear" }} className="absolute inset-[4px] border border-dotted border-[rgb(var(--rgb-accent-main))] rounded-full opacity-70 pointer-events-none" />
-
-      {/* Central Abstract Lobster */}
-      <motion.div animate={{ scale: [1, 1.05, 1] }} transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }} className="relative text-[rgb(var(--rgb-accent-main))] drop-shadow-[0_0_8px_rgba(var(--rgb-accent-main),0.8)] pointer-events-none z-10">
-        <svg width="18" height="22" viewBox="0 0 24 36" fill="none">
-          <path d="M 6 12 C 0 8 0 0 6 4 C 12 6 8 12 8 14 Z" fill="currentColor" />
-          <path d="M 18 12 C 24 8 24 0 18 4 C 12 6 16 12 16 14 Z" fill="currentColor" />
-          <path d="M 10 10 L 8 4 M 14 10 L 16 4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-          <rect x="8" y="12" width="8" height="14" rx="2" fill="currentColor" />
-          <path d="M 8 25 L 5 32 L 12 30 L 19 32 L 16 25 Z" fill="currentColor" strokeLinejoin="round" />
-        </svg>
-      </motion.div>
     </div>
   );
 };
 
-// --- MAIN APP COMPONENT ---
-// (We change 'export default function App' to 'export default function RoundTableView')
 export default function RoundTableView() {
   const [selectedNode, setSelectedNode] = useState(null);
   const [ripples, setRipples] = useState([]);

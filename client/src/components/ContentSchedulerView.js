@@ -21,6 +21,7 @@ import {
 
 import { WidgetCard } from './ui/WidgetCard';
 import { GlassyPill } from './ui/GlassyPill';
+import LobsterScrollArea from './ui/LobsterScrollArea';
 
 // ==========================================
 // POST BRIDGE API (Proxied through server to avoid CORS)
@@ -454,7 +455,7 @@ export default function ContentSchedulerView({ api, postbridgeKey }) {
             <GlassyPill variant="dark" className="!px-4 !py-1.5 !text-[10px] tracking-widest uppercase">Select a day to target</GlassyPill>
           </div>
 
-          <div ref={scrollContainerRef} id="timeline-scroll-container" className="flex gap-6 p-8 overflow-x-auto glass-scroll snap-x">
+          <LobsterScrollArea direction="horizontal" className="p-8" contentClassName="flex gap-6 glass-scroll snap-x" ref={scrollContainerRef} id="timeline-scroll-container">
             {TIMELINE_MATRIX.map(day => {
               const isActive = selectedTimelineDay === day.id;
 
@@ -537,7 +538,7 @@ export default function ContentSchedulerView({ api, postbridgeKey }) {
                 </div>
               );
             })}
-          </div>
+          </LobsterScrollArea>
         </WidgetCard>
 
         {/* ========================================================= */}
@@ -566,7 +567,7 @@ export default function ContentSchedulerView({ api, postbridgeKey }) {
               </div>
             </div>
 
-            <div className="bg-black/20 border border-white/5 rounded-[24px] p-6 relative overflow-x-auto glass-scroll">
+            <LobsterScrollArea direction="horizontal" className="p-6 bg-black/20 border border-white/5 rounded-[24px]" contentClassName="relative glass-scroll">
               {isLoading && (
                 <div className="absolute inset-0 z-50 bg-[#0a0a0c]/80 backdrop-blur-sm flex items-center justify-center rounded-[24px]">
                   <div className="w-8 h-8 border-2 border-white/20 border-t-white rounded-full animate-spin"></div>
@@ -620,7 +621,7 @@ export default function ContentSchedulerView({ api, postbridgeKey }) {
                   })}
                 </div>
               </div>
-            </div>
+            </LobsterScrollArea>
           </WidgetCard>
         )}
 
@@ -697,7 +698,7 @@ export default function ContentSchedulerView({ api, postbridgeKey }) {
                 <div className="w-full flex flex-col gap-6 animate-in-fade-slide">
 
                   {/* Selected Files List */}
-                  <div className="flex flex-col gap-2 bg-white/5 p-3 rounded-xl border border-white/10 shadow-inner max-h-[120px] overflow-y-auto glass-scroll">
+                  <LobsterScrollArea className="max-h-[120px]" contentClassName="flex flex-col gap-2 bg-white/5 p-3 rounded-xl border border-white/10 shadow-inner glass-scroll">
                     <div className="text-[10px] text-gray-400 uppercase tracking-widest font-bold mb-1 border-b border-white/10 pb-1 flex justify-between">
                       <span>Selected Media ({selectedDriveFiles.length})</span>
                       <span className="text-orange-400">Ready</span>
@@ -708,7 +709,7 @@ export default function ContentSchedulerView({ api, postbridgeKey }) {
                         <span className="text-white text-xs truncate leading-tight">{f.name}</span>
                       </div>
                     ))}
-                  </div>
+                  </LobsterScrollArea>
 
                   {/* Caption Input */}
                   <div className="flex flex-col gap-1">
@@ -751,7 +752,7 @@ export default function ContentSchedulerView({ api, postbridgeKey }) {
                     <HardDrive className="w-3 h-3 text-cyan-400" /> Source Media
                   </h3>
 
-                  <div className="flex-1 overflow-y-auto w-full pr-1 space-y-1 glass-scroll pb-2">
+                  <LobsterScrollArea className="flex-1 w-full" contentClassName="pr-1 space-y-1 glass-scroll pb-2">
                     {driveLoading ? (
                       <div className="text-gray-400 text-sm flex items-center justify-center h-full">Loading Drive...</div>
                     ) : driveFiles.length === 0 ? (
@@ -813,7 +814,7 @@ export default function ContentSchedulerView({ api, postbridgeKey }) {
                         })}
                       </div>
                     )}
-                  </div>
+                  </LobsterScrollArea>
                   {/* Selected count and proceed button */}
                   {selectedDriveFiles.length > 0 && (
                     <div className="w-full pt-3 mt-1 border-t border-white/10 animate-in-fade-slide">
@@ -838,8 +839,8 @@ export default function ContentSchedulerView({ api, postbridgeKey }) {
               {/* Drag & Drop Zone */}
               <div
                 className={`w-full flex-1 border-2 border-dashed rounded-xl transition-all flex flex-col items-center justify-center gap-3 p-4 ${localFilesDragging
-                    ? 'border-green-500 bg-green-500/10'
-                    : 'border-white/20 hover:border-white/40'
+                  ? 'border-green-500 bg-green-500/10'
+                  : 'border-white/20 hover:border-white/40'
                   }`}
                 onDragOver={(e) => { e.preventDefault(); setLocalFilesDragging(true); }}
                 onDragLeave={() => setLocalFilesDragging(false)}
@@ -880,7 +881,7 @@ export default function ContentSchedulerView({ api, postbridgeKey }) {
                     />
                   </>
                 ) : (
-                  <div className="w-full space-y-2 overflow-y-auto max-h-[200px] glass-scroll">
+                  <LobsterScrollArea className="w-full max-h-[200px]" contentClassName="space-y-2 glass-scroll">
                     {localFiles.map((file, idx) => (
                       <div key={idx} className="flex items-center justify-between p-2 bg-white/5 rounded-lg border border-white/10">
                         <div className="flex items-center gap-2 min-w-0 flex-1">
@@ -895,7 +896,7 @@ export default function ContentSchedulerView({ api, postbridgeKey }) {
                         </button>
                       </div>
                     ))}
-                  </div>
+                  </LobsterScrollArea>
                 )}
               </div>
 

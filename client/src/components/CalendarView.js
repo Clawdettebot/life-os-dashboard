@@ -7,6 +7,7 @@ import {
 import { WidgetCard } from './ui/WidgetCard';
 import { GlassyPill } from './ui/GlassyPill';
 import AnimatedIcon from './AnimatedIcon';
+import LobsterScrollArea from './ui/LobsterScrollArea';
 
 const eventTypeColors = {
   work: { bg: '#3b82f6', border: '#1d4ed8', text: '#dbeafe', glow: 'rgba(59, 130, 246, 0.4)' },
@@ -513,7 +514,7 @@ export default function CalendarView({ events = [], api, googleConnected = false
                     `}>{date.getDate()}</span>
                   </div>
 
-                  <div className="p-3 space-y-3 flex-1 overflow-y-auto glass-scroll">
+                  <LobsterScrollArea className="flex-1" contentClassName="p-3 space-y-3 glass-scroll" size="small">
                     {dayEvents.map(event => {
                       const colors = eventTypeColors[event.type] || eventTypeColors.event;
                       const isGoogle = event.source === 'google';
@@ -546,7 +547,7 @@ export default function CalendarView({ events = [], api, googleConnected = false
                         </div>
                       );
                     })}
-                  </div>
+                  </LobsterScrollArea>
                 </WidgetCard>
               );
             })}

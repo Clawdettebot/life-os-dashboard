@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import AnimatedIcon from '../AnimatedIcon';
 import { Film, Smile, Flame, FileText, Music, Users, Lightbulb, Mic, Folder, ClipboardList, Sparkles } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { LobsterScrollArea } from '../ui/LobsterScrollArea';
 
 const typeIconMap = { film: Film, skit: Smile, joke: Smile, rant: Flame, blog: FileText, music: Music, character: Users, idea: Lightbulb, voice_note: Mic };
 
@@ -23,43 +24,46 @@ export default function LayoutSplitView({ entries, color }) {
 
     return (
         <div className="splitview-container">
-            <div className="splitview-list glass-scroll">
-                <div className="splitview-filters glass-scroll">
+            <div className="splitview-list overflow-hidden flex flex-col">
+                <LobsterScrollArea direction="horizontal" size="small" className="mb-4" contentClassName="flex gap-2 pb-2">
                     {categories.map(cat => (
                         <button
                             key={cat}
                             className={`misso-pill ${filter === cat ? 'active' : ''}`}
                             onClick={() => setFilter(cat)}
+                            style={{ flexShrink: 0 }}
                         >
                             {cat.replace(/_/g, ' ')}
                         </button>
                     ))}
-                </div>
+                </LobsterScrollArea>
 
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                    <AnimatePresence>
-                        {filteredEntries.map(entry => (
-                            <motion.div
-                                key={entry.id}
-                                layout="position"
-                                initial={{ opacity: 0, x: -20, scale: 0.95 }}
-                                animate={{ opacity: 1, x: 0, scale: 1 }}
-                                exit={{ opacity: 0, scale: 0.9, transition: { duration: 0.2 } }}
-                                transition={{ type: 'spring', stiffness: 300, damping: 24 }}
-                            >
-                                <CardMisso
-                                    entry={entry}
-                                    color={color}
-                                    isActive={selectedEntry?.id === entry.id}
-                                    onClick={() => setSelectedEntry(entry)}
-                                />
-                            </motion.div>
-                        ))}
-                    </AnimatePresence>
-                </div>
+                <LobsterScrollArea className="flex-1" contentClassName="pr-4">
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                        <AnimatePresence>
+                            {filteredEntries.map(entry => (
+                                <motion.div
+                                    key={entry.id}
+                                    layout="position"
+                                    initial={{ opacity: 0, x: -20, scale: 0.95 }}
+                                    animate={{ opacity: 1, x: 0, scale: 1 }}
+                                    exit={{ opacity: 0, scale: 0.9, transition: { duration: 0.2 } }}
+                                    transition={{ type: 'spring', stiffness: 300, damping: 24 }}
+                                >
+                                    <CardMisso
+                                        entry={entry}
+                                        color={color}
+                                        isActive={selectedEntry?.id === entry.id}
+                                        onClick={() => setSelectedEntry(entry)}
+                                    />
+                                </motion.div>
+                            ))}
+                        </AnimatePresence>
+                    </div>
+                </LobsterScrollArea>
             </div>
 
-            <div className="splitview-detail glass-scroll">
+            <LobsterScrollArea className="splitview-detail" contentClassName="p-6">
                 <AnimatePresence mode="wait">
                     {selectedEntry ? (
                         <motion.div
@@ -84,7 +88,7 @@ export default function LayoutSplitView({ entries, color }) {
                         </motion.div>
                     )}
                 </AnimatePresence>
-            </div>
+            </LobsterScrollArea>
         </div>
     );
 }

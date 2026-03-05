@@ -4,6 +4,7 @@ import {
   Wallet, TrendingUp, TrendingDown, Plus, Search, X, MoreHorizontal,
   ShoppingBag, Coffee, Home, Car, Zap, Heart, Briefcase, Gift, DollarSign
 } from 'lucide-react';
+import LobsterScrollArea from './ui/LobsterScrollArea';
 
 // Sir Clawthchilds SVG for decorations
 import SirClawthchilds from './knights/SirClawthchilds';
@@ -156,7 +157,7 @@ export default function FinanceView({ finances = [] }) {
 
       {/* Content */}
       <div className="flex-1 overflow-hidden flex gap-6">
-        <div className="flex-1 overflow-y-auto space-y-4 pr-2 scrollbar-hide">
+        <LobsterScrollArea className="flex-1" contentClassName="space-y-4 pr-2">
           {activeTab === 'transactions' && (
             <motion.div variants={staggerContainer} className="space-y-3">
               {finances.length === 0 ? (
@@ -236,7 +237,7 @@ export default function FinanceView({ finances = [] }) {
               <p className="text-[var(--text-muted)] font-space-mono">Investment insights coming soon</p>
             </div>
           )}
-        </div>
+        </LobsterScrollArea>
 
         {/* Add Form Panel */}
         <AnimatePresence>

@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Radio, Link2, Link2Off, RefreshCw, Calendar, Clock, AlertCircle, Check } from 'lucide-react';
 import { WidgetCard } from './ui/WidgetCard';
 import { GlassyPill } from './ui/GlassyPill';
+import LobsterScrollArea from './ui/LobsterScrollArea';
 
 export default function TwitchWidget({ API }) {
   const [status, setStatus] = useState({ connected: false, user: null });
@@ -100,11 +101,10 @@ export default function TwitchWidget({ API }) {
             <p className="text-[10px] text-gray-500 font-bold uppercase tracking-widest">Stream Integration</p>
           </div>
         </div>
-        <div className={`px-2 py-1 rounded-full text-[9px] font-black uppercase tracking-widest border ${
-          status.connected 
-            ? 'bg-green-500/10 text-green-400 border-green-500/30' 
+        <div className={`px-2 py-1 rounded-full text-[9px] font-black uppercase tracking-widest border ${status.connected
+            ? 'bg-green-500/10 text-green-400 border-green-500/30'
             : 'bg-gray-500/10 text-gray-400 border-gray-500/30'
-        }`}>
+          }`}>
           {status.connected ? 'Connected' : 'Disconnected'}
         </div>
       </div>
@@ -114,8 +114,8 @@ export default function TwitchWidget({ API }) {
         <div className="mb-6">
           <div className="flex items-center gap-3 p-3 bg-purple-500/5 border border-purple-500/20 rounded-2xl">
             {status.user.profile_image_url ? (
-              <img 
-                src={status.user.profile_image_url} 
+              <img
+                src={status.user.profile_image_url}
                 alt={status.user.display_name}
                 className="w-10 h-10 rounded-full"
               />
@@ -128,7 +128,7 @@ export default function TwitchWidget({ API }) {
               <p className="text-sm font-bold text-white">{status.user.display_name}</p>
               <p className="text-xs text-gray-400">@{status.user.login}</p>
             </div>
-            <button 
+            <button
               onClick={handleDisconnect}
               className="p-2 rounded-xl bg-red-500/10 border border-red-500/30 text-red-400 hover:bg-red-500/20 transition-colors"
               title="Disconnect"
@@ -166,7 +166,7 @@ export default function TwitchWidget({ API }) {
             <span className="text-[10px] font-bold tracking-[0.2em] text-gray-400 uppercase flex items-center gap-2">
               <Calendar className="w-3 h-3" /> Twitch Schedule
             </span>
-            <button 
+            <button
               onClick={fetchSchedule}
               className="p-1.5 rounded-lg text-gray-500 hover:text-purple-400 hover:bg-purple-500/10 transition-colors"
               title="Refresh"
@@ -174,9 +174,9 @@ export default function TwitchWidget({ API }) {
               <RefreshCw className="w-3 h-3" />
             </button>
           </div>
-          
+
           {twitchSchedule.length > 0 ? (
-            <div className="space-y-2 max-h-48 overflow-y-auto">
+            <LobsterScrollArea className="max-h-48" contentClassName="space-y-2" size="small">
               {twitchSchedule.map((segment, i) => (
                 <div key={segment.id || i} className="p-3 bg-white/[0.02] border border-white/[0.05] rounded-xl">
                   <p className="text-sm font-bold text-white">{segment.title}</p>
@@ -187,7 +187,7 @@ export default function TwitchWidget({ API }) {
                   </div>
                 </div>
               ))}
-            </div>
+            </LobsterScrollArea>
           ) : (
             <div className="py-4 text-center border border-dashed border-white/10 rounded-xl">
               <Calendar className="w-6 h-6 text-gray-600 mx-auto mb-2" />

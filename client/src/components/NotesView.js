@@ -5,7 +5,7 @@ import {
   SortDesc, Save, ChevronDown, ChevronUp,
   StickyNote, Archive, Calendar as CalendarIcon
 } from 'lucide-react';
-import { LobsterScrollArea } from './ui/LobsterScrollArea';
+
 import { motion, AnimatePresence } from 'framer-motion';
 
 export default function NotesView({ notes = [], api }) {
@@ -138,38 +138,38 @@ export default function NotesView({ notes = [], api }) {
   };
 
   return (
-    <div className="p-6 md:p-10 max-w-[1400px] mx-auto min-h-full bg-black/95 relative overflow-hidden text-white/90">
+    <div className="p-6 md:p-10 max-w-[1400px] mx-auto min-h-full bg-transparent relative overflow-hidden text-[var(--text-main)]">
       {/* Premium Background Effects */}
-      <div className="absolute top-0 right-0 w-[800px] h-[800px] bg-[radial-gradient(circle_at_center,rgba(251,191,36,0.03)_0%,transparent_70%)] pointer-events-none" />
+      <div className="absolute top-0 right-0 w-[800px] h-[800px] bg-[radial-gradient(circle_at_center,rgba(var(--rgb-accent-sec),0.03)_0%,transparent_70%)] pointer-events-none" />
       <div className="absolute bottom-0 left-0 w-[600px] h-[600px] bg-[radial-gradient(circle_at_center,rgba(255,255,255,0.02)_0%,transparent_70%)] pointer-events-none" />
 
       {/* Header Controls */}
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 mb-12 relative z-10 glass-panel p-6 rounded-3xl border border-white/10">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 mb-12 relative z-10 bg-[var(--bg-panel)] backdrop-blur-md p-6 rounded-3xl border border-[var(--border-color)]">
 
         <div className="flex flex-col md:flex-row items-center gap-6 w-full md:w-auto">
           {/* Header Title */}
-          <div className="flex items-center gap-3 pr-6 md:border-r md:border-white/10">
-            <div className="w-12 h-12 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-500 flex items-center justify-center">
+          <div className="flex items-center gap-3 pr-6 md:border-r md:border-[var(--border-color)]">
+            <div className="w-12 h-12 rounded-xl bg-[rgba(var(--rgb-accent-sec),0.1)] border border-[rgba(var(--rgb-accent-sec),0.3)] text-[rgb(var(--rgb-accent-sec))] flex items-center justify-center">
               <StickyNote size={24} />
             </div>
             <div>
-              <h1 className="font-outfit text-2xl font-bold tracking-widest uppercase text-white/90 m-0">Notes</h1>
-              <p className="font-mono text-[0.65rem] tracking-[0.2em] text-white/40 uppercase mt-1">Total: {filteredNotes.length}</p>
+              <h1 className="font-outfit text-2xl font-bold tracking-widest uppercase text-[var(--text-main)] m-0">Notes</h1>
+              <p className="font-mono text-[0.65rem] tracking-[0.2em] text-[var(--text-main)]/40 uppercase mt-1">Total: {filteredNotes.length}</p>
             </div>
           </div>
 
           {/* Search */}
-          <div className="flex items-center bg-white/5 border border-white/10 rounded-full px-4 py-2 w-full md:w-[300px] focus-within:border-white/30 focus-within:bg-white/10 transition-all">
-            <Search size={16} className="text-white/40 mr-2" />
+          <div className="flex items-center bg-[var(--bg-overlay)] border border-[var(--border-color)] rounded-full px-4 py-2 w-full md:w-[300px] focus-within:border-[var(--border-highlight)] focus-within:bg-[var(--bg-overlay)] transition-all">
+            <Search size={16} className="text-[var(--text-main)]/40 mr-2" />
             <input
               type="text"
               placeholder="Search concepts..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="bg-transparent border-none outline-none text-white/80 font-mono text-sm w-full placeholder:text-white/30"
+              className="bg-transparent border-none outline-none text-[var(--text-main)] font-mono text-sm w-full placeholder:text-[var(--text-main)]/30"
             />
             {searchQuery && (
-              <button className="text-white/40 hover:text-white/80 transition-colors" onClick={() => setSearchQuery('')}>
+              <button className="text-[var(--text-main)]/40 hover:text-[var(--text-main)] transition-colors" onClick={() => setSearchQuery('')}>
                 <X size={14} />
               </button>
             )}
@@ -180,21 +180,21 @@ export default function NotesView({ notes = [], api }) {
             <select
               value={sortBy}
               onChange={(e) => setSortBy(e.target.value)}
-              className="appearance-none bg-white/5 border border-white/10 rounded-full px-6 py-2.5 font-mono text-xs uppercase tracking-widest text-white/70 outline-none cursor-pointer hover:bg-white/10 hover:border-white/20 transition-all pr-10"
+              className="appearance-none bg-[var(--bg-overlay)] border border-[var(--border-color)] rounded-full px-6 py-2.5 font-mono text-xs uppercase tracking-widest text-[var(--text-main)]/70 outline-none cursor-pointer hover:bg-[var(--bg-overlay)] hover:border-[var(--border-highlight)] transition-all pr-10"
             >
-              <option value="created_desc" className="bg-zinc-900 text-white">Newest First</option>
-              <option value="created_asc" className="bg-zinc-900 text-white">Oldest First</option>
-              <option value="title_asc" className="bg-zinc-900 text-white">Title A-Z</option>
-              <option value="title_desc" className="bg-zinc-900 text-white">Title Z-A</option>
+              <option value="created_desc" className="bg-[var(--bg-panel)] text-[var(--text-main)]">Newest First</option>
+              <option value="created_asc" className="bg-[var(--bg-panel)] text-[var(--text-main)]">Oldest First</option>
+              <option value="title_asc" className="bg-[var(--bg-panel)] text-[var(--text-main)]">Title A-Z</option>
+              <option value="title_desc" className="bg-[var(--bg-panel)] text-[var(--text-main)]">Title Z-A</option>
             </select>
-            <ChevronDown size={14} className="absolute right-4 top-1/2 -translate-y-1/2 text-white/40 pointer-events-none" />
+            <ChevronDown size={14} className="absolute right-4 top-1/2 -translate-y-1/2 text-[var(--text-main)]/40 pointer-events-none" />
           </div>
         </div>
 
         <div className="flex items-center gap-4 w-full md:w-auto justify-end">
           {/* Quick Add Button */}
           <button
-            className="px-6 py-2.5 rounded-full font-mono text-xs uppercase tracking-widest text-black bg-white hover:bg-white/90 transition-all shadow-[0_0_20px_rgba(255,255,255,0.2)] hover:shadow-[0_0_30px_rgba(255,255,255,0.4)] flex items-center gap-2"
+            className="px-6 py-2.5 rounded-full font-mono text-xs uppercase tracking-widest text-[var(--logo-text)] bg-[var(--logo-bg)] text-[var(--logo-text)] hover:opacity-80 shadow-[0_0_15px_var(--border-highlight)] hover:shadow-[0_0_25px_var(--border-highlight)] transition-all  hover:border-[var(--border-highlight)] flex items-center gap-2"
             onClick={() => setShowAddForm(!showAddForm)}
           >
             {showAddForm ? <X size={14} /> : <Plus size={14} />}
@@ -205,8 +205,8 @@ export default function NotesView({ notes = [], api }) {
 
       {/* Tags Filter Bar */}
       {allTags.length > 0 && (
-        <div className="flex flex-wrap items-center gap-3 mb-8 relative z-10 bg-white/[0.02] p-4 rounded-2xl border border-white/5">
-          <div className="flex items-center gap-2 text-white/40 mr-2">
+        <div className="flex flex-wrap items-center gap-3 mb-8 relative z-10 bg-[var(--bg-card)] p-4 rounded-2xl border border-[var(--border-color)]">
+          <div className="flex items-center gap-2 text-[var(--text-main)]/40 mr-2">
             <Tag size={14} />
             <span className="font-mono text-xs uppercase tracking-widest">Filter:</span>
           </div>
@@ -215,8 +215,8 @@ export default function NotesView({ notes = [], api }) {
               <button
                 key={tag}
                 className={`px-3 py-1.5 rounded-full font-mono text-[0.6rem] uppercase tracking-wider transition-all border ${selectedTags.includes(tag)
-                  ? 'bg-amber-500/20 text-amber-400 border-amber-500/50 shadow-[0_0_10px_rgba(245,158,11,0.2)]'
-                  : 'bg-white/5 text-white/50 border-white/10 hover:bg-white/10 hover:text-white/80'
+                  ? 'bg-[rgba(var(--rgb-accent-sec),0.1)] text-[rgb(var(--rgb-accent-sec))] border-[rgba(var(--rgb-accent-sec),0.3)] shadow-[0_0_10px_rgba(var(--rgb-accent-sec),0.2)]'
+                  : 'bg-[var(--bg-overlay)] text-[var(--text-main)]/50 border-[var(--border-color)] hover:bg-[var(--bg-overlay)] hover:text-[var(--text-main)]'
                   }`}
                 onClick={() => toggleTag(tag)}
               >
@@ -226,7 +226,7 @@ export default function NotesView({ notes = [], api }) {
           </div>
           {(selectedTags.length > 0 || searchQuery) && (
             <button
-              className="text-white/40 hover:text-white/80 font-mono text-xs underline underline-offset-4 transition-colors p-2"
+              className="text-[var(--text-main)]/40 hover:text-[var(--text-main)] font-mono text-xs underline underline-offset-4 transition-colors p-2"
               onClick={clearFilters}
             >
               Clear filters
@@ -238,36 +238,36 @@ export default function NotesView({ notes = [], api }) {
       {/* Quick Add Form */}
       {showAddForm && (
         <div className="mb-12 relative z-10 animate-in fade-in slide-in-from-top-4 duration-300">
-          <div className="glass-panel rounded-3xl border border-white/10 p-8 shadow-[0_20px_40px_rgba(0,0,0,0.4)] relative overflow-hidden">
+          <div className="bg-[var(--bg-panel)] backdrop-blur-md rounded-3xl border border-[var(--border-color)] p-8 shadow-xl relative overflow-hidden">
             {/* Glowing orb behind form */}
-            <div className="absolute top-0 right-1/4 w-64 h-64 bg-amber-500/10 rounded-full blur-[100px] pointer-events-none" />
+            <div className="absolute top-0 right-1/4 w-64 h-64 bg-[rgba(var(--rgb-accent-sec),0.1)] rounded-full blur-[100px] pointer-events-none" />
 
             <div className="flex items-center gap-3 mb-6">
-              <StickyNote size={20} className="text-amber-500/80" />
-              <span className="font-outfit text-xl font-bold text-white tracking-wide">Compose Note</span>
+              <StickyNote size={20} className="text-[rgb(var(--rgb-accent-sec))]" />
+              <span className="font-outfit text-xl font-bold text-[var(--text-main)] tracking-wide">Compose Note</span>
             </div>
 
             <div className="grid gap-4 w-full max-w-3xl">
               <input
                 type="text"
-                className="w-full bg-white/5 border border-white/10 focus:border-white/30 rounded-xl px-5 py-4 font-outfit text-lg text-white placeholder:text-white/20 outline-none transition-all"
+                className="w-full bg-[var(--bg-overlay)] border border-[var(--border-color)] focus:border-[var(--border-highlight)] rounded-xl px-5 py-4 font-outfit text-lg text-[var(--text-main)] placeholder:text-[var(--text-main)]/20 outline-none transition-all"
                 placeholder="Note Title..."
                 value={newNote.title}
                 onChange={(e) => setNewNote({ ...newNote, title: e.target.value })}
                 autoFocus
               />
               <textarea
-                className="w-full bg-black/20 border border-white/10 focus:border-white/30 rounded-xl px-5 py-4 font-inter text-white/80 placeholder:text-white/20 outline-none transition-all resize-none leading-relaxed"
+                className="w-full bg-[var(--bg-overlay)] border border-[var(--border-color)] focus:border-[var(--border-highlight)] rounded-xl px-5 py-4 font-inter text-[var(--text-main)] placeholder:text-[var(--text-main)]/20 outline-none transition-all resize-none leading-relaxed"
                 placeholder="Write your thoughts..."
                 value={newNote.content}
                 onChange={(e) => setNewNote({ ...newNote, content: e.target.value })}
                 rows={6}
               />
               <div className="relative">
-                <Tag size={16} className="absolute left-5 top-1/2 -translate-y-1/2 text-white/30" />
+                <Tag size={16} className="absolute left-5 top-1/2 -translate-y-1/2 text-[var(--text-main)]/30" />
                 <input
                   type="text"
-                  className="w-full bg-white/5 border border-white/10 focus:border-white/30 rounded-xl pl-12 pr-5 py-4 font-mono text-sm text-white/80 placeholder:text-white/20 outline-none transition-all"
+                  className="w-full bg-[var(--bg-overlay)] border border-[var(--border-color)] focus:border-[var(--border-highlight)] rounded-xl pl-12 pr-5 py-4 font-mono text-sm text-[var(--text-main)] placeholder:text-[var(--text-main)]/20 outline-none transition-all"
                   placeholder="Tags (comma separated)..."
                   value={newNote.tags}
                   onChange={(e) => setNewNote({ ...newNote, tags: e.target.value })}
@@ -275,15 +275,15 @@ export default function NotesView({ notes = [], api }) {
               </div>
             </div>
 
-            <div className="flex gap-4 mt-8 pt-6 border-t border-white/10 max-w-3xl">
+            <div className="flex gap-4 mt-8 pt-6 border-t border-[var(--border-color)] max-w-3xl">
               <button
-                className="px-6 py-3 rounded-xl font-outfit font-bold text-xs uppercase tracking-widest text-amber-500 bg-amber-500/10 border border-amber-500/30 hover:bg-amber-500/20 hover:shadow-[0_0_20px_rgba(245,158,11,0.2)] transition-all flex items-center justify-center gap-2 w-40"
+                className="px-6 py-3 rounded-xl font-outfit font-bold text-xs uppercase tracking-widest text-[rgb(var(--rgb-accent-sec))] bg-[rgba(var(--rgb-accent-sec),0.1)] border border-[rgba(var(--rgb-accent-sec),0.3)] hover:bg-[rgba(var(--rgb-accent-sec),0.1)] hover:shadow-[0_0_20px_rgba(var(--rgb-accent-sec),0.2)] transition-all flex items-center justify-center gap-2 w-40"
                 onClick={handleCreateNote}
               >
                 <Save size={16} /> Save
               </button>
               <button
-                className="px-6 py-3 rounded-xl font-outfit font-bold text-xs uppercase tracking-widest text-white/40 bg-white/5 border border-white/10 hover:bg-white/10 hover:text-white transition-all w-32"
+                className="px-6 py-3 rounded-xl font-outfit font-bold text-xs uppercase tracking-widest text-[var(--text-main)]/40 bg-[var(--bg-overlay)] border border-[var(--border-color)] hover:bg-[var(--bg-overlay)] hover:text-[var(--text-main)] transition-all w-32"
                 onClick={() => setShowAddForm(false)}
               >
                 Discard
@@ -296,19 +296,19 @@ export default function NotesView({ notes = [], api }) {
       {/* Notes Display Grid - with Lobster Scroll */}
       <div className="relative z-10 w-full mb-20">
         {filteredNotes.length === 0 ? (
-          <div className="glass-panel rounded-3xl border border-white/10 p-20 flex flex-col items-center justify-center text-center mt-8">
-            <div className="w-24 h-24 rounded-full bg-white/5 border border-white/10 flex items-center justify-center mb-6 shadow-[inset_0_0_20px_rgba(255,255,255,0.02)]">
-              <Archive size={40} className="text-white/20" />
+          <div className="bg-[var(--bg-panel)] backdrop-blur-md rounded-3xl border border-[var(--border-color)] p-20 flex flex-col items-center justify-center text-center mt-8">
+            <div className="w-24 h-24 rounded-full bg-[var(--bg-overlay)] border border-[var(--border-color)] flex items-center justify-center mb-6 shadow-none">
+              <Archive size={40} className="text-[var(--text-main)]/20" />
             </div>
-            <h3 className="font-outfit text-2xl text-white/80 tracking-wide mb-2">No Notes Found</h3>
+            <h3 className="font-outfit text-2xl text-[var(--text-main)] tracking-wide mb-2">No Notes Found</h3>
             {searchQuery || selectedTags.length > 0 ? (
-              <p className="font-mono text-sm text-white/40 uppercase tracking-widest">Adjust filters to find what you seek</p>
+              <p className="font-mono text-sm text-[var(--text-main)]/40 uppercase tracking-widest">Adjust filters to find what you seek</p>
             ) : (
-              <p className="font-mono text-sm text-white/40 uppercase tracking-widest">The vault is empty. Capture a thought.</p>
+              <p className="font-mono text-sm text-[var(--text-main)]/40 uppercase tracking-widest">The vault is empty. Capture a thought.</p>
             )}
           </div>
         ) : (
-          <LobsterScrollArea className="max-h-[calc(100vh-300px)]">
+          
             <div className="grid grid-cols-1 xl:grid-cols-2 gap-8 pb-8">
               {filteredNotes.map((note, index) => (
                 <NoteWidget
@@ -324,7 +324,7 @@ export default function NotesView({ notes = [], api }) {
                 />
               ))}
             </div>
-          </LobsterScrollArea>
+          
         )}
       </div>
     </div>
@@ -372,33 +372,33 @@ function NoteWidget({ note, isEditing, onEdit, onSave, onCancelEdit, onDelete, f
   // Handle Note Editing Mode
   if (isEditing) {
     return (
-      <div className="glass-panel rounded-3xl border border-white/20 p-8 shadow-[0_20px_40px_rgba(0,0,0,0.4)] relative overflow-hidden ring-1 ring-amber-500/20">
-        <div className="absolute top-0 right-0 w-64 h-64 bg-amber-500/5 rounded-full blur-[80px]" />
+      <div className="bg-[var(--bg-panel)] backdrop-blur-md rounded-3xl border border-[var(--border-highlight)] p-8 shadow-xl relative overflow-hidden ring-1 ring-[rgba(var(--rgb-accent-sec),0.2)]">
+        <div className="absolute top-0 right-0 w-64 h-64 bg-[rgba(var(--rgb-accent-sec),0.1)] rounded-full blur-[80px]" />
 
         <div className="flex flex-col gap-4 relative z-10">
           <input
             type="text"
-            className="w-full bg-black/40 border border-white/10 focus:border-white/30 rounded-xl px-4 py-3 font-outfit text-xl text-white outline-none"
+            className="w-full bg-[var(--bg-overlay)] border border-[var(--border-color)] focus:border-[var(--border-highlight)] rounded-xl px-4 py-3 font-outfit text-xl text-[var(--text-main)] outline-none"
             value={editTitle}
             onChange={(e) => setEditTitle(e.target.value)}
             placeholder="Title"
           />
           <textarea
-            className="w-full bg-black/40 border border-white/10 focus:border-white/30 rounded-xl px-4 py-3 font-inter text-white/80 outline-none resize-y min-h-[150px] leading-relaxed"
+            className="w-full bg-[var(--bg-overlay)] border border-[var(--border-color)] focus:border-[var(--border-highlight)] rounded-xl px-4 py-3 font-inter text-[var(--text-main)] outline-none resize-y min-h-[150px] leading-relaxed"
             value={editContent}
             onChange={(e) => setEditContent(e.target.value)}
             placeholder="Content"
           />
           <input
             type="text"
-            className="w-full bg-black/40 border border-white/10 focus:border-white/30 rounded-xl px-4 py-3 font-mono text-sm text-white/60 outline-none"
+            className="w-full bg-[var(--bg-overlay)] border border-[var(--border-color)] focus:border-[var(--border-highlight)] rounded-xl px-4 py-3 font-mono text-sm text-[var(--text-main)]/60 outline-none"
             value={editTags}
             onChange={(e) => setEditTags(e.target.value)}
             placeholder="Tags (comma separated)"
           />
-          <div className="flex justify-end gap-3 mt-4 pt-4 border-t border-white/10">
-            <button className="px-5 py-2.5 rounded-xl font-outfit text-xs font-bold uppercase tracking-widest text-white/40 hover:bg-white/10 hover:text-white transition-colors" onClick={onCancelEdit}>Cancel</button>
-            <button className="px-5 py-2.5 rounded-xl font-outfit text-xs font-bold uppercase tracking-widest bg-amber-500/10 text-amber-500 border border-amber-500/30 hover:bg-amber-500/20 transition-all shadow-[0_0_15px_rgba(245,158,11,0.2)]" onClick={handleSave}>Save Changes</button>
+          <div className="flex justify-end gap-3 mt-4 pt-4 border-t border-[var(--border-color)]">
+            <button className="px-5 py-2.5 rounded-xl font-outfit text-xs font-bold uppercase tracking-widest text-[var(--text-main)]/40 hover:bg-[var(--bg-overlay)] hover:text-[var(--text-main)] transition-colors" onClick={onCancelEdit}>Cancel</button>
+            <button className="px-5 py-2.5 rounded-xl font-outfit text-xs font-bold uppercase tracking-widest bg-[rgba(var(--rgb-accent-sec),0.1)] text-[rgb(var(--rgb-accent-sec))] border border-[rgba(var(--rgb-accent-sec),0.3)] hover:bg-[rgba(var(--rgb-accent-sec),0.1)] transition-all shadow-[0_0_15px_rgba(var(--rgb-accent-sec),0.2)]" onClick={handleSave}>Save Changes</button>
           </div>
         </div>
       </div>
@@ -406,16 +406,16 @@ function NoteWidget({ note, isEditing, onEdit, onSave, onCancelEdit, onDelete, f
   }
 
   return (
-    <div className="group flex flex-col sm:flex-row glass-panel rounded-3xl border border-white/10 overflow-hidden hover:border-white/20 hover:-translate-y-1 transition-all duration-500 hover:shadow-[0_15px_40px_rgba(0,0,0,0.5)] bg-gradient-to-br from-white/[0.03] to-transparent relative">
+    <div className="group flex flex-col sm:flex-row bg-[var(--bg-panel)] backdrop-blur-md rounded-3xl border border-[var(--border-color)] overflow-hidden hover:border-[var(--border-highlight)] hover:-translate-y-1 transition-all duration-500 hover:shadow-2xl bg-gradient-to-br from-[var(--bg-overlay)] to-transparent relative">
       {/* Hover Glow Core */}
-      <div className="absolute inset-0 bg-gradient-to-br from-amber-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-700 pointer-events-none" />
+      <div className="absolute inset-0 bg-gradient-to-br from-[rgba(var(--rgb-accent-sec),0.05)] to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-700 pointer-events-none" />
 
       {/* Date Column (Left) */}
-      <div className="w-full sm:w-[120px] bg-white/[0.02] border-b sm:border-b-0 sm:border-r border-white/10 p-6 flex flex-col items-center justify-center shrink-0 relative">
-        <div className="font-outfit text-5xl md:text-6xl font-light text-white/80 tracking-tighter tabular-nums drop-shadow-[0_2px_10px_rgba(255,255,255,0.1)]">{dayNum}</div>
+      <div className="w-full sm:w-[120px] bg-[var(--bg-card)] border-b sm:border-b-0 sm:border-r border-[var(--border-color)] p-6 flex flex-col items-center justify-center shrink-0 relative">
+        <div className="font-outfit text-5xl md:text-6xl font-light text-[var(--text-main)] tracking-tighter tabular-nums drop-shadow-[0_2px_10px_rgba(255,255,255,0.1)]">{dayNum}</div>
         <div className="flex flex-col items-center mt-1">
-          <span className="font-mono text-[0.65rem] font-bold tracking-[0.2em] text-amber-500/80 uppercase">{monthStr}</span>
-          <span className="font-mono text-[0.55rem] tracking-[0.3em] text-white/30 uppercase mt-0.5">{yearStr}</span>
+          <span className="font-mono text-[0.65rem] font-bold tracking-[0.2em] text-[rgb(var(--rgb-accent-sec))] uppercase">{monthStr}</span>
+          <span className="font-mono text-[0.55rem] tracking-[0.3em] text-[var(--text-main)]/30 uppercase mt-0.5">{yearStr}</span>
         </div>
       </div>
 
@@ -423,17 +423,17 @@ function NoteWidget({ note, isEditing, onEdit, onSave, onCancelEdit, onDelete, f
       <div className="flex-1 p-6 flex flex-col relative">
         {/* Header Actions */}
         <div className="absolute top-6 right-6 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-          <button className="w-8 h-8 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-white/40 hover:text-white hover:bg-white/15 transition-colors" onClick={onEdit} title="Edit Note">
+          <button className="w-8 h-8 rounded-full bg-[var(--bg-overlay)] border border-[var(--border-color)] flex items-center justify-center text-[var(--text-main)]/40 hover:text-[var(--text-main)] hover:bg-[var(--bg-overlay)] transition-colors" onClick={onEdit} title="Edit Note">
             <Edit2 size={12} />
           </button>
-          <button className="w-8 h-8 rounded-full bg-red-500/5 border border-red-500/20 flex items-center justify-center text-red-500/60 hover:text-red-400 hover:bg-red-500/20 hover:border-red-500/40 transition-colors" onClick={onDelete} title="Delete Note">
+          <button className="w-8 h-8 rounded-full bg-[rgba(var(--rgb-accent-red),0.1)] border border-[rgba(var(--rgb-accent-red),0.3)] flex items-center justify-center text-[rgb(var(--rgb-accent-red))] hover:text-[rgb(var(--rgb-accent-red))] hover:bg-[rgba(var(--rgb-accent-red),0.1)] hover:border-[rgba(var(--rgb-accent-red),0.3)] transition-colors" onClick={onDelete} title="Delete Note">
             <Trash2 size={12} />
           </button>
         </div>
 
         {/* Title */}
-        <h3 className="font-outfit text-xl md:text-2xl font-bold text-white/95 tracking-wide pr-16 leading-tight mb-4">
-          {note.title || <span className="text-white/30 italic">Untitled Thought</span>}
+        <h3 className="font-outfit text-xl md:text-2xl font-bold text-[var(--text-main)] tracking-wide pr-16 leading-tight mb-4">
+          {note.title || <span className="text-[var(--text-main)]/30 italic">Untitled Thought</span>}
         </h3>
 
         {/* Body Preview */}
@@ -442,27 +442,27 @@ function NoteWidget({ note, isEditing, onEdit, onSave, onCancelEdit, onDelete, f
           onClick={() => setIsExpanded(!isExpanded)}
         >
           {isExpanded ? (
-            <div className="font-inter text-sm text-white/70 leading-relaxed whitespace-pre-wrap animate-in fade-in duration-300">
+            <div className="font-inter text-sm text-[var(--text-main)]/70 leading-relaxed whitespace-pre-wrap animate-in fade-in duration-300">
               {note.content}
             </div>
           ) : (
-            <div className="font-inter text-sm text-white/50 leading-relaxed line-clamp-3 overflow-hidden group-hover:text-white/70 transition-colors">
+            <div className="font-inter text-sm text-[var(--text-main)]/50 leading-relaxed line-clamp-3 overflow-hidden group-hover:text-[var(--text-main)]/70 transition-colors">
               {note.content || '...'}
             </div>
           )}
 
           {/* Subtle click-to-expand prompt if content is long and not expanded */}
           {!isExpanded && note.content && note.content.length > 150 && (
-            <div className="mt-2 text-[0.6rem] font-mono tracking-widest text-amber-500/50 uppercase flex items-center gap-1 group-hover:text-amber-500 transition-colors">
+            <div className="mt-2 text-[0.6rem] font-mono tracking-widest text-[rgb(var(--rgb-accent-sec))] uppercase flex items-center gap-1 group-hover:text-[rgb(var(--rgb-accent-sec))] transition-colors">
               <ChevronDown size={10} /> Expand
             </div>
           )}
         </div>
 
         {/* Footer Meta */}
-        <div className="mt-auto pt-4 border-t border-white/10 flex flex-wrap items-center justify-between gap-4">
-          <div className="flex items-center gap-2 font-mono text-[0.6rem] tracking-[0.1em] text-white/30 uppercase">
-            <Clock size={10} className="text-white/20" />
+        <div className="mt-auto pt-4 border-t border-[var(--border-color)] flex flex-wrap items-center justify-between gap-4">
+          <div className="flex items-center gap-2 font-mono text-[0.6rem] tracking-[0.1em] text-[var(--text-main)]/30 uppercase">
+            <Clock size={10} className="text-[var(--text-main)]/20" />
             {formatRelativeDate(note.created_at)}
           </div>
 
@@ -472,13 +472,13 @@ function NoteWidget({ note, isEditing, onEdit, onSave, onCancelEdit, onDelete, f
                 <span
                   key={tag}
                   onClick={(e) => { e.stopPropagation(); onTagClick && onTagClick(tag); }}
-                  className="px-2 py-1 rounded-md bg-white/5 border border-white/5 text-[0.6rem] font-mono tracking-wider uppercase text-amber-400/70 shadow-[inset_0_1px_2px_rgba(255,255,255,0.05)] hover:bg-white/10 hover:text-amber-400 transition-colors cursor-pointer"
+                  className="px-2 py-1 rounded-md bg-[var(--bg-overlay)] border border-[var(--border-color)] text-[0.6rem] font-mono tracking-wider uppercase text-[rgb(var(--rgb-accent-sec))] shadow-none hover:bg-[var(--bg-overlay)] hover:text-[rgb(var(--rgb-accent-sec))] transition-colors cursor-pointer"
                 >
                   {tag}
                 </span>
               ))}
               {(note.tags || []).length > 3 && (
-                <span className="px-2 py-1 rounded-md bg-transparent border border-white/5 text-[0.55rem] font-mono tracking-widest text-white/30">
+                <span className="px-2 py-1 rounded-md bg-transparent border border-[var(--border-color)] text-[0.55rem] font-mono tracking-widest text-[var(--text-main)]/30">
                   +{note.tags.length - 3}
                 </span>
               )}

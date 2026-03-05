@@ -1,3 +1,5 @@
+// API_FIX_BUILD 
+// NEW_BUILD_1772622558
 // Life OS Dashboard - Full Design Integration
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -30,6 +32,7 @@ import ContactsView from './components/ContactsView';
 import NotesView from './components/NotesView';
 import FinanceView from './components/FinanceView';
 import ContentSchedulerView from './components/ContentSchedulerView';
+import LobsterScrollArea from './components/ui/LobsterScrollArea';
 
 // Core UI Components
 import {
@@ -318,6 +321,7 @@ export default function App() {
 
   // API utility for components
   const api = {
+    // FORCE_REBUILD
     create: async (type, data) => {
       const res = await fetch(`/api/${type}`, {
         method: 'POST',
@@ -390,17 +394,17 @@ export default function App() {
       case 'knight': return <KnowledgeChat {...data} {...viewProps} />;
       case 'tasks': return <KanbanBoard api={api} {...data} {...viewProps} />;
       case 'projects': return <ProjectsView {...data} {...viewProps} />;
-      case 'calendar': return <CalendarView {...data} {...viewProps} />;
-      case 'streams': return <StreamsView {...data} {...viewProps} />;
+      case 'calendar': return <CalendarView api={api} {...data} {...viewProps} />;
+      case 'streams': return <StreamsView api={api} {...data} {...viewProps} />;
       case 'inventory': return <InventoryView {...data} {...viewProps} />;
       case 'scheduler': return <ContentSchedulerView {...data} {...viewProps} />;
       case 'blog': return <BlogVoiceView {...data} {...viewProps} />;
-      case 'ideas': return <IdeaBankView {...data} {...viewProps} />;
+      case 'ideas': return <IdeaBankView api={api} {...data} {...viewProps} />;
       case 'finances': return <FinanceView {...data} {...viewProps} />;
-      case 'habits': return <HabitsView {...data} {...viewProps} />;
-      case 'notes': return <NotesView {...data} {...viewProps} />;
+      case 'habits': return <HabitsView api={api} {...data} {...viewProps} />;
+      case 'notes': return <NotesView api={api} {...data} {...viewProps} />;
       case 'journal': return <div className="h-full flex items-center justify-center"><Card title="Journal"><p>Journal view coming soon</p></Card></div>;
-      case 'cortex': return <CortexView {...viewProps} />;
+      case 'cortex': return <CortexView api={api} {...viewProps} />;
       case 'contacts': return <ContactsView {...viewProps} />;
       default:
         return (
@@ -539,7 +543,7 @@ export default function App() {
             </div>
           </div>
 
-          <div className="flex-1 overflow-y-auto px-4 py-8 space-y-8 scrollbar-hide" ref={scrollContainerRef}>
+          <LobsterScrollArea className="flex-1" contentClassName="px-4 py-8 space-y-8" ref={scrollContainerRef}>
             {NAV_SECTIONS.map((section) => {
               const isExpanded = expandedSections[section.id];
               return (
@@ -570,7 +574,7 @@ export default function App() {
                 </div>
               );
             })}
-          </div>
+          </LobsterScrollArea>
 
           <div className="p-6">
             <div className="flex items-center justify-between p-4 rounded-[2rem] bg-[var(--bg-card)] border border-[var(--border-color)] cursor-pointer hover:border-[var(--border-highlight)] transition-all group hover-spotlight">
@@ -607,7 +611,7 @@ export default function App() {
             </div>
           </header>
 
-          <div className="flex-1 overflow-y-auto p-10 glass-scroll">
+          <LobsterScrollArea className="flex-1" contentClassName="p-10 glass-scroll">
             <div className="max-w-7xl mx-auto h-full">
               <AnimatePresence mode="wait">
                 <motion.div key={activeTab} initial={{ opacity: 0, scale: 0.98, y: 10 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 1.02, y: -10 }} transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }} className="h-full">
@@ -615,10 +619,9 @@ export default function App() {
                 </motion.div>
               </AnimatePresence>
             </div>
-          </div>
+          </LobsterScrollArea>
         </main>
       </div>
     </>
   );
 }
-BUILD_TEST_1772620746

@@ -5,6 +5,7 @@ import {
   Package, Gift, ShoppingBag, Archive, Plus, Minus,
   Search, Filter, Box, Tag, Truck, Users, Sparkles
 } from 'lucide-react';
+import LobsterScrollArea from './ui/LobsterScrollArea';
 
 export default function InventoryView({ inventory = [], api }) {
   const [activeTab, setActiveTab] = useState('shop'); // shop, giveaway, personal, bundles
@@ -277,7 +278,7 @@ export default function InventoryView({ inventory = [], api }) {
                   <span className="text-[10px] font-mono text-gray-600">SECTOR_GIVEAWAY</span>
                 </div>
 
-                <div className="min-h-[140px] max-h-[240px] bg-white/[0.02] border border-dashed border-white/10 rounded-2xl p-4 overflow-y-auto glass-scroll flex flex-col gap-2">
+                <LobsterScrollArea className="min-h-[140px] max-h-[240px]" contentClassName="bg-white/[0.02] border border-dashed border-white/10 rounded-2xl p-4 glass-scroll flex flex-col gap-2">
                   {bundleItems.length === 0 ? (
                     <div className="flex-1 flex flex-col items-center justify-center gap-3 opacity-20">
                       <Archive size={24} />
@@ -299,7 +300,7 @@ export default function InventoryView({ inventory = [], api }) {
                       </div>
                     ))
                   )}
-                </div>
+                </LobsterScrollArea>
               </div>
 
               <GlassyPill variant="primary" className="w-full !py-5 shadow-[0_0_30px_rgba(245,158,11,0.2)]">
