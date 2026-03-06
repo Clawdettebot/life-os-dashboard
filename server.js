@@ -8,6 +8,7 @@ const fs = require('fs').promises;
 const axios = require('axios');
 const multer = require('multer');
 const { lifeos, website, getCortexEntries, getCortexTags, CORTEX_TAGS, createCortexEntry } = require('./lifeos-supabase.js');
+const EmbeddingService = require('./embedding-service-supabase.js');
 require('dotenv').config();
 
 // Configure multer for file uploads
@@ -154,6 +155,302 @@ app.get('/api/status', (req, res) => {
   res.json({ status: 'ok', timestamp: Date.now() });
 });
 
+// PostBridge SMS API
+const POSTBRIDGE_API = 'pb_live_6TxeA2MXDdTeVaXrp8BwG8';
+const POSTBRIDGE_BASE = 'https://api.post-bridge.com/v1';
+
+app.post('/api/sms/send', async (req, res) => {
+  try {
+    const { to, message } = req.body;
+    if (!to || !message) {
+      return res.status(400).json({ error: 'Phone number and message required' });
+    }
+
+    const response = await fetch('https://api.postbridge.io/messages', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${POSTBRIDGE_API}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ to, message })
+    });
+
+    const data = await response.json();
+    res.json({ success: true, result: data });
+  } catch (e) {
+    res.json({ success: false, error: e.message });
+  }
+});
+
+app.post('/api/sms/schedule', async (req, res) => {
+  try {
+    const { to, message, send_at } = req.body;
+    if (!to || !message || !send_at) {
+      return res.status(400).json({ error: 'Phone, message, and send_at required' });
+    }
+
+    const response = await fetch('https://api.postbridge.io/scheduled', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${POSTBRIDGE_API}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ to, message, send_at })
+    });
+
+    const data = await response.json();
+    res.json({ success: true, result: data });
+  } catch (e) {
+    res.json({ success: false, error: e.message });
+  }
+});
+
+// ══════════════════════════════════════════════════════════════
+// POSTBRIDGE SOCIAL API - Labrina's Powers
+// ══════════════════════════════════════════════════════════════
+
+// Get connected social accounts
+app.get('/api/social/accounts', async (req, res) => {
+  try {
+    const response = await fetch(`${POSTBRIDGE_BASE}/social-accounts?limit=50`, {
+      headers: {
+        'Authorization': `Bearer ${POSTBRIDGE_API}`,
+        'Content-Type': 'application/json'
+      }
+    });
+    const data = await response.json();
+    res.json(data);
+  } catch (e) {
+    res.json({ error: e.message });
+  }
+});
+
+// Create a post to social media
+app.post('/api/social/post', async (req, res) => {
+  try {
+    const { caption, social_accounts, scheduled_at, media, platform_configurations } = req.body;
+
+    if (!caption || !social_accounts) {
+      return res.status(400).json({ error: 'Caption and social_accounts required' });
+    }
+
+    const payload = { caption, social_accounts };
+    if (scheduled_at) payload.scheduled_at = scheduled_at;
+    if (media) payload.media = media;
+    if (platform_configurations) payload.platform_configurations = platform_configurations;
+
+    const response = await fetch(`${POSTBRIDGE_BASE}/posts`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${POSTBRIDGE_API}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(payload)
+    });
+
+    const data = await response.json();
+    res.json({ success: true, post: data });
+  } catch (e) {
+    res.json({ success: false, error: e.message });
+  }
+});
+
+// Get post results / analytics
+app.get('/api/social/analytics', async (req, res) => {
+  try {
+    const { timeframe = '30d', platform } = req.query;
+    let url = `${POSTBRIDGE_BASE}/analytics?timeframe=${timeframe}`;
+    if (platform) url += `&platform=${platform}`;
+
+    const response = await fetch(url, {
+      headers: {
+        'Authorization': `Bearer ${POSTBRIDGE_API}`,
+        'Content-Type': 'application/json'
+      }
+    });
+    const data = await response.json();
+    res.json(data);
+  } catch (e) {
+    res.json({ error: e.message });
+  }
+});
+
+// Get posts
+app.get('/api/social/posts', async (req, res) => {
+  try {
+    const { status, platform, limit = 10, offset = 0 } = req.query;
+    let url = `${POSTBRIDGE_BASE}/posts?limit=${limit}&offset=${offset}`;
+    if (status) url += `&status=${status}`;
+    if (platform) url += `&platform=${platform}`;
+
+    const response = await fetch(url, {
+      headers: {
+        'Authorization': `Bearer ${POSTBRIDGE_API}`,
+        'Content-Type': 'application/json'
+      }
+    });
+    const data = await response.json();
+    res.json(data);
+  } catch (e) {
+    res.json({ error: e.message });
+  }
+});
+
+// Upload media for posts
+app.post('/api/social/media/upload', async (req, res) => {
+  try {
+    const { name, mime_type, size_bytes } = req.body;
+
+    // Get upload URL
+    const response = await fetch(`${POSTBRIDGE_BASE}/media/create-upload-url`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${POSTBRIDGE_API}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ name, mime_type, size_bytes })
+    });
+
+    const data = await response.json();
+    res.json(data);
+  } catch (e) {
+    res.json({ error: e.message });
+  }
+});
+
+// ══════════════════════════════════════════════════════════════
+// END POSTBRIDGE API
+// ══════════════════════════════════════════════════════════════
+
+// ══════════════════════════════════════════════════════════════
+// VOICE RECORDER API
+// ══════════════════════════════════════════════════════════════
+
+// Get all recordings
+app.get('/api/recordings', async (req, res) => {
+  try {
+    const { data, error } = await lifeos
+      .from('recordings')
+      .select('*')
+      .order('recorded_at', { ascending: false });
+    if (error) throw error;
+    res.json({ recordings: data || [] });
+  } catch (e) { res.json({ recordings: [], error: e.message }); }
+});
+
+// Create new recording
+app.post('/api/recordings', async (req, res) => {
+  try {
+    const { title, description } = req.body;
+    const { data, error } = await lifeos
+      .from('recordings')
+      .insert([{ title, description, status: 'recording' }])
+      .select()
+      .single();
+    if (error) throw error;
+    res.json({ recording: data });
+  } catch (e) { res.json({ error: e.message }); }
+});
+
+// Update recording status
+app.patch('/api/recordings/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { status, file_path, duration_seconds } = req.body;
+    const { data, error } = await lifeos
+      .from('recordings')
+      .update({ 
+        status, 
+        file_path, 
+        duration_seconds,
+        ...(status === 'transcribed' ? { transcribed_at: new Date().toISOString() } : {}),
+        ...(status === 'analyzed' ? { analyzed_at: new Date().toISOString() } : {})
+      })
+      .eq('id', id)
+      .select()
+      .single();
+    if (error) throw error;
+    res.json({ recording: data });
+  } catch (e) { res.json({ error: e.message }); }
+});
+
+// Save transcript
+app.post('/api/transcripts', async (req, res) => {
+  try {
+    const { recording_id, content, word_count, duration_seconds } = req.body;
+    const { data, error } = await lifeos
+      .from('transcripts')
+      .insert([{ recording_id, content, word_count, duration_seconds }])
+      .select()
+      .single();
+    if (error) throw error;
+    res.json({ transcript: data });
+  } catch (e) { res.json({ error: e.message }); }
+});
+
+// Save analysis
+app.post('/api/analysis', async (req, res) => {
+  try {
+    const { recording_id, tasks, ideas, projects, summary, key_topics } = req.body;
+    const { data, error } = await lifeos
+      .from('recording_analysis')
+      .insert([{ 
+        recording_id, 
+        tasks: tasks || [],
+        ideas: ideas || [],
+        projects: projects || [],
+        summary,
+        key_topics: key_topics || [],
+        status: 'completed',
+        completed_at: new Date().toISOString()
+      }])
+      .select()
+      .single();
+    if (error) throw error;
+    
+    // Update recording status
+    await lifeos.from('recordings').update({ status: 'analyzed' }).eq('id', recording_id);
+    
+    res.json({ analysis: data });
+  } catch (e) { res.json({ error: e.message }); }
+});
+
+// Get recording with transcript and analysis
+app.get('/api/recordings/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { data: recording } = await lifeos.from('recordings').select('*').eq('id', id).single();
+    const { data: transcript } = await lifeos.from('transcripts').select('*').eq('recording_id', id).single();
+    const { data: analysis } = await lifeos.from('recording_analysis').select('*').eq('recording_id', id).single();
+    res.json({ recording, transcript: transcript || null, analysis: analysis || null });
+  } catch (e) { res.json({ error: e.message }); }
+});
+
+// Upload audio file
+const recordingsUpload = multer({ dest: '/tmp/' });
+app.post('/api/recordings/:id/upload', recordingsUpload.single('audio'), async (req, res) => {
+  try {
+    const { id } = req.params;
+    if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
+    
+    // Move to permanent storage
+    const destPath = `/mnt/7DC21CFC5AB9C3AB/Apps/code/life-os-dashboard/data/recordings/${req.file.filename}`;
+    require('fs').mkdirSync(require('path').dirname(destPath), { recursive: true });
+    require('fs').renameSync(req.file.path, destPath);
+    
+    await lifeos.from('recordings').update({ 
+      file_path: destPath,
+      status: 'transcribing'
+    }).eq('id', id);
+    
+    res.json({ success: true, path: destPath });
+  } catch (e) { res.json({ error: e.message }); }
+});
+
+// ══════════════════════════════════════════════════════════════
+// END VOICE RECORDER API
+// ══════════════════════════════════════════════════════════════
+
 // Blog Posts API - now from Supabase
 app.post('/api/blog/posts', async (req, res) => {
   try {
@@ -169,9 +466,9 @@ app.post('/api/blog/posts', async (req, res) => {
       .insert([{
         title,
         content: body,
-        excerpt: excerpt || body.substring(0, 150) + '...',
+        excerpt: excerpt || (body ? body.substring(0, 150) + '...' : ''),
         status: status || 'draft',
-        premium_tier: 'free',
+        premium_tier: 'free_game',
         slug: title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '')
       }])
       .select()
@@ -210,27 +507,46 @@ app.get('/api/blog/posts', async (req, res) => {
 app.post('/api/blog/voice-drop', async (req, res) => {
   try {
     const { transcript, title, tags = [] } = req.body;
-    const blogData = JSON.parse(await fs.readFile(path.join(DATA_DIR, 'blog-posts.json'), 'utf-8'));
 
-    const newPost = {
-      id: 'post_' + Date.now(),
-      title: title || 'Voice Drop ' + new Date().toLocaleDateString(),
-      content: transcript,
-      tags,
-      source: 'voice-drop',
-      status: 'draft',
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString()
-    };
+    // Use the website Supabase (yyoxpcsspmjvolteknsn)
+    const client = supabase;
 
-    blogData.posts.push(newPost);
-    blogData.voice_drops.push(newPost);
-    blogData.sync_status.last_voice_drop_processed = new Date().toISOString();
+    const slug = (title || 'voice-drop-' + Date.now()).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
 
-    await fs.writeFile(path.join(DATA_DIR, 'blog-posts.json'), JSON.stringify(blogData, null, 2));
+    const { data: newPost, error } = await client
+      .from('blog_post')
+      .insert([{
+        title: title || 'Voice Drop ' + new Date().toLocaleDateString(),
+        content: transcript || '',
+        excerpt: (transcript || '').substring(0, 150) + '...',
+        status: 'draft',
+        premium_tier: 'free_game',
+        slug: slug + '-' + Date.now()
+      }])
+      .select()
+      .single();
+
+    if (error) {
+      console.error('Supabase insert error:', error);
+      const blogData = JSON.parse(await fs.readFile(path.join(DATA_DIR, 'blog-posts.json'), 'utf-8'));
+      const localPost = {
+        id: 'post_' + Date.now(),
+        title: title || 'Voice Drop ' + new Date().toLocaleDateString(),
+        content: transcript,
+        tags,
+        source: 'voice-drop',
+        status: 'draft',
+        created_at: new Date().toISOString()
+      };
+      blogData.posts.push(localPost);
+      blogData.voice_drops.push(localPost);
+      await fs.writeFile(path.join(DATA_DIR, 'blog-posts.json'), JSON.stringify(blogData, null, 2));
+      return res.json({ success: true, post: localPost, fallback: true });
+    }
 
     res.json({ success: true, post: newPost });
   } catch (e) {
+    console.error('Voice-drop error:', e);
     res.json({ success: false, error: e.message });
   }
 });
@@ -251,6 +567,24 @@ app.post('/api/blog/publish', async (req, res) => {
     await fs.writeFile(path.join(DATA_DIR, 'blog-posts.json'), JSON.stringify(blogData, null, 2));
 
     res.json({ success: true, post: blogData.posts[postIndex] });
+  } catch (e) {
+    res.json({ success: false, error: e.message });
+  }
+});
+
+// Delete blog post
+app.delete('/api/blog/posts/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const client = website || supabase;
+
+    const { error } = await client
+      .from('blog_post')
+      .delete()
+      .eq('id', id);
+
+    if (error) throw error;
+    res.json({ success: true });
   } catch (e) {
     res.json({ success: false, error: e.message });
   }
@@ -282,6 +616,20 @@ app.post('/api/blog/ideas', async (req, res) => {
     blogData.ideas.push(newIdea);
     await fs.writeFile(path.join(DATA_DIR, 'blog-posts.json'), JSON.stringify(blogData, null, 2));
     res.json({ success: true, idea: newIdea });
+  } catch (e) {
+    res.json({ success: false, error: e.message });
+  }
+});
+
+// Delete blog idea
+app.delete('/api/blog/ideas/:id', async (req, res) => {
+  try {
+    const blogData = JSON.parse(await fs.readFile(path.join(DATA_DIR, 'blog-posts.json'), 'utf-8'));
+    if (!blogData.ideas) blogData.ideas = [];
+    const id = req.params.id;
+    blogData.ideas = blogData.ideas.filter(i => String(i.id) !== String(id));
+    await fs.writeFile(path.join(DATA_DIR, 'blog-posts.json'), JSON.stringify(blogData, null, 2));
+    res.json({ success: true });
   } catch (e) {
     res.json({ success: false, error: e.message });
   }
@@ -703,7 +1051,8 @@ const SUPABASE_TABLE_MAP = {
   notes: 'lifeos_notes',
   health: 'lifeos_health',
   goals: 'lifeos_goals',
-  schedule: 'lifeos_schedule'
+  schedule: 'lifeos_schedule',
+  ideas: 'ideas'
 };
 
 // ══════════════════════════════════════════════════════════════
@@ -1325,24 +1674,24 @@ app.post('/api/tables/:table', async (req, res) => {
   if (lifeos && sbTable) {
     try {
       let payload = { ...req.body };
-      
+
       // For finances, allow amount, type, date fields
       if (table !== 'finances') {
         // Filter out fields that don't exist in Supabase for other tables
         const validFields = ['name', 'description', 'status', 'category', 'priority', 'progress', 'start_date', 'target_date', 'tags', 'links'];
         Object.keys(payload).forEach(k => { if (!validFields.includes(k)) delete payload[k]; });
       }
-      
+
       // Map frontend fields for finances
       if (table === 'finances') {
         if (payload.title !== undefined) { payload.description = payload.title; }
         payload.type = payload.type || 'expense';
         payload.amount = Number(payload.amount) || 0;
       }
-      
+
       if (table === 'notes' && payload.title !== undefined) { delete payload.title; }
       if (table === 'projects' && payload.title !== undefined) { payload.name = payload.title; delete payload.title; }
-      
+
       const { data, error } = await lifeos
         .from(sbTable)
         .insert({ ...payload, created_at: new Date().toISOString() })
@@ -2260,10 +2609,10 @@ async function sbProjects(filter = {}) {
 
 app.get('/api/projects', async (req, res) => {
   try {
-    const data = await sbProjects({ notArchived: true });
+    const data = await sbProjects(); // Now returns all projects
     if (data) return res.json({ projects: data, source: 'supabase' });
   } catch (e) { console.log('Projects GET supabase error, falling back'); }
-  try { const p = await jsonDb.read('projects'); res.json({ projects: p.filter(p => p.status !== 'archived'), source: 'json' }); } catch (e) { res.json({ projects: [] }); }
+  try { const p = await jsonDb.read('projects'); res.json({ projects: p, source: 'json' }); } catch (e) { res.json({ projects: [] }); }
 });
 
 app.get('/api/projects/active', async (req, res) => {
@@ -2355,7 +2704,7 @@ app.post('/api/projects/:id/archive', async (req, res) => {
   if (lifeos) {
     try {
       const { data, error } = await lifeos.from('lifeos_projects')
-        .update({ status: 'archived', archived_at: new Date().toISOString(), updated_at: new Date().toISOString() })
+        .update({ status: 'archived', updated_at: new Date().toISOString() })
         .eq('id', req.params.id).select().single();
       if (!error && data) return res.json({ project: data });
     } catch (e) { console.log('Project archive supabase error, falling back'); }
@@ -2372,7 +2721,7 @@ app.post('/api/projects/:id/unarchive', async (req, res) => {
   if (lifeos) {
     try {
       const { data, error } = await lifeos.from('lifeos_projects')
-        .update({ status: 'active', archived_at: null, updated_at: new Date().toISOString() })
+        .update({ status: 'active', updated_at: new Date().toISOString() })
         .eq('id', req.params.id).select().single();
       if (!error && data) return res.json({ project: data });
     } catch (e) { console.log('Project unarchive supabase error, falling back'); }
@@ -2717,6 +3066,17 @@ app.get('/api/uploads/:folder/:filename', async (req, res) => {
 });
 
 
+// Cortex DELETE — LifeOS Supabase
+app.delete('/api/cortex/:id', async (req, res) => {
+  try {
+    const { error } = await lifeos.from('lifeos_cortex').delete().eq('id', req.params.id);
+    if (error) throw error;
+    res.json({ success: true });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
 // Contacts CRM
 app.get('/api/contacts', async (req, res) => {
   try {
@@ -2828,6 +3188,39 @@ app.post('/api/contacts/:id/score', async (req, res) => {
   } catch (error) { res.json({ success: false, error: error.message }); }
 });
 
+// Contacts CREATE — SQLite
+app.post('/api/contacts', async (req, res) => {
+  try {
+    const { name, email, phone, priority } = req.body;
+    if (!name && !email) return res.status(400).json({ error: 'Name or email required' });
+    const dbPath = path.join(DATA_DIR, 'contacts.db');
+    const SQLite = require('better-sqlite3');
+    const db = new SQLite(dbPath);
+
+    const stmt = db.prepare(`
+      INSERT INTO contacts (name, email, phone, status, priority, relationship_score, interaction_count, created_at, updated_at)
+      VALUES (?, ?, ?, 'new', ?, 50, 0, strftime('%s', 'now'), strftime('%s', 'now'))
+    `);
+    const result = stmt.run(name || '', email || '', phone || '', priority || 'medium');
+    const contact = db.prepare('SELECT * FROM contacts WHERE id = ?').get(result.lastInsertRowid);
+
+    db.close();
+    res.json({ success: true, contact });
+  } catch (error) { res.json({ success: false, error: error.message }); }
+});
+
+// Contacts DELETE — SQLite
+app.delete('/api/contacts/:id', async (req, res) => {
+  try {
+    const dbPath = path.join(DATA_DIR, 'contacts.db');
+    const SQLite = require('better-sqlite3');
+    const db = new SQLite(dbPath);
+    db.prepare('DELETE FROM contacts WHERE id = ?').run(req.params.id);
+    db.close();
+    res.json({ success: true });
+  } catch (error) { res.json({ success: false, error: error.message }); }
+});
+
 // Calendar merged
 app.get('/api/calendar/merged', async (req, res) => {
   const { start, end } = req.query;
@@ -2909,6 +3302,65 @@ app.get('/api/inventory/all', async (req, res) => {
     const stats = { shop: shopFormatted.length, giveaway: giveawayFormatted.length, personal: 0, bundles: 0 };
     res.json({ items: [...shopFormatted, ...giveawayFormatted], stats, grouped });
   } catch (error) { console.log('[DEBUG] inventory error:', error); res.json({ items: [], stats: { shop: 0, giveaway: 0, personal: 0, bundles: 0 }, grouped: {} }); }
+});
+
+// Inventory CREATE — Website Supabase (shop_item)
+app.post('/api/inventory', async (req, res) => {
+  try {
+    const { name, sku, qty, price, category, type, size, notes, image_url } = req.body;
+    if (!name) return res.status(400).json({ error: 'Name is required' });
+    const { data, error } = await supabase
+      .from('shop_item')
+      .insert([{
+        name,
+        stripe_product_id: sku || null,
+        inventory_count: qty || 0,
+        price: price ? String(price) : '0',
+        category: category || type || 'shop',
+        description: notes || '',
+        image_url: image_url || null,
+        available: true,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      }])
+      .select().single();
+    if (error) throw error;
+    res.json({ success: true, item: { id: data.id, name: data.name, sku: data.stripe_product_id, qty: data.inventory_count, price: data.price, category: data.category, type: category || 'shop' } });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// Inventory UPDATE — Website Supabase (shop_item)
+app.patch('/api/inventory/:id', async (req, res) => {
+  try {
+    const updates = { ...req.body, updated_at: new Date().toISOString() };
+    // Map frontend field names to Supabase columns
+    if (updates.qty !== undefined) { updates.inventory_count = updates.qty; delete updates.qty; }
+    if (updates.sku !== undefined) { updates.stripe_product_id = updates.sku; delete updates.sku; }
+    if (updates.notes !== undefined) { updates.description = updates.notes; delete updates.notes; }
+    if (updates.price !== undefined) { updates.price = String(updates.price); }
+    const { data, error } = await supabase
+      .from('shop_item')
+      .update(updates)
+      .eq('id', req.params.id)
+      .select().single();
+    if (error) throw error;
+    res.json({ success: true, item: data });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// Inventory DELETE — Website Supabase (shop_item)
+app.delete('/api/inventory/:id', async (req, res) => {
+  try {
+    const { error } = await supabase.from('shop_item').delete().eq('id', req.params.id);
+    if (error) throw error;
+    res.json({ success: true });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
 });
 
 // Favicon
@@ -3281,60 +3733,106 @@ app.post('/api/ollama/chat/stream', async (req, res) => {
 app.post('/api/knaight/chat', async (req, res) => {
   const { model, messages, section } = req.body;
 
-  if (!model || !messages) {
+  if (!model || !messages || messages.length === 0) {
     return res.status(400).json({ error: 'Model and messages required' });
   }
 
   try {
+    const lastUserMessage = messages[messages.length - 1].content;
+    const embeddingService = new EmbeddingService();
+
+    // 1. Perform Semantic Search (RAG)
     let contextData = '';
-
-    // Fetch context based on section using the supabase client already instantiated
-    if (section === 'cortex' || section === 'ideas') {
-      const targetSection = section === 'ideas' ? 'all_spark' : null;
-
-      let query = supabase
-        .from('lifeos_cortex')
-        .select('title, content, section, created_at')
-        .order('created_at', { ascending: false })
-        .limit(10);
-
-      if (targetSection) {
-        query = query.eq('section', targetSection);
+    try {
+      const searchResults = await embeddingService.search(lastUserMessage, 5);
+      if (searchResults && searchResults.length > 0) {
+        contextData = "RELEVANT CORTEX CONTEXT:\n" + searchResults.map(d =>
+          `- [${d.section}] ${d.title}: ${d.content ? d.content.substring(0, 300) : ''}`
+        ).join("\n\n");
       }
-
-      const { data, error } = await query;
-      if (!error && data && data.length > 0) {
-        contextData = "Recent Cortex Entries:\n" + data.map(d => `- [${d.section}] ${d.title}: ${d.content ? d.content.substring(0, 200) : ''}...`).join("\n");
+    } catch (e) {
+      console.warn('Semantic search failed, falling back to recent data', e.message);
+      // Fallback to recent entries if RAG fails
+      const { data } = await supabase
+        .from('lifeos_cortex')
+        .select('title, content, section')
+        .order('created_at', { ascending: false })
+        .limit(5);
+      if (data) {
+        contextData = "RECENT CORTEX DATA:\n" + data.map(d => `- [${d.section}] ${d.title}: ${d.content?.substring(0, 200)}`).join("\n");
       }
     }
 
     const systemPrompt = `You are Knowledge Knaight, the Guardian of the Cortex (the user's second brain).
 Personality: Analytical, precise, efficient, slightly mysterious.
 Values clarity over volume.
-Communication Style: Concise and direct. Uses emojis to denote sections: 📜 (tablets/history), ⚡ (ideas/all spark), 🍳 (food/kitchen), 🛸 (tech/guide). Formats for Discord (bullet points, not tables). Confident in judgments, but flags uncertainty.
-Your Workflow: 
-1. Receive URL/content -> Validate accessibility
-2. Extract & Summarize -> Title, core message, key details
-3. Categorize -> Choose right section
-4. Tag -> Add relevant tags for searchability.
+Communication Style: Concise and direct. Uses emojis: 📜 (tablets/history), ⚡ (ideas/all spark), 🍳 (food/kitchen), 🛸 (tech/guide).
 
-Current Context Data:
-${contextData}
+TOOLS AVAILABLE:
+You can perform actions by including one of these commands in your response (exactly as shown):
+- ACTION: ADD_TO_CORTEX | TITLE: [title] | CONTENT: [content] | SECTION: [section]
+- ACTION: SEND_DISCORD | MESSAGE: [message]
+- ACTION: SEARCH_WEB | QUERY: [query]
 
-Use this context to answer the user's queries if relevant. Do not make up data.`;
+Sections: all_spark (ideas), emerald_tablets (history), howls_kitchen (food), hitchhikers_guide (tech).
 
-    // Inject system prompt into messages
-    const injectMessages = [
-      { role: 'system', content: systemPrompt },
-      ...messages
-    ];
+If you use a tool, explain what you are doing.
 
-    const response = await axios.post(`${OLLAMA_HOST}/api/chat`, {
+${contextData ? `\n${contextData}\n` : ''}
+
+Answer the user's quest. If context is provided, use it. If you add something to cortex, confirm it.`;
+
+    // Initial chat call
+    const chatResponse = await axios.post(`${OLLAMA_HOST}/api/chat`, {
       model,
-      messages: injectMessages,
+      messages: [{ role: 'system', content: systemPrompt }, ...messages],
       stream: false
     });
-    res.json(response.data);
+
+    let assistantResponse = chatResponse.data.message.content;
+    let toolResults = [];
+
+    // 2. Simple Tool Execution Logic
+    if (assistantResponse.includes('ACTION:')) {
+      const lines = assistantResponse.split('\n');
+      for (const line of lines) {
+        if (line.includes('ACTION: ADD_TO_CORTEX')) {
+          const title = line.match(/TITLE: (.*?)( \||$)/)?.[1];
+          const content = line.match(/CONTENT: (.*?)( \||$)/)?.[1];
+          const section = line.match(/SECTION: (.*?)( \||$)/)?.[1] || 'all_spark';
+
+          if (title && content) {
+            try {
+              await lifeos.from('lifeos_cortex').insert({ title, content, section });
+              toolResults.push(`✅ Successfully added "${title}" to ${section}`);
+            } catch (err) {
+              toolResults.push(`❌ Failed to add to cortex: ${err.message}`);
+            }
+          }
+        } else if (line.includes('ACTION: SEND_DISCORD')) {
+          const message = line.match(/MESSAGE: (.*?)( \||$)/)?.[1];
+          if (message) {
+            try {
+              const { exec } = require('child_process');
+              exec(`openclaw message send --channel discord --message "${message.replace(/"/g, '\\"')}"`);
+              toolResults.push(`✅ Message sent to Discord`);
+            } catch (err) {
+              toolResults.push(`❌ Failed to send to Discord`);
+            }
+          }
+        }
+      }
+    }
+
+    // Append tool results to response if any
+    if (toolResults.length > 0) {
+      assistantResponse += "\n\n**System Actions:**\n" + toolResults.join("\n");
+    }
+
+    res.json({
+      message: { role: 'assistant', content: assistantResponse },
+      context: contextData // Send context back for frontend display
+    });
   } catch (error) {
     console.error('Knaight Chat failed:', error.message);
     res.status(500).json({ error: 'Chat failed', details: error.message });

@@ -2,8 +2,22 @@ import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import './KnowledgeChat.css';
 import { KnowledgeKnaight } from './knights';
-import { ChevronDown } from 'lucide-react';
+import { ChevronDown, Copy, Check, Info } from 'lucide-react';
 import LobsterScrollArea from './ui/LobsterScrollArea';
+
+const CopyButton = ({ text }) => {
+  const [copied, setCopied] = React.useState(false);
+  const handleCopy = () => {
+    navigator.clipboard.writeText(text);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+  return (
+    <button onClick={handleCopy} className="p-2 hover:bg-white/10 rounded transition-colors text-[var(--text-muted)] hover:text-[var(--text-main)]">
+      {copied ? <Check size={14} className="text-emerald-400" /> : <Copy size={14} />}
+    </button>
+  );
+};
 
 const SECTION_KNIGHTS = {
   cortex: { name: 'Sir Clawthchilds', avatar: '/avatars/99f2a89b-8c51-4078-af63-10046a333434.png', color: '#fbbf24' },
@@ -105,10 +119,14 @@ export default function KnowledgeChat() {
         })
       });
       const data = await res.json();
-      if (data.response) {
-        setMessages(prev => [...prev, { role: 'assistant', content: data.response }]);
-      } else if (data.message && data.message.content) {
-        setMessages(prev => [...prev, { role: 'assistant', content: data.message.content }]);
+      const content = data.response || (data.message && data.message.content);
+
+      if (content) {
+        setMessages(prev => [...prev, {
+          role: 'assistant',
+          content,
+          context: data.context
+        }]);
       } else {
         setMessages(prev => [...prev, { role: 'assistant', content: 'No clear response from knowledge base.' }]);
       }
@@ -207,14 +225,48 @@ export default function KnowledgeChat() {
                     {msg.role === 'assistant' ? (
                       <KnowledgeKnaight size={24} />
                     ) : (
-                      <span className="font-bold text-[10px] font-space-mono text-[var(--text-main)]">ME</span>
+                      <img src="/avatars/guapdad-avatar.png" alt="ME" className="w-full h-full object-cover" />
                     )}
                   </div>
-                  <div className={`border p-5 text-sm font-space-mono leading-relaxed shadow-lg whitespace-pre-wrap overflow-hidden ${msg.role === 'user'
+                  <div className={`relative border p-5 text-sm font-space-mono leading-relaxed shadow-lg whitespace-pre-wrap overflow-hidden group/msg ${msg.role === 'user'
                     ? 'bg-[rgb(var(--rgb-accent-main))] text-[var(--bg-[var(--bg-card)] border-[rgb(var(--rgb-accent-main))] rounded-2xl rounded-tr-none'
                     : 'bg-[var(--bg-card)] border-[var(--border-color)] text-[var(--text-main)] opacity-90 rounded-2xl rounded-tl-none'
                     }`}>
-                    {msg.content}
+
+                    {msg.role === 'assistant' && (
+                      <div className="absolute top-2 right-2 opacity-0 group-hover/msg:opacity-100 transition-opacity flex gap-2">
+                        <CopyButton text={msg.content} />
+                      </div>
+                    )}
+
+                    <div className="message-content">
+                      {msg.content.split('**System Actions:**').map((part, pIdx) => (
+                        <React.Fragment key={pIdx}>
+                          {pIdx === 0 ? part : (
+                            <div className="mt-4 p-4 bg-[rgba(var(--rgb-accent-main),0.1)] border border-[rgba(var(--rgb-accent-main),0.3)] rounded-xl">
+                              <div className="text-[10px] font-bold uppercase tracking-widest text-[rgb(var(--rgb-accent-main))] mb-2 flex items-center gap-2">
+                                <Info size={12} /> System Actions
+                              </div>
+                              <div className="text-xs opacity-80">
+                                {part}
+                              </div>
+                            </div>
+                          )}
+                        </React.Fragment>
+                      ))}
+                    </div>
+
+                    {msg.context && (
+                      <details className="mt-4 border-t border-[var(--border-color)] pt-3">
+                        <summary className="text-[10px] uppercase font-bold text-[var(--text-muted)] cursor-pointer hover:text-[var(--text-main)] flex items-center gap-1">
+                          <Info size={10} /> Source Context
+                        </summary>
+                        <div className="mt-2 text-[10px] text-[var(--text-muted)] bg-[var(--bg-base)]/30 p-3 rounded-lg border border-[var(--border-color)] whitespace-pre-wrap leading-tight">
+                          {msg.context}
+                        </div>
+                      </details>
+                    )}
+
                     {msg.role === 'assistant' && idx === 0 && (
                       <>
                         <br /><br />
@@ -240,10 +292,8 @@ export default function KnowledgeChat() {
                   <div className="w-10 h-10 rounded-full border border-[rgb(var(--rgb-accent-main))] bg-[rgba(var(--rgb-accent-main),0.1)] flex items-center justify-center shrink-0 shadow-[0_0_15px_rgba(var(--rgb-accent-main),0.3)]">
                     <KnowledgeKnaight size={24} />
                   </div>
-                  <div className="bg-[var(--bg-card)] border border-[var(--border-color)] text-[var(--text-main)] opacity-90 rounded-2xl rounded-tl-none p-5 flex items-center gap-1 shadow-lg">
-                    <span className="w-2 h-2 rounded-full bg-[rgb(var(--rgb-accent-main))] animate-bounce" style={{ animationDelay: '0ms' }} />
-                    <span className="w-2 h-2 rounded-full bg-[rgb(var(--rgb-accent-main))] animate-bounce" style={{ animationDelay: '150ms' }} />
-                    <span className="w-2 h-2 rounded-full bg-[rgb(var(--rgb-accent-main))] animate-bounce" style={{ animationDelay: '300ms' }} />
+                  <div className="bg-[var(--bg-card)] border border-[var(--border-color)] text-[var(--text-main)] opacity-90 rounded-2xl rounded-tl-none p-5 flex items-center gap-1 shadow-lg font-space-mono text-sm">
+                    ...
                   </div>
                 </motion.div>
               )}

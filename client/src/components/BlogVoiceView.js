@@ -63,6 +63,7 @@ export default function BlogVoiceView({ api }) {
     try {
       const res = await fetch('/api/blog/suggestions/scan', { method: 'POST' }).catch(() => ({ json: () => ({}) }));
       const data = await res.json();
+      if (api?.refresh) api.refresh();
       if (data.suggestions) {
         setSuggestions(prev => [...prev, ...data.suggestions]);
       }
@@ -76,6 +77,7 @@ export default function BlogVoiceView({ api }) {
   const approveSuggestion = async (id) => {
     try {
       await fetch(`/api/blog/suggestions/${id}/approve`, { method: 'POST' });
+      if (api?.refresh) api.refresh();
       setSuggestions(prev => prev.map(s => s.id === id ? { ...s, status: 'approved' } : s));
     } catch (e) {
       console.error('Approve failed:', e);
@@ -86,6 +88,7 @@ export default function BlogVoiceView({ api }) {
     try {
       const res = await fetch(`/api/blog/suggestions/${id}/expand`, { method: 'POST' }).catch(() => ({ json: () => ({}) }));
       const data = await res.json();
+      if (api?.refresh) api.refresh();
       if (data.post) {
         setPosts(prev => [...prev, data.post]);
         setSuggestions(prev => prev.map(s => s.id === id ? { ...s, status: 'expanded' } : s));
@@ -109,6 +112,7 @@ export default function BlogVoiceView({ api }) {
         })
       }).catch(() => ({ json: () => ({ success: false }) }));
       const data = await res.json();
+      if (api?.refresh) api.refresh();
       if (data.success || data.post) {
         setPosts(prev => [data.post || { id: Date.now(), title: newPostTitle, content: newPostContent, status: 'draft' }, ...prev]);
         setShowNewPost(false);
@@ -130,6 +134,7 @@ export default function BlogVoiceView({ api }) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ post_id: postId })
       }).catch(() => ({ json: () => ({}) }));
+      if (api?.refresh) api.refresh();
       setPosts(prev => prev.map(p => p.id === postId ? { ...p, status: 'published', published_at: new Date().toISOString() } : p));
     } catch (e) {
       console.error('Publish failed:', e);
@@ -137,8 +142,14 @@ export default function BlogVoiceView({ api }) {
   };
 
   const deletePost = async (postId) => {
-    setPosts(prev => prev.filter(p => p.id !== postId));
-    setSelectedPost(null);
+    try {
+      await fetch(`/api/blog/posts/${postId}`, { method: 'DELETE' });
+      if (api?.refresh) api.refresh();
+      setPosts(prev => prev.filter(p => p.id !== postId));
+      setSelectedPost(null);
+    } catch (e) {
+      console.error('Delete failed:', e);
+    }
   };
 
   const draftPosts = posts.filter(p => p.status === 'draft');

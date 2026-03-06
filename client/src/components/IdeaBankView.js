@@ -43,6 +43,7 @@ export default function IdeaBankView({ api }) {
         body: JSON.stringify(newIdea)
       });
       const data = await res.json();
+      if (api?.refresh) api.refresh();
       if (data.success) {
         setIdeas(prev => [data.idea, ...prev]);
         setShowNewIdea(false);
@@ -66,6 +67,7 @@ export default function IdeaBankView({ api }) {
         })
       });
       const data = await res.json();
+      if (api?.refresh) api.refresh();
       if (data.success) {
         // Update idea status
         setIdeas(prev => prev.map(i => i.id === idea.id ? { ...i, status: 'expanding' } : i));
@@ -80,6 +82,7 @@ export default function IdeaBankView({ api }) {
     if (!confirm('Delete this idea?')) return;
     try {
       await fetch(`/api/blog/ideas/${id}`, { method: 'DELETE' });
+      if (api?.refresh) api.refresh();
       setIdeas(prev => prev.filter(i => i.id !== id));
     } catch (e) {
       console.error('Delete failed:', e);
@@ -98,6 +101,7 @@ export default function IdeaBankView({ api }) {
         })
       });
       const data = await res.json();
+      if (api?.refresh) api.refresh();
       if (data.success) {
         setIdeas(prev => prev.map(i => i.id === idea.id ? { ...i, status: 'published' } : i));
         alert('✅ Idea converted to blog post!');

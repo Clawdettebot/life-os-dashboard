@@ -85,9 +85,9 @@ export default function KanbanBoard({ tasks = [], api }) {
         body: JSON.stringify({ column: columnId })
       });
       console.log('[Kanban] Move response:', response.status, response.ok);
-      if (response.ok && api?.fetchAllData) {
+      if (response.ok && api?.refresh) {
         console.log('[Kanban] Refetching data...');
-        api.fetchAllData();
+        api.refresh();
       }
     } catch (err) { console.error('Failed to move task:', err); }
     setDraggedTask(null);

@@ -1,3 +1,4 @@
+import RoyalConchView from './components/RoyalConchView';
 // API_FIX_BUILD 
 // NEW_BUILD_1772622558
 // Life OS Dashboard - Full Design Integration
@@ -33,6 +34,8 @@ import NotesView from './components/NotesView';
 import FinanceView from './components/FinanceView';
 import ContentSchedulerView from './components/ContentSchedulerView';
 import LobsterScrollArea from './components/ui/LobsterScrollArea';
+import { ToastContainer } from './components/ui/Toast';
+import CommandCenter from './components/ui/CommandCenter';
 
 // Core UI Components
 import {
@@ -83,6 +86,7 @@ const NAV_SECTIONS = [
   {
     id: 'second-brain', title: "Second Brain", items: [
       { id: 'notes', label: 'Notes', icon: FileText },
+      { id: 'royal-conch', label: 'Royal Conch', icon: Mic },
       { id: 'journal', label: 'Journal', icon: Book },
       { id: 'cortex', label: 'Cortex', icon: Brain },
       { id: 'contacts', label: 'Contacts', icon: Users },
@@ -180,6 +184,12 @@ export default function App() {
   const sidebarRef = useRef(null);
   const scrollContainerRef = useRef(null);
 
+  // Toast System
+  const [toasts, setToasts] = useState([]);
+  const addToast = (title, message = '', type = 'info', duration = 4000) => {
+    setToasts(prev => [...prev, { id: Date.now().toString(), title, message, type, duration }]);
+  };
+
   const [lobsterState, setLobsterState] = useState({
     y: 0,
     dir: 1,
@@ -199,8 +209,16 @@ export default function App() {
   const isMovingLock = useRef(false);
 
   // Global Keyboard Event Listener
+  const [cmdOpen, setCmdOpen] = useState(false);
+
   useEffect(() => {
     const handleKeyDown = (e) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+        e.preventDefault();
+        setCmdOpen(true);
+        return;
+      }
+
       // Ignore modifier keys alone
       if (['Shift', 'Control', 'Alt', 'Meta', 'CapsLock', 'Tab'].includes(e.key)) return;
 
@@ -319,57 +337,160 @@ export default function App() {
   const [data, setData] = useState({ tasks: [], projects: [], finances: [], habits: [], cortex: [], ideas: [], blog: [], notes: [], contacts: [], streams: [] });
   const [loading, setLoading] = useState(true);
 
-  // API utility for components
-  const api = {
-    // FORCE_REBUILD
-    create: async (type, data) => {
-      const res = await fetch(`/api/${type}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(data)
+  // Extracted fetch so we can call it on mount AND after mutations
+  const fetchData = async () => {
+    try {
+      const [tasksRes, projectsRes, financesRes, habitsRes, cortexRes, notesRes, streamsRes, ideasRes, blogRes] = await Promise.all([
+        fetch('/api/tasks').then(r => r.json()).then(d => (d.active?.length ? d.active : d.all) || []),
+        fetch('/api/projects').then(r => r.json()).then(d => d.projects ?? d ?? []),
+        fetch('/api/tables/finances').then(r => r.json()).then(d => d.data ?? d ?? []),
+        fetch('/api/habits').then(r => r.json()).then(d => d || []),
+        fetch('/api/cortex').then(r => r.json()).then(d => d || []),
+        fetch('/api/tables/notes').then(r => r.json()).then(d => d.data ?? d ?? []),
+        fetch('/api/streams').then(r => r.json()).then(d => d.streams ?? d ?? []),
+        fetch('/api/blog/posts?section=blog-ideas').then(r => r.json()).then(d => d || []),
+        fetch('/api/blog/posts').then(r => r.json()).then(d => d || [])
+      ]);
+      setData({
+        tasks: tasksRes,
+        projects: projectsRes,
+        finances: financesRes,
+        habits: habitsRes,
+        cortex: cortexRes,
+        ideas: ideasRes,
+        blog: blogRes,
+        notes: notesRes,
+        contacts: [],
+        streams: streamsRes
       });
-      return res.ok ? res.json() : Promise.reject(res.statusText);
-    },
-    update: async (type, id, data) => {
-      const res = await fetch(`/api/${type}/${id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) });
-      return res.ok ? res.json() : Promise.reject(res.statusText);
-    },
-    delete: async (type, id) => {
-      const res = await fetch(`/api/${type}/${id}`, { method: 'DELETE' });
-      return res.ok ? res.json() : Promise.reject(res.statusText);
+    } catch (err) { console.error('Error fetching data:', err); }
+    finally { setLoading(false); }
+  };
+
+  // Types with dedicated API routes vs generic /api/tables/:table routes
+  const DEDICATED_ROUTES = new Set(['tasks', 'streams', 'habits', 'projects', 'blog']);
+
+  const getApiUrl = (type, id) => {
+    if (DEDICATED_ROUTES.has(type)) return id ? `/api/${type}/${id}` : `/api/${type}`;
+    return id ? `/api/tables/${type}/${id}` : `/api/tables/${type}`;
+  };
+
+  // Robust Network Resilience helper with exponential backoff
+  const fetchWithRetry = async (url, options = {}, retries = 2, backoff = 1000) => {
+    try {
+      const res = await fetch(url, options);
+      if (!res.ok && res.status >= 500 && retries > 0) throw new Error('Retry on 5xx');
+      return res;
+    } catch (err) {
+      if (retries > 0) {
+        console.warn(`[LifeOS] Network retry triggered. Attempts left: ${retries}`);
+        await new Promise(r => setTimeout(r, backoff));
+        return fetchWithRetry(url, options, retries - 1, backoff * 2);
+      }
+      throw err;
     }
   };
 
-  useEffect(() => {
-    const fetchData = async () => {
+  // API utility for components — fixed routing + auto-refresh + auto-toasts + optimistic ui
+  const api = {
+    create: async (type, payload) => {
+      const tempId = `temp-${Date.now()}`;
+      const optimisticItem = { ...payload, id: tempId, _optimistic: true, created_at: new Date().toISOString() };
+
+      setData(prev => {
+        if (prev[type] && Array.isArray(prev[type])) {
+          return { ...prev, [type]: [optimisticItem, ...prev[type]] };
+        }
+        return prev;
+      });
+
       try {
-        // Fetch from our own API endpoints (more reliable than direct Supabase from browser)
-        const [tasksRes, projectsRes, financesRes, habitsRes, cortexRes, notesRes, streamsRes, ideasRes, blogRes] = await Promise.all([
-          fetch('/api/tasks').then(r => r.json()).then(d => (d.active?.length ? d.active : d.all) || []),
-          fetch('/api/projects').then(r => r.json()).then(d => d.projects ?? d ?? []),
-          fetch('/api/tables/finances').then(r => r.json()).then(d => d.data ?? d ?? []),
-          fetch('/api/habits').then(r => r.json()).then(d => d || []),
-          fetch('/api/cortex').then(r => r.json()).then(d => d || []),
-          fetch('/api/tables/notes').then(r => r.json()).then(d => d.data ?? d ?? []),
-          fetch('/api/streams').then(r => r.json()).then(d => d.streams ?? d ?? []),
-          fetch('/api/blog/posts?section=blog-ideas').then(r => r.json()).then(d => d || []),
-          fetch('/api/blog/posts').then(r => r.json()).then(d => d || [])
-        ]);
-        setData({
-          tasks: tasksRes,
-          projects: projectsRes,
-          finances: financesRes,
-          habits: habitsRes,
-          cortex: cortexRes,
-          ideas: ideasRes,
-          blog: blogRes,
-          notes: notesRes,
-          contacts: [],
-          streams: streamsRes
+        const res = await fetchWithRetry(getApiUrl(type), {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
         });
-      } catch (err) { console.error('Error fetching data:', err); }
-      finally { setLoading(false); }
-    };
+        if (!res.ok) throw new Error(res.statusText);
+        const result = await res.json();
+        addToast(`Created ${type}`, 'Matrix successfully deployed.', 'success');
+        fetchData();
+        return result;
+      } catch (e) {
+        setData(prev => {
+          if (prev[type] && Array.isArray(prev[type])) {
+            return { ...prev, [type]: prev[type].filter(item => item.id !== tempId) };
+          }
+          return prev;
+        });
+        addToast(`Failed to create ${type}`, e.message || 'Connection severed.', 'error');
+        throw e;
+      }
+    },
+    update: async (type, id, payload) => {
+      let originalItem = null;
+      setData(prev => {
+        if (prev[type] && Array.isArray(prev[type])) {
+          originalItem = prev[type].find(item => item.id === id);
+          return { ...prev, [type]: prev[type].map(item => item.id === id ? { ...item, ...payload, _optimistic: true } : item) };
+        }
+        return prev;
+      });
+
+      try {
+        const res = await fetchWithRetry(getApiUrl(type, id), {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+        if (!res.ok) throw new Error(res.statusText);
+        const result = await res.json();
+        addToast(`Updated ${type}`, 'Modification successfully synced.', 'success');
+        fetchData();
+        return result;
+      } catch (e) {
+        setData(prev => {
+          if (originalItem && prev[type] && Array.isArray(prev[type])) {
+            return { ...prev, [type]: prev[type].map(item => item.id === id ? originalItem : item) };
+          }
+          return prev;
+        });
+        addToast(`Failed to update ${type}`, e.message || 'Connection severed.', 'error');
+        throw e;
+      }
+    },
+    delete: async (type, id) => {
+      let originalItem = null;
+      setData(prev => {
+        if (prev[type] && Array.isArray(prev[type])) {
+          originalItem = prev[type].find(item => item.id === id);
+          return { ...prev, [type]: prev[type].filter(item => item.id !== id) };
+        }
+        return prev;
+      });
+
+      try {
+        const res = await fetchWithRetry(getApiUrl(type, id), { method: 'DELETE' });
+        if (!res.ok) throw new Error(res.statusText);
+        const result = await res.json();
+        addToast(`Deleted ${type}`, 'Node successfully removed from matrix.', 'success');
+        fetchData();
+        return result;
+      } catch (e) {
+        setData(prev => {
+          if (originalItem && prev[type] && Array.isArray(prev[type])) {
+            return { ...prev, [type]: [originalItem, ...prev[type]] };
+          }
+          return prev;
+        });
+        addToast(`Failed to delete ${type}`, e.message || 'Connection severed.', 'error');
+        throw e;
+      }
+    },
+    refresh: () => fetchData(),
+    toast: addToast
+  };
+
+  useEffect(() => {
     fetchData();
   }, []);
 
@@ -387,24 +508,25 @@ export default function App() {
   const toggleSection = (sectionId) => setExpandedSections(prev => ({ ...prev, [sectionId]: !prev[sectionId] }));
 
   const renderContent = () => {
-    const viewProps = { data, loading, supabase, websiteSupabase };
+    const viewProps = { data, loading, supabase, websiteSupabase, api };
     switch (activeTab) {
       case 'dashboard': return <DashboardView {...data} {...viewProps} />;
       case 'round-table': return <RoundTableView {...data} {...viewProps} />;
       case 'knight': return <KnowledgeChat {...data} {...viewProps} />;
-      case 'tasks': return <KanbanBoard api={api} {...data} {...viewProps} />;
+      case 'tasks': return <KanbanBoard {...data} {...viewProps} />;
       case 'projects': return <ProjectsView {...data} {...viewProps} />;
-      case 'calendar': return <CalendarView api={api} {...data} {...viewProps} />;
-      case 'streams': return <StreamsView api={api} {...data} {...viewProps} />;
+      case 'calendar': return <CalendarView {...data} {...viewProps} />;
+      case 'streams': return <StreamsView {...data} {...viewProps} />;
       case 'inventory': return <InventoryView {...data} {...viewProps} />;
       case 'scheduler': return <ContentSchedulerView {...data} {...viewProps} />;
       case 'blog': return <BlogVoiceView {...data} {...viewProps} />;
-      case 'ideas': return <IdeaBankView api={api} {...data} {...viewProps} />;
+      case 'ideas': return <IdeaBankView {...data} {...viewProps} />;
       case 'finances': return <FinanceView {...data} {...viewProps} />;
-      case 'habits': return <HabitsView api={api} {...data} {...viewProps} />;
-      case 'notes': return <NotesView api={api} {...data} {...viewProps} />;
+      case 'habits': return <HabitsView {...data} {...viewProps} />;
+      case 'notes': return <NotesView {...data} {...viewProps} />;
+      case 'royal-conch': return <RoyalConchView {...viewProps} />;
       case 'journal': return <div className="h-full flex items-center justify-center"><Card title="Journal"><p>Journal view coming soon</p></Card></div>;
-      case 'cortex': return <CortexView api={api} {...viewProps} />;
+      case 'cortex': return <CortexView {...viewProps} />;
       case 'contacts': return <ContactsView {...viewProps} />;
       default:
         return (
@@ -579,8 +701,8 @@ export default function App() {
           <div className="p-6">
             <div className="flex items-center justify-between p-4 rounded-[2rem] bg-[var(--bg-card)] border border-[var(--border-color)] cursor-pointer hover:border-[var(--border-highlight)] transition-all group hover-spotlight">
               <div className="flex items-center gap-4">
-                <div className="w-10 h-10 rounded-full bg-[var(--bg-base)] border border-[var(--border-color)] flex items-center justify-center">
-                  <Cpu size={18} className="text-[var(--text-muted)] group-hover:text-[rgb(var(--rgb-accent-main))]" />
+                <div className="w-14 h-14 rounded-full bg-[var(--bg-base)] border-2 border-[var(--border-highlight)] flex items-center justify-center overflow-hidden shrink-0">
+                  <img src="/avatars/guapdad-avatar.png" alt="Guapdad 4K" className="w-full h-full object-cover" />
                 </div>
                 <div>
                   <div className="text-xs font-bold uppercase tracking-widest mb-1">Guapdad 4K</div>
@@ -621,6 +743,19 @@ export default function App() {
             </div>
           </LobsterScrollArea>
         </main>
+
+        <CommandCenter
+          isOpen={cmdOpen}
+          onClose={() => setCmdOpen(false)}
+          navSections={NAV_SECTIONS}
+          navigateTo={(id) => {
+            setActiveTab(id);
+            setExpandedSections(prev => ({ ...prev, [getSectionForTab(id)]: true }));
+          }}
+        />
+
+        {/* Global Toast Container */}
+        <ToastContainer toasts={toasts} removeToast={(id) => setToasts(t => t.filter(x => x.id !== id))} />
       </div>
     </>
   );

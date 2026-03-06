@@ -138,7 +138,12 @@ export default function HabitsView({ habits = [], api }) {
   }, [habits, habitStats]);
 
   return (
-    <div className="space-y-6 animate-in-fade-slide">
+    <div className="space-y-6 animate-in-fade-slide relative overflow-hidden">
+      {/* Milord's Avatar Background - full cover, low opacity */}
+      <div className="absolute inset-0 pointer-events-none z-0 opacity-20">
+        <img src="/avatars/guapdad-avatar.png" alt="" className="w-full h-full object-contain object-center" />
+      </div>
+
       {/* stats overview */}
       <div className="grid grid-cols-2 md:grid-cols-3 gap-3 relative z-10 w-full max-w-4xl">
         <WidgetCard className="p-4 flex flex-col items-center justify-center text-center">

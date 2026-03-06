@@ -3,7 +3,7 @@ import { WidgetCard } from './ui/WidgetCard';
 import { GlassyPill } from './ui/GlassyPill';
 import {
   Package, Gift, ShoppingBag, Archive, Plus, Minus,
-  Search, Filter, Box, Tag, Truck, Users, Sparkles
+  Search, Filter, Box, Tag, Truck, Users, Sparkles, X, Trash2
 } from 'lucide-react';
 import LobsterScrollArea from './ui/LobsterScrollArea';
 
@@ -12,10 +12,12 @@ export default function InventoryView({ inventory = [], api }) {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedItem, setSelectedItem] = useState(null);
   const [showBundleBuilder, setShowBundleBuilder] = useState(false);
+  const [showAddModal, setShowAddModal] = useState(false);
   const [bundleItems, setBundleItems] = useState([]);
   const [allItems, setAllItems] = useState([]);
   const [stats, setStats] = useState({ shop: 0, giveaway: 0, personal: 0, bundles: 0 });
   const [loading, setLoading] = useState(true);
+  const [newItem, setNewItem] = useState({ name: '', sku: '', qty: 0, price: '', category: 'shop', notes: '' });
 
   // Fetch all inventory on mount
   useEffect(() => {
@@ -58,6 +60,64 @@ export default function InventoryView({ inventory = [], api }) {
 
   const removeFromBundle = (index) => {
     setBundleItems(bundleItems.filter((_, i) => i !== index));
+  };
+
+  const handleAddItem = async () => {
+    if (!newItem.name) return;
+    try {
+      const res = await fetch('/api/inventory', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(newItem)
+      });
+      const data = await res.json();
+      if (data.success && data.item) {
+        setAllItems(prev => [data.item, ...prev]);
+        setStats(prev => ({ ...prev, shop: prev.shop + 1 }));
+        if (api?.toast) api.toast('Item Added', `${newItem.name} has been added to inventory.`, 'success');
+      } else {
+        throw new Error(data.error || 'Failed to add item');
+      }
+      setNewItem({ name: '', sku: '', qty: 0, price: '', category: 'shop', notes: '' });
+      setShowAddModal(false);
+      fetchInventory();
+    } catch (e) {
+      console.error('Failed to add item:', e);
+      if (api?.toast) api.toast('Failed to add item', e.message, 'error');
+    }
+  };
+
+  const handleDeleteItem = async (id) => {
+    try {
+      const res = await fetch(`/api/inventory/${id}`, { method: 'DELETE' });
+      if (!res.ok) throw new Error('Delete failed');
+      setAllItems(prev => prev.filter(i => i.id !== id));
+      if (api?.toast) api.toast('Item Deleted', 'Inventory unit removed', 'success');
+      fetchInventory();
+    } catch (e) {
+      console.error('Failed to delete item:', e);
+      if (api?.toast) api.toast('Failed to delete item', e.message, 'error');
+    }
+  };
+
+  const handleUpdateQty = async (id, delta) => {
+    const item = allItems.find(i => i.id === id);
+    if (!item) return;
+    const newQty = Math.max(0, (item.qty || 0) + delta);
+    try {
+      const res = await fetch(`/api/inventory/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ qty: newQty })
+      });
+      if (!res.ok) throw new Error('Update failed');
+      setAllItems(prev => prev.map(i => i.id === id ? { ...i, qty: newQty } : i));
+      if (api?.toast) api.toast('Quantity Updated', `Stock for ${item.name} is now ${newQty}`, 'success');
+      fetchInventory();
+    } catch (e) {
+      console.error('Failed to update qty:', e);
+      if (api?.toast) api.toast('Update Failed', e.message, 'error');
+    }
   };
 
   const getStockStatus = (qty) => {
@@ -134,7 +194,7 @@ export default function InventoryView({ inventory = [], api }) {
               className="w-full bg-white/5 border border-white/10 rounded-2xl pl-12 pr-6 py-3.5 text-xs text-white font-bold tracking-widest outline-none focus:border-amber-500/50 transition-all placeholder:text-gray-700"
             />
           </div>
-          <GlassyPill variant="primary" className="!px-8 !py-3.5 shrink-0">
+          <GlassyPill variant="primary" className="!px-8 !py-3.5 shrink-0 cursor-pointer" onClick={() => setShowAddModal(true)}>
             <Plus size={18} />
             <span className="text-[10px] font-black uppercase tracking-widest">Register Unit</span>
           </GlassyPill>
@@ -190,8 +250,12 @@ export default function InventoryView({ inventory = [], api }) {
               <div className="flex justify-between items-end mb-6">
                 <div className="space-y-1">
                   <div className="text-[9px] font-bold text-gray-500 uppercase tracking-widest">Stock Level</div>
-                  <div className={`text-2xl font-black font-premium ${item.qty > 0 ? 'text-white' : 'text-red-500/50'}`}>
-                    {item.qty || 0}
+                  <div className="flex items-center gap-2">
+                    <button onClick={(e) => { e.stopPropagation(); handleUpdateQty(item.id, -1); }} className="w-6 h-6 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-gray-400 hover:text-red-400 hover:border-red-500/30 transition-all"><Minus size={10} /></button>
+                    <div className={`text-2xl font-black font-premium ${item.qty > 0 ? 'text-white' : 'text-red-500/50'}`}>
+                      {item.qty || 0}
+                    </div>
+                    <button onClick={(e) => { e.stopPropagation(); handleUpdateQty(item.id, 1); }} className="w-6 h-6 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-gray-400 hover:text-emerald-400 hover:border-emerald-500/30 transition-all"><Plus size={10} /></button>
                   </div>
                 </div>
                 {item.price && item.price !== '0.00' && (
@@ -217,18 +281,29 @@ export default function InventoryView({ inventory = [], api }) {
                 )}
               </div>
 
-              {activeTab === 'giveaway' && (
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    addToBundle(item);
-                  }}
-                  className="w-full py-2.5 rounded-xl border border-dashed border-white/10 text-[9px] font-black text-gray-500 uppercase tracking-[0.2em] hover:border-amber-500/30 hover:text-amber-500 hover:bg-amber-500/5 transition-all flex items-center justify-center gap-2"
-                >
-                  <Plus size={12} />
-                  Stage for Bundle
-                </button>
-              )}
+              <div className="flex gap-2">
+                {activeTab === 'giveaway' && (
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      addToBundle(item);
+                    }}
+                    className="flex-1 py-2.5 rounded-xl border border-dashed border-white/10 text-[9px] font-black text-gray-500 uppercase tracking-[0.2em] hover:border-amber-500/30 hover:text-amber-500 hover:bg-amber-500/5 transition-all flex items-center justify-center gap-2"
+                  >
+                    <Plus size={12} />
+                    Stage for Bundle
+                  </button>
+                )}
+                {item.id && (
+                  <button
+                    onClick={(e) => { e.stopPropagation(); handleDeleteItem(item.id); }}
+                    className="py-2.5 px-3 rounded-xl border border-red-500/20 text-red-500/50 hover:text-red-500 hover:bg-red-500/10 hover:border-red-500/30 transition-all opacity-0 group-hover/card:opacity-100"
+                    title="Delete item"
+                  >
+                    <Trash2 size={14} />
+                  </button>
+                )}
+              </div>
             </WidgetCard>
           );
         })}
@@ -305,6 +380,70 @@ export default function InventoryView({ inventory = [], api }) {
 
               <GlassyPill variant="primary" className="w-full !py-5 shadow-[0_0_30px_rgba(245,158,11,0.2)]">
                 <span className="text-xs font-black uppercase tracking-[0.3em]">Initialize Mystery Pack Creation</span>
+              </GlassyPill>
+            </div>
+          </WidgetCard>
+        </div>
+      )}
+
+      {/* Add Item Modal */}
+      {showAddModal && (
+        <div className="fixed inset-0 z-[1000] flex items-center justify-center p-6 animate-in-fade">
+          <div className="absolute inset-0 bg-black/80 backdrop-blur-md" onClick={() => setShowAddModal(false)}></div>
+          <WidgetCard className="relative w-full max-w-xl overflow-visible animate-in-slide-up shadow-3xl border-white/10 bg-black/60">
+            <div className="p-8 border-b border-white/5 flex justify-between items-center">
+              <div className="flex items-center gap-4">
+                <div className="p-2.5 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-500">
+                  <Package size={24} />
+                </div>
+                <h2 className="text-2xl font-black text-white font-premium tracking-tight uppercase">Register Unit</h2>
+              </div>
+              <button onClick={() => setShowAddModal(false)} className="w-10 h-10 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center text-gray-400 hover:text-white hover:bg-white/20 transition-all">
+                <X size={20} />
+              </button>
+            </div>
+            <div className="p-8 space-y-4">
+              <div className="space-y-1.5">
+                <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest ml-1">Item Name *</label>
+                <input type="text" value={newItem.name} onChange={e => setNewItem({ ...newItem, name: e.target.value })}
+                  placeholder="E.G. 'GUAPDAD 4000 HOODIE'..." className="w-full bg-white/[0.03] border border-white/10 rounded-2xl p-4 text-white text-sm outline-none focus:border-amber-500/50 transition-all font-bold placeholder:text-gray-700 uppercase tracking-widest" />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-1.5">
+                  <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest ml-1">SKU</label>
+                  <input type="text" value={newItem.sku} onChange={e => setNewItem({ ...newItem, sku: e.target.value })}
+                    placeholder="SKU-001" className="w-full bg-white/[0.03] border border-white/10 rounded-2xl p-4 text-white text-sm outline-none focus:border-amber-500/50 transition-all font-bold placeholder:text-gray-700 uppercase tracking-widest" />
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest ml-1">Quantity</label>
+                  <input type="number" value={newItem.qty} onChange={e => setNewItem({ ...newItem, qty: parseInt(e.target.value) || 0 })}
+                    className="w-full bg-white/[0.03] border border-white/10 rounded-2xl p-4 text-white text-sm outline-none focus:border-amber-500/50 transition-all font-bold" />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-1.5">
+                  <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest ml-1">Price</label>
+                  <input type="text" value={newItem.price} onChange={e => setNewItem({ ...newItem, price: e.target.value })}
+                    placeholder="29.99" className="w-full bg-white/[0.03] border border-white/10 rounded-2xl p-4 text-white text-sm outline-none focus:border-amber-500/50 transition-all font-bold placeholder:text-gray-700" />
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest ml-1">Category</label>
+                  <select value={newItem.category} onChange={e => setNewItem({ ...newItem, category: e.target.value })}
+                    className="w-full bg-white/[0.03] border border-white/10 rounded-2xl p-4 text-white text-sm outline-none focus:border-amber-500/50 transition-all font-bold uppercase tracking-widest">
+                    <option value="shop">Shop</option>
+                    <option value="apparel">Apparel</option>
+                    <option value="giveaway">Giveaway</option>
+                    <option value="personal">Personal</option>
+                  </select>
+                </div>
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest ml-1">Notes</label>
+                <input type="text" value={newItem.notes} onChange={e => setNewItem({ ...newItem, notes: e.target.value })}
+                  placeholder="Optional notes..." className="w-full bg-white/[0.03] border border-white/10 rounded-2xl p-4 text-white text-sm outline-none focus:border-amber-500/50 transition-all font-bold placeholder:text-gray-700" />
+              </div>
+              <GlassyPill variant="primary" className="w-full !py-5 shadow-[0_0_30px_rgba(245,158,11,0.2)] cursor-pointer mt-4" onClick={handleAddItem}>
+                <span className="text-xs font-black uppercase tracking-[0.3em]">Register Inventory Unit</span>
               </GlassyPill>
             </div>
           </WidgetCard>

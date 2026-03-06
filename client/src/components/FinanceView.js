@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-  Wallet, TrendingUp, TrendingDown, Plus, Search, X, MoreHorizontal,
+  Wallet, TrendingUp, TrendingDown, Plus, Search, X, Trash2,
   ShoppingBag, Coffee, Home, Car, Zap, Heart, Briefcase, Gift, DollarSign
 } from 'lucide-react';
 import LobsterScrollArea from './ui/LobsterScrollArea';
@@ -37,40 +37,89 @@ const categoryColors = {
   income: '#00b894', other: '#dfe6e9'
 };
 
-export default function FinanceView({ finances = [] }) {
+export default function FinanceView({ finances: initialFinances = [], api }) {
   const [activeTab, setActiveTab] = useState(() => localStorage.getItem('financeActiveTab') || 'transactions');
   const [showAddForm, setShowAddForm] = useState(false);
   const [animateSir, setAnimateSir] = useState(false);
+  const [transactions, setTransactions] = useState(initialFinances);
   const [newTransaction, setNewTransaction] = useState({
     description: '', amount: '', category: 'other', type: 'expense',
     date: new Date().toISOString().split('T')[0]
   });
+
+  // Fetch transactions on mount for fresh data
+  useEffect(() => {
+    const fetchFinances = async () => {
+      try {
+        const res = await fetch('/api/tables/finances');
+        const json = await res.json();
+        if (json.data) setTransactions(json.data);
+      } catch (e) { console.error('Failed to fetch finances:', e); }
+    };
+    fetchFinances();
+  }, []);
+
+  // Sync if prop changes
+  useEffect(() => {
+    if (initialFinances.length > 0 && transactions.length === 0) {
+      setTransactions(initialFinances);
+    }
+  }, [initialFinances]);
 
   // Persist tab choice
   useEffect(() => {
     localStorage.setItem('financeActiveTab', activeTab);
   }, [activeTab]);
 
-  // Trigger Sir Clawthchilds animation when form is submitted
-  const handleAddTransaction = () => {
+  // Add transaction — POST to API
+  const handleAddTransaction = async () => {
+    if (!newTransaction.description || !newTransaction.amount) return;
     setAnimateSir(true);
-    setTimeout(() => setAnimateSir(false), 1000); // Reset after 1 second
+    setTimeout(() => setAnimateSir(false), 1000);
+    try {
+      const res = await fetch('/api/tables/finances', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          description: newTransaction.description,
+          amount: Number(newTransaction.amount),
+          category: newTransaction.category,
+          type: newTransaction.type,
+          date: newTransaction.date
+        })
+      });
+      const saved = await res.json();
+      if (api?.refresh) api.refresh();
+      if (saved && saved.id) {
+        setTransactions(prev => [{ ...saved, title: saved.description, amount: Number(saved.amount) }, ...prev]);
+      }
+      setNewTransaction({ description: '', amount: '', category: 'other', type: 'expense', date: new Date().toISOString().split('T')[0] });
+    } catch (e) { console.error('Failed to add transaction:', e); }
+  };
+
+  // Delete transaction
+  const handleDeleteTransaction = async (id) => {
+    try {
+      await fetch(`/api/tables/finances/${id}`, { method: 'DELETE' });
+      if (api?.refresh) api.refresh();
+      setTransactions(prev => prev.filter(t => t.id !== id));
+    } catch (e) { console.error('Failed to delete transaction:', e); }
   };
 
   const totals = useMemo(() => {
-    const income = finances.filter(f => f.type === 'income').reduce((s, f) => s + Number(f.amount), 0);
-    const expenses = finances.filter(f => f.type === 'expense').reduce((s, f) => s + Number(f.amount), 0);
+    const income = transactions.filter(f => f.type === 'income').reduce((s, f) => s + Number(f.amount), 0);
+    const expenses = transactions.filter(f => f.type === 'expense').reduce((s, f) => s + Number(f.amount), 0);
     return { income, expenses, balance: income - expenses };
-  }, [finances]);
+  }, [transactions]);
 
   const byCategory = useMemo(() => {
     const grouped = {};
-    finances.forEach(f => {
+    transactions.forEach(f => {
       if (!grouped[f.category]) grouped[f.category] = 0;
       grouped[f.category] += Number(f.amount);
     });
     return Object.entries(grouped).sort((a, b) => b[1] - a[1]);
-  }, [finances]);
+  }, [transactions]);
 
   const formatCurrency = (amount) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(amount);
 
@@ -160,13 +209,13 @@ export default function FinanceView({ finances = [] }) {
         <LobsterScrollArea className="flex-1" contentClassName="space-y-4 pr-2">
           {activeTab === 'transactions' && (
             <motion.div variants={staggerContainer} className="space-y-3">
-              {finances.length === 0 ? (
+              {transactions.length === 0 ? (
                 <div className="hover-spotlight bg-[var(--bg-card)] border border-[var(--border-color)] rounded-[2.5rem] p-12 text-center">
                   <Wallet size={48} className="mx-auto mb-4 text-[var(--text-faint)]" />
                   <p className="text-[var(--text-muted)] font-space-mono">No transactions yet</p>
                 </div>
               ) : (
-                finances.slice(0, 20).map((item, i) => {
+                transactions.slice(0, 50).map((item, i) => {
                   const Icon = categoryIcons[item.category] || Wallet;
                   const color = categoryColors[item.category] || '#666';
                   return (
@@ -177,7 +226,7 @@ export default function FinanceView({ finances = [] }) {
                           <Icon size={20} />
                         </div>
                         <div>
-                          <h4 className="text-sm font-bold text-[var(--text-main)] font-space-grotesk">{item.description}</h4>
+                          <h4 className="text-sm font-bold text-[var(--text-main)] font-space-grotesk">{item.description || item.title}</h4>
                           <div className="flex items-center gap-2 text-[9px] font-space-mono text-[var(--text-muted)]">
                             <span className="uppercase">{item.category}</span>
                             <span>•</span>
@@ -189,9 +238,11 @@ export default function FinanceView({ finances = [] }) {
                         <span className={`text-lg font-bold font-space-mono ${item.type === 'income' ? 'text-green-500' : 'text-[var(--text-main)]'}`}>
                           {item.type === 'income' ? '+' : '-'}{formatCurrency(item.amount)}
                         </span>
-                        <button className="opacity-0 group-hover:opacity-100 p-2 hover:bg-[var(--bg-overlay)] rounded-full transition-all">
-                          <MoreHorizontal size={16} className="text-[var(--text-muted)]" />
-                        </button>
+                        {item.id && (
+                          <button onClick={() => handleDeleteTransaction(item.id)} className="opacity-0 group-hover:opacity-100 p-2 hover:bg-red-500/10 rounded-full transition-all" title="Delete transaction">
+                            <Trash2 size={16} className="text-red-500" />
+                          </button>
+                        )}
                       </div>
                     </motion.div>
                   );

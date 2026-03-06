@@ -1,15 +1,17 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { User, Phone, Mail, Calendar, Star, MessageCircle, X, Check, Trash2, Bell, Target, PartyPopper } from 'lucide-react';
+import { User, Phone, Mail, Calendar, Star, MessageCircle, X, Check, Trash2, Bell, Target, PartyPopper, Plus } from 'lucide-react';
 import { LobsterScrollArea, staggerContainer, staggerItem, Crosshair } from './ui/NewDesignComponents';
 
-export default function ContactsView() {
+export default function ContactsView({ api }) {
   const [contacts, setContacts] = useState([]);
   const [stats, setStats] = useState({});
   const [nudges, setNudges] = useState([]);
   const [loading, setLoading] = useState(true);
   const [view, setView] = useState('contacts');
   const [selectedContact, setSelectedContact] = useState(null);
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [newContact, setNewContact] = useState({ name: '', email: '', phone: '', priority: 'medium' });
 
   useEffect(() => {
     fetchData();
@@ -35,14 +37,54 @@ export default function ContactsView() {
 
   const handleDecision = async (id, decision) => {
     try {
-      await fetch(`/api/contacts/${id}/decide`, {
+      const res = await fetch(`/api/contacts/${id}/decide`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ decision, reason: '' })
       });
+      if (!res.ok) throw new Error('Decision submission failed');
+      const data = await res.json();
+      if (api?.toast) api.toast('Decision Registered', `Contact matrix relation ${decision}d`, 'success');
       fetchData();
     } catch (e) {
       console.error('Decision failed:', e);
+      if (api?.toast) api.toast('Decision Failed', e.message, 'error');
+    }
+  };
+
+  const handleAddContact = async () => {
+    if (!newContact.name && !newContact.email) return;
+    try {
+      const res = await fetch('/api/contacts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(newContact)
+      });
+      const data = await res.json();
+      if (data.success) {
+        setNewContact({ name: '', email: '', phone: '', priority: 'medium' });
+        setShowAddModal(false);
+        if (api?.toast) api.toast('Contact Established', `${newContact.name} added to matrix.`, 'success');
+        fetchData();
+      } else {
+        throw new Error(data.error || 'Failed to add contact');
+      }
+    } catch (e) {
+      console.error('Failed to add contact:', e);
+      if (api?.toast) api.toast('Failed to link', e.message, 'error');
+    }
+  };
+
+  const handleDeleteContact = async (id) => {
+    try {
+      const res = await fetch(`/api/contacts/${id}`, { method: 'DELETE' });
+      if (!res.ok) throw new Error('Delete failed');
+      setSelectedContact(null);
+      if (api?.toast) api.toast('Contact Severed', 'Connection to element closed.', 'success');
+      fetchData();
+    } catch (e) {
+      console.error('Failed to delete contact:', e);
+      if (api?.toast) api.toast('Severance Failed', e.message, 'error');
     }
   };
 
@@ -78,6 +120,9 @@ export default function ContactsView() {
             <p className="text-[10px] font-space-mono text-[var(--text-muted)] uppercase tracking-[0.2em]">Your relationship network</p>
           </div>
         </div>
+        <button onClick={() => setShowAddModal(true)} className="inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-full text-xs font-bold uppercase tracking-widest transition-all bg-transparent text-[var(--text-main)] border border-[var(--border-color)] hover:border-[rgb(var(--rgb-accent-main))]">
+          <Plus size={16} /> Add Contact
+        </button>
       </div>
 
       {/* Stats Cards */}
@@ -280,7 +325,73 @@ export default function ContactsView() {
                   onClick={() => { handleDecision(selectedContact.id, 'ignored'); setSelectedContact(null); }}
                   className="flex-1 py-3.5 px-4 rounded-full font-space-grotesk font-bold text-xs uppercase tracking-widest text-red-500 bg-red-500/10 border border-red-500/30 hover:bg-red-500/20 hover:text-red-400 hover:shadow-[0_0_20px_rgba(239,68,68,0.2)] transition-all flex items-center justify-center gap-2"
                 >
-                  <Trash2 size={16} /> Ignore
+                  <X size={16} /> Ignore
+                </button>
+                <button
+                  onClick={() => handleDeleteContact(selectedContact.id)}
+                  className="py-3.5 px-4 rounded-full font-space-grotesk font-bold text-xs uppercase tracking-widest text-red-500 bg-red-500/10 border border-red-500/30 hover:bg-red-500/20 hover:text-red-400 hover:shadow-[0_0_20px_rgba(239,68,68,0.2)] transition-all flex items-center justify-center gap-2"
+                  title="Delete contact"
+                >
+                  <Trash2 size={16} />
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Add Contact Modal */}
+      <AnimatePresence>
+        {showAddModal && (
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            onClick={() => setShowAddModal(false)}
+            className="fixed inset-0 bg-black/80 backdrop-blur-md flex items-center justify-center z-[999] p-4">
+            <motion.div initial={{ opacity: 0, scale: 0.95, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              onClick={e => e.stopPropagation()}
+              className="hover-spotlight bg-[var(--bg-card)] border border-[var(--border-color)] rounded-[2.5rem] p-8 max-w-[480px] w-full shadow-[0_20px_60px_rgba(0,0,0,0.8)] relative">
+              <Crosshair className="-top-[5px] -left-[5px]" />
+              <Crosshair className="-top-[5px] -right-[5px]" />
+              <Crosshair className="-bottom-[5px] -left-[5px]" />
+              <Crosshair className="-bottom-[5px] -right-[5px]" />
+
+              <div className="flex justify-between items-center mb-8 pb-6 border-b border-[var(--border-color)] relative z-10">
+                <div className="flex items-center gap-4">
+                  <div className="w-16 h-16 rounded-full bg-[rgb(var(--rgb-accent-sec))]/10 border border-[rgb(var(--rgb-accent-sec))]/30 flex items-center justify-center text-[rgb(var(--rgb-accent-sec))]">
+                    <Plus size={24} />
+                  </div>
+                  <div>
+                    <h2 className="font-space-grotesk text-2xl font-bold text-[var(--text-main)] tracking-wide m-0">New Contact</h2>
+                    <p className="font-space-mono text-[10px] text-[var(--text-muted)] tracking-widest mt-1 uppercase">Add to your network</p>
+                  </div>
+                </div>
+                <button onClick={() => setShowAddModal(false)} className="w-8 h-8 rounded-full bg-[var(--bg-panel)] border border-[var(--border-color)] flex items-center justify-center text-[var(--text-muted)] hover:text-[var(--text-main)] transition-all">
+                  <X size={16} />
+                </button>
+              </div>
+
+              <div className="space-y-4 relative z-10">
+                <input type="text" value={newContact.name} onChange={e => setNewContact({ ...newContact, name: e.target.value })}
+                  placeholder="Name" className="w-full bg-[var(--bg-panel)] border border-[var(--border-color)] rounded-xl px-4 py-3 text-sm text-[var(--text-main)] font-space-mono focus:outline-none focus:border-[var(--border-highlight)]" autoFocus />
+                <input type="email" value={newContact.email} onChange={e => setNewContact({ ...newContact, email: e.target.value })}
+                  placeholder="Email" className="w-full bg-[var(--bg-panel)] border border-[var(--border-color)] rounded-xl px-4 py-3 text-sm text-[var(--text-main)] font-space-mono focus:outline-none focus:border-[var(--border-highlight)]" />
+                <input type="tel" value={newContact.phone} onChange={e => setNewContact({ ...newContact, phone: e.target.value })}
+                  placeholder="Phone" className="w-full bg-[var(--bg-panel)] border border-[var(--border-color)] rounded-xl px-4 py-3 text-sm text-[var(--text-main)] font-space-mono focus:outline-none focus:border-[var(--border-highlight)]" />
+                <select value={newContact.priority} onChange={e => setNewContact({ ...newContact, priority: e.target.value })}
+                  className="w-full bg-[var(--bg-panel)] border border-[var(--border-color)] rounded-xl px-4 py-3 text-sm text-[var(--text-main)] font-space-mono focus:outline-none focus:border-[var(--border-highlight)]">
+                  <option value="high">High Priority</option>
+                  <option value="medium">Medium Priority</option>
+                  <option value="low">Low Priority</option>
+                </select>
+              </div>
+
+              <div className="flex gap-4 mt-8 pt-6 border-t border-[var(--border-color)] relative z-10">
+                <button onClick={handleAddContact}
+                  className="flex-1 py-3.5 px-4 rounded-full font-space-grotesk font-bold text-xs uppercase tracking-widest text-[rgb(var(--rgb-accent-sec))] bg-[rgba(var(--rgb-accent-sec),0.1)] border border-[rgba(var(--rgb-accent-sec),0.3)] hover:bg-[rgba(var(--rgb-accent-sec),0.2)] hover:shadow-[0_0_20px_rgba(var(--rgb-accent-sec),0.2)] transition-all flex items-center justify-center gap-2">
+                  <Plus size={16} /> Add Contact
+                </button>
+                <button onClick={() => setShowAddModal(false)}
+                  className="py-3.5 px-6 rounded-full font-space-grotesk font-bold text-xs uppercase tracking-widest text-[var(--text-muted)] hover:text-[var(--text-main)] transition-all">
+                  Cancel
                 </button>
               </div>
             </motion.div>

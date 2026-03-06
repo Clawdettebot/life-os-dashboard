@@ -2,8 +2,9 @@ import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Circle, MoreHorizontal, Radio, Plus } from 'lucide-react';
 import { Card, Badge, Button, ScrambleText, staggerContainer, staggerItem } from './ui/NewDesignComponents';
-import GoogleCalendarWidget from './GoogleCalendarWidget';
+import DashboardCalendarWidget from './DashboardCalendarWidget';
 import LobsterScrollArea from './ui/LobsterScrollArea';
+import { CorticalSparksWidget, ContentPipelineWidget } from './ui/DashboardWidgets';
 
 export default function DashboardView({
   tasks = [],
@@ -11,6 +12,10 @@ export default function DashboardView({
   finances = [],
   habits = [],
   streams = [],
+  ideas = [],
+  notes = [],
+  blog = [],
+  api,
   toggleTask,
   setActivePage,
   setActiveModal,
@@ -21,7 +26,8 @@ export default function DashboardView({
   const tasksArray = Array.isArray(tasks) ? tasks : (tasks?.active || []);
   const activeTasks = tasksArray.filter(t => t.status !== 'completed').slice(0, 5);
   const completedTasks = tasksArray.filter(t => t.status === 'completed');
-  const incomeTotal = (finances || []).filter(f => f.type === 'income').reduce((s, f) => s + Number(f.amount), 0);
+  const safeFinances = Array.isArray(finances) ? finances : [];
+  const incomeTotal = safeFinances.filter(f => f.type === 'income').reduce((s, f) => s + Number(f.amount), 0);
 
   return (
     <motion.div variants={staggerContainer} initial="hidden" animate="visible" className="grid grid-cols-12 gap-6 w-full mx-auto">
@@ -79,37 +85,20 @@ export default function DashboardView({
         </motion.div>
       </Card>
 
-      <Card title="Upcoming Streams" className="col-span-12" action={<Button variant="accent" onClick={() => setActivePage && setActivePage('streams')}>View All</Button>}>
-        {streams.filter(s => s.status === 'planned').length === 0 ? (
-          <div onClick={() => setActiveModal && setActiveModal('newStream')} className="h-32 rounded-[2rem] border border-dashed border-[var(--border-color)] bg-[var(--bg-panel)] flex flex-col items-center justify-center text-[var(--text-muted)] gap-3 hover:border-[rgba(var(--rgb-accent-main),0.5)] hover:bg-[rgba(var(--rgb-accent-main),0.05)] transition-all duration-500 group cursor-pointer relative overflow-hidden">
-            <div className="absolute inset-0 bg-tech-grid opacity-30 pointer-events-none" />
-            <Radio size={24} className="group-hover:text-[rgb(var(--rgb-accent-main))] transition-colors duration-500 relative z-10" />
-            <span className="text-xs font-space-mono uppercase tracking-[0.2em] group-hover:text-[var(--text-main)] transition-colors duration-500 relative z-10">No Broadcasts Planned - Click to Schedule</span>
-          </div>
-        ) : (
-          <LobsterScrollArea direction="horizontal" size="small" className="pb-2 relative z-10" contentClassName="flex gap-4 snap-x">
-            {streams.filter(s => s.status === 'planned').map((stream, i) => (
-              <div key={i} className="min-w-[280px] w-[280px] bg-[var(--bg-panel)] border border-[var(--border-color)] rounded-2xl p-5 hover:border-[rgba(var(--rgb-accent-sec),0.3)] transition-all snap-start flex flex-col justify-between h-[120px] group cursor-pointer hover-spotlight">
-                <div className="relative z-10">
-                  <div className="flex justify-between items-start mb-2">
-                    <h4 className="text-sm font-bold text-[var(--text-main)] font-space-grotesk truncate max-w-[180px] group-hover:text-[rgb(var(--rgb-accent-sec))] transition-colors">{stream.title}</h4>
-                    <span className="w-2 h-2 rounded-full bg-[rgb(var(--rgb-accent-sec))] animate-pulse shadow-[0_0_8px_rgba(var(--rgb-accent-sec),0.8)]"></span>
-                  </div>
-                  <div className="text-[10px] font-space-mono text-[var(--text-muted)] flex items-center gap-2 uppercase tracking-widest mt-4">
-                    <span className="bg-[var(--bg-overlay)] px-2 py-0.5 rounded border border-[var(--border-color)] text-[var(--text-main)]">{stream.platform}</span>
-                    <span>{new Date(stream.scheduledDate).toLocaleDateString()}</span>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </LobsterScrollArea>
-        )}
-      </Card>
+      {/* Row 3 - Action Widgets */}
+      <div className="col-span-12 lg:col-span-4 h-[350px]">
+        <CorticalSparksWidget ideas={ideas} notes={notes} onViewSection={(section) => setActivePage && setActivePage(section)} />
+      </div>
 
-      <div className="col-span-12 h-[500px] mb-8">
-        <GoogleCalendarWidget
+      <div className="col-span-12 lg:col-span-4 h-[350px]">
+        <ContentPipelineWidget posts={blog} onViewSection={(section) => setActivePage && setActivePage(section)} />
+      </div>
+
+      <div className="col-span-12 lg:col-span-4 h-[350px] mb-8">
+        <DashboardCalendarWidget
           connected={googleCalendarConnected}
           onViewCalendar={() => setActivePage && setActivePage('calendar')}
+          api={api}
         />
       </div>
     </motion.div>

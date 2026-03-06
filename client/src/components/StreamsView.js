@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Radio, CalendarDays, Activity, Plus, Edit2, CheckCircle, XCircle, Users, MessageSquare, Link2, Link2Off, RefreshCw } from 'lucide-react';
+import { Radio, CalendarDays, Activity, Plus, Edit2, CheckCircle, XCircle, Users, MessageSquare, Link2, Link2Off, RefreshCw, X, Save } from 'lucide-react';
 import { WidgetCard } from './ui/WidgetCard';
 import { GlassyPill } from './ui/GlassyPill';
 import LobsterScrollArea from './ui/LobsterScrollArea';
@@ -38,6 +38,20 @@ export default function StreamsView({ streams = [], twitchSchedule = [], setActi
   const [twitchStatus, setTwitchStatus] = useState({ connected: false, user: null });
   const [loading, setLoading] = useState(true);
   const [connecting, setConnecting] = useState(false);
+
+  // Local Modal State
+  const [showNewModal, setShowNewModal] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [editingStream, setEditingStream] = useState(null);
+  const [newStreamData, setNewStreamData] = useState({
+    title: '',
+    scheduledDate: new Date().toISOString().split('T')[0],
+    scheduledTime: '20:00',
+    platform: 'Twitch',
+    description: '',
+    guests: '',
+    chatActivations: ''
+  });
 
   // Fetch Twitch connection status
   useEffect(() => {
@@ -90,10 +104,45 @@ export default function StreamsView({ streams = [], twitchSchedule = [], setActi
     }
   };
 
+  const handleCreateStream = async () => {
+    if (!newStreamData.title.trim()) return;
+    try {
+      await api.create('streams', newStreamData);
+      setShowNewModal(false);
+      setNewStreamData({
+        title: '',
+        scheduledDate: new Date().toISOString().split('T')[0],
+        scheduledTime: '20:00',
+        platform: 'Twitch',
+        description: '',
+        guests: '',
+        chatActivations: ''
+      });
+      if (triggerSFX) triggerSFX('完了');
+    } catch (e) {
+      console.error('Create stream error:', e);
+    }
+  };
+
+  const handleUpdateStream = async () => {
+    if (!editingStream.title.trim()) return;
+    try {
+      await api.update('streams', editingStream.id, editingStream);
+      setShowEditModal(false);
+      setEditingStream(null);
+      if (triggerSFX) triggerSFX('更新');
+    } catch (e) {
+      console.error('Update stream error:', e);
+    }
+  };
+
   // Merge local streams with Twitch schedule
+  const safeStreams = Array.isArray(streams) ? streams : [];
+  const safeTwitch = Array.isArray(twitchSchedule) ? twitchSchedule : [];
+
   const mergedStreams = [
-    ...streams,
-    ...twitchSchedule.map(ts => ({
+    ...safeStreams,
+    ...safeTwitch.map(ts => ({
       title: ts.title || ts.category || 'Twitch Stream',
       scheduledDate: ts.date || ts.start || '',
       scheduledTime: ts.time || '',
@@ -104,9 +153,9 @@ export default function StreamsView({ streams = [], twitchSchedule = [], setActi
     }))
   ].sort((a, b) => new Date(a.scheduledDate) - new Date(b.scheduledDate));
 
-  const plannedStreams = mergedStreams.filter(s => s.status === 'planned');
-  const completedStreams = mergedStreams.filter(s => s.status === 'completed');
-  const activeStreams = mergedStreams.filter(s => s.status !== 'cancelled');
+  const plannedStreams = mergedStreams.filter(s => Array.isArray(mergedStreams) && s.status === 'planned');
+  const completedStreams = mergedStreams.filter(s => Array.isArray(mergedStreams) && s.status === 'completed');
+  const activeStreams = mergedStreams.filter(s => Array.isArray(mergedStreams) && s.status !== 'cancelled');
 
   return (
     <motion.div
@@ -167,7 +216,7 @@ export default function StreamsView({ streams = [], twitchSchedule = [], setActi
             </div>
           )}
 
-          <GlassyPill variant="primary" onClick={() => setActiveModal('newStream')}>
+          <GlassyPill variant="primary" onClick={() => setShowNewModal(true)}>
             <Plus className="w-4 h-4" /> Schedule Stream
           </GlassyPill>
         </div>
@@ -314,7 +363,7 @@ export default function StreamsView({ streams = [], twitchSchedule = [], setActi
                       <div className="flex flex-row md:flex-col gap-2 flex-shrink-0">
                         <GlassyPill
                           className="!py-2 !px-4"
-                          onClick={() => { document.getElementById('editStreamId').value = stream.id; setActiveModal('editStream'); }}
+                          onClick={() => { setEditingStream(stream); setShowEditModal(true); }}
                         >
                           <Edit2 className="w-3 h-3" /> Edit
                         </GlassyPill>
@@ -344,6 +393,231 @@ export default function StreamsView({ streams = [], twitchSchedule = [], setActi
           )}
         </WidgetCard>
       </motion.div>
+
+      {/* MODALS */}
+      <AnimatePresence>
+        {/* NEW STREAM MODAL */}
+        {showNewModal && (
+          <div className="fixed inset-0 z-[1000] flex items-center justify-center p-4 animate-in-fade">
+            <div className="absolute inset-0 bg-black/80 backdrop-blur-sm" onClick={() => setShowNewModal(false)}></div>
+            <WidgetCard className="relative w-full max-w-lg overflow-visible animate-in-slide-up bg-black/40 backdrop-blur-2xl border-cyan-500/20 shadow-[0_0_50px_rgba(6,182,212,0.1)]">
+              <div className="p-8 border-b border-white/5 flex justify-between items-center">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-cyan-500/10 border border-cyan-500/30 flex items-center justify-center">
+                    <Radio className="w-5 h-5 text-cyan-400" />
+                  </div>
+                  <div>
+                    <h3 className="text-xl font-black text-white font-premium tracking-tight uppercase tracking-widest">Initialize Broadcast</h3>
+                    <p className="text-[9px] font-bold text-gray-500 uppercase tracking-widest mt-0.5">Stream Scheduling Module</p>
+                  </div>
+                </div>
+                <button onClick={() => setShowNewModal(false)} className="text-gray-500 hover:text-white transition-colors">
+                  <X size={18} />
+                </button>
+              </div>
+
+              <div className="p-8 space-y-6">
+                <div className="space-y-1.5">
+                  <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest ml-1">Stream Title</label>
+                  <input
+                    className="w-full bg-white/[0.03] border border-white/10 rounded-xl p-4 text-white text-sm outline-none focus:border-cyan-500/50 transition-all font-bold placeholder:text-gray-600"
+                    placeholder="Broadcast title..."
+                    value={newStreamData.title}
+                    onChange={e => setNewStreamData({ ...newStreamData, title: e.target.value })}
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest ml-1">Scheduled Date</label>
+                    <input
+                      type="date"
+                      className="w-full bg-white/[0.03] border border-white/10 rounded-xl p-4 text-white text-sm outline-none focus:border-cyan-500/50 transition-all font-bold appearance-none cursor-pointer"
+                      value={newStreamData.scheduledDate}
+                      onChange={e => setNewStreamData({ ...newStreamData, scheduledDate: e.target.value })}
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest ml-1">Scheduled Time</label>
+                    <input
+                      type="time"
+                      className="w-full bg-white/[0.03] border border-white/10 rounded-xl p-4 text-white text-sm outline-none focus:border-cyan-500/50 transition-all font-bold appearance-none cursor-pointer"
+                      value={newStreamData.scheduledTime}
+                      onChange={e => setNewStreamData({ ...newStreamData, scheduledTime: e.target.value })}
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest ml-1">Platform</label>
+                  <select
+                    className="w-full bg-white/[0.03] border border-white/10 rounded-xl p-4 text-white text-sm outline-none focus:border-cyan-500/50 transition-all font-bold appearance-none cursor-pointer"
+                    value={newStreamData.platform}
+                    onChange={e => setNewStreamData({ ...newStreamData, platform: e.target.value })}
+                  >
+                    <option value="Twitch" className="bg-[#0a0a0b]">TWITCH</option>
+                    <option value="YouTube" className="bg-[#0a0a0b]">YOUTUBE</option>
+                    <option value="Kick" className="bg-[#0a0a0b]">KICK</option>
+                    <option value="Instagram" className="bg-[#0a0a0b]">INSTAGRAM</option>
+                  </select>
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest ml-1">Broadcast Brief</label>
+                  <textarea
+                    className="w-full bg-white/[0.03] border border-white/10 rounded-xl p-4 text-white text-sm outline-none focus:border-cyan-500/50 transition-all font-medium placeholder:text-gray-600 min-h-[80px] resize-none"
+                    placeholder="Define stream goals..."
+                    value={newStreamData.description}
+                    onChange={e => setNewStreamData({ ...newStreamData, description: e.target.value })}
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest ml-1">Guests</label>
+                    <input
+                      className="w-full bg-white/[0.03] border border-white/10 rounded-xl p-3 text-white text-xs outline-none focus:border-cyan-500/50 transition-all font-medium placeholder:text-gray-600"
+                      placeholder="Buddy, Kyle..."
+                      value={newStreamData.guests}
+                      onChange={e => setNewStreamData({ ...newStreamData, guests: e.target.value })}
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest ml-1">Chat Ops</label>
+                    <input
+                      className="w-full bg-white/[0.03] border border-white/10 rounded-xl p-3 text-white text-xs outline-none focus:border-cyan-500/50 transition-all font-medium placeholder:text-gray-600"
+                      placeholder="Giveaways, polls..."
+                      value={newStreamData.chatActivations}
+                      onChange={e => setNewStreamData({ ...newStreamData, chatActivations: e.target.value })}
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <div className="p-8 bg-white/[0.01] border-t border-white/5 flex gap-3">
+                <GlassyPill className="flex-1 !py-4" onClick={() => setShowNewModal(false)}>
+                  <span className="text-[10px] font-black uppercase tracking-widest">Abort Initialization</span>
+                </GlassyPill>
+                <GlassyPill variant="primary" className="flex-2 !py-4" onClick={handleCreateStream}>
+                  <Save size={16} />
+                  <span className="text-[10px] font-black uppercase tracking-widest">Deploy Matrix</span>
+                </GlassyPill>
+              </div>
+            </WidgetCard>
+          </div>
+        )}
+
+        {/* EDIT STREAM MODAL */}
+        {showEditModal && editingStream && (
+          <div className="fixed inset-0 z-[1000] flex items-center justify-center p-4 animate-in-fade">
+            <div className="absolute inset-0 bg-black/80 backdrop-blur-sm" onClick={() => setShowEditModal(false)}></div>
+            <WidgetCard className="relative w-full max-w-lg overflow-visible animate-in-slide-up bg-black/40 backdrop-blur-2xl border-purple-500/20 shadow-[0_0_50px_rgba(168,85,247,0.1)]">
+              <div className="p-8 border-b border-white/5 flex justify-between items-center">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-purple-500/10 border border-purple-500/30 flex items-center justify-center">
+                    <Edit2 className="w-5 h-5 text-purple-400" />
+                  </div>
+                  <div>
+                    <h3 className="text-xl font-black text-white font-premium tracking-tight uppercase tracking-widest">Modify Signal</h3>
+                    <p className="text-[9px] font-bold text-gray-500 uppercase tracking-widest mt-0.5">Stream Adjustment Module</p>
+                  </div>
+                </div>
+                <button onClick={() => setShowEditModal(false)} className="text-gray-500 hover:text-white transition-colors">
+                  <X size={18} />
+                </button>
+              </div>
+
+              <div className="p-8 space-y-6">
+                <div className="space-y-1.5">
+                  <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest ml-1">Stream Title</label>
+                  <input
+                    className="w-full bg-white/[0.03] border border-white/10 rounded-xl p-4 text-white text-sm outline-none focus:border-purple-500/50 transition-all font-bold placeholder:text-gray-600"
+                    placeholder="Broadcast title..."
+                    value={editingStream.title}
+                    onChange={e => setEditingStream({ ...editingStream, title: e.target.value })}
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest ml-1">Scheduled Date</label>
+                    <input
+                      type="date"
+                      className="w-full bg-white/[0.03] border border-white/10 rounded-xl p-4 text-white text-sm outline-none focus:border-purple-500/50 transition-all font-bold appearance-none cursor-pointer"
+                      value={editingStream.scheduledDate}
+                      onChange={e => setEditingStream({ ...editingStream, scheduledDate: e.target.value })}
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest ml-1">Scheduled Time</label>
+                    <input
+                      type="time"
+                      className="w-full bg-white/[0.03] border border-white/10 rounded-xl p-4 text-white text-sm outline-none focus:border-purple-500/50 transition-all font-bold appearance-none cursor-pointer"
+                      value={editingStream.scheduledTime}
+                      onChange={e => setEditingStream({ ...editingStream, scheduledTime: e.target.value })}
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest ml-1">Platform</label>
+                  <select
+                    className="w-full bg-white/[0.03] border border-white/10 rounded-xl p-4 text-white text-sm outline-none focus:border-purple-500/50 transition-all font-bold appearance-none cursor-pointer"
+                    value={editingStream.platform}
+                    onChange={e => setEditingStream({ ...editingStream, platform: e.target.value })}
+                  >
+                    <option value="Twitch" className="bg-[#0a0a0b]">TWITCH</option>
+                    <option value="YouTube" className="bg-[#0a0a0b]">YOUTUBE</option>
+                    <option value="Kick" className="bg-[#0a0a0b]">KICK</option>
+                    <option value="Instagram" className="bg-[#0a0a0b]">INSTAGRAM</option>
+                  </select>
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest ml-1">Broadcast Brief</label>
+                  <textarea
+                    className="w-full bg-white/[0.03] border border-white/10 rounded-xl p-4 text-white text-sm outline-none focus:border-purple-500/50 transition-all font-medium placeholder:text-gray-600 min-h-[80px] resize-none"
+                    placeholder="Define stream goals..."
+                    value={editingStream.description}
+                    onChange={e => setEditingStream({ ...editingStream, description: e.target.value })}
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest ml-1">Guests</label>
+                    <input
+                      className="w-full bg-white/[0.03] border border-white/10 rounded-xl p-3 text-white text-xs outline-none focus:border-purple-500/50 transition-all font-medium placeholder:text-gray-600"
+                      placeholder="Buddy, Kyle..."
+                      value={editingStream.guests}
+                      onChange={e => setEditingStream({ ...editingStream, guests: e.target.value })}
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest ml-1">Chat Ops</label>
+                    <input
+                      className="w-full bg-white/[0.03] border border-white/10 rounded-xl p-3 text-white text-xs outline-none focus:border-purple-500/50 transition-all font-medium placeholder:text-gray-600"
+                      placeholder="Giveaways, polls..."
+                      value={editingStream.chatActivations}
+                      onChange={e => setEditingStream({ ...editingStream, chatActivations: e.target.value })}
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <div className="p-8 bg-white/[0.01] border-t border-white/5 flex gap-3">
+                <GlassyPill className="flex-1 !py-4" onClick={() => setShowEditModal(false)}>
+                  <span className="text-[10px] font-black uppercase tracking-widest">Cancel Changes</span>
+                </GlassyPill>
+                <GlassyPill variant="primary" className="flex-2 !py-4" onClick={handleUpdateStream}>
+                  <Save size={16} />
+                  <span className="text-[10px] font-black uppercase tracking-widest">Update Signal</span>
+                </GlassyPill>
+              </div>
+            </WidgetCard>
+          </div>
+        )}
+      </AnimatePresence>
     </motion.div>
   );
 }

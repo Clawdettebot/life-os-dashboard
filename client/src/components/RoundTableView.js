@@ -1,10 +1,11 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { motion, AnimatePresence, useScroll, useTransform, useMotionValueEvent } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import {
   Users, Brain, CheckSquare, CalendarClock, Radio, Lightbulb,
   DollarSign, Activity, Settings, ChevronDown, ChevronRight,
   Cpu, Archive, Terminal, X, Zap, ShieldAlert, Layers, Search, AlignJustify, Sword
 } from 'lucide-react';
+import LobsterScrollArea from './ui/LobsterScrollArea';
 
 // Knight SVG components
 import SirClawthchilds from './knights/SirClawthchilds';
@@ -15,6 +16,114 @@ import KnaightOfAffairs from './knights/KnaightOfAffairs';
 import KnowledgeKnaight from './knights/KnowledgeKnaight';
 import Clawdette from './knights/Clawdette';
 
+// --- GLOBAL RIPPLE COMPONENT ---
+const Ripple = ({ x, y }) => (
+  <motion.div
+    initial={{ scale: 0, opacity: 0.8, borderWidth: '2px' }}
+    animate={{ scale: 15, opacity: 0, borderWidth: '0px' }}
+    transition={{ duration: 1.2, ease: "easeOut" }}
+    style={{
+      position: 'fixed',
+      left: x,
+      top: y,
+      width: '100px',
+      height: '100px',
+      marginLeft: '-50px',
+      marginTop: '-50px',
+      borderRadius: '50%',
+      borderColor: 'rgba(var(--rgb-accent-main), 0.8)',
+      borderStyle: 'solid',
+      pointerEvents: 'none',
+      zIndex: 5,
+      boxShadow: '0 0 20px rgba(var(--rgb-accent-main), 0.5) inset'
+    }}
+  />
+);
+
+// --- INSPECTION PANEL ---
+const InspectorPanel = ({ selectedNode, onClose }) => {
+  if (!selectedNode) return null;
+  const Icon = selectedNode.icon;
+  const knightId = selectedNode.knightId;
+  const KnightSVG = knightId ? knightSVGs[knightId] : null;
+
+  return (
+    <motion.div
+      initial={{ x: 400, opacity: 0 }}
+      animate={{ x: 0, opacity: 1 }}
+      exit={{ x: 400, opacity: 0 }}
+      transition={{ type: "spring", stiffness: 300, damping: 30 }}
+      className="absolute top-0 right-0 bottom-0 w-[400px] bg-[var(--bg-panel)] backdrop-blur-3xl border-l border-[var(--border-color)] shadow-[-30px_0_60px_rgba(0,0,0,0.8)] z-50 flex flex-col pointer-events-auto"
+    >
+      <div className="absolute inset-0 bg-tech-grid opacity-20 pointer-events-none" />
+
+      {/* Header */}
+      <div className="p-8 border-b border-[var(--border-color)] relative overflow-hidden shrink-0 bg-gradient-to-b from-[var(--bg-overlay)] to-transparent">
+        <div className="flex justify-between items-start relative z-10 mb-6">
+          <div className="w-16 h-16 rounded-md bg-[var(--bg-base)] border border-[var(--border-color)] flex items-center justify-center shadow-inner overflow-hidden relative">
+            {knightId ? (
+              <img src={`/avatars/${knightPNGs[knightId]}`} alt="" className="absolute inset-0 w-full h-full object-contain p-2" />
+            ) : (
+              <img src={`https://api.dicebear.com/7.x/bottts/svg?seed=${selectedNode.id}&backgroundColor=transparent`} alt="" className="absolute inset-0 w-full h-full opacity-30 mix-blend-screen filter brightness-110" />
+            )}
+            {!knightId && Icon && <Icon size={28} className="text-[rgb(var(--rgb-accent-main))] relative z-10 drop-shadow-[0_0_15px_rgba(var(--rgb-accent-main),0.8)]" />}
+            {KnightSVG && (
+              <div className="absolute bottom-1 right-1 w-5 h-5 opacity-50 z-20 text-[rgb(var(--rgb-accent-main))] drop-shadow-sm">
+                <KnightSVG />
+              </div>
+            )}
+          </div>
+          <button onClick={onClose} className="p-2 rounded-md bg-[var(--bg-overlay)] border border-[var(--border-color)] text-[var(--text-muted)] hover:text-[var(--text-main)] hover:bg-[var(--border-highlight)] transition-colors backdrop-blur-md">
+            <X size={16} />
+          </button>
+        </div>
+        <div className="relative z-10">
+          <h2 className="text-2xl font-bold font-space-grotesk text-[var(--text-main)] leading-tight mb-1 drop-shadow-md">{selectedNode.title}</h2>
+          <p className="text-[10px] font-space-mono uppercase tracking-[0.3em] font-bold text-[rgb(var(--rgb-accent-main))] drop-shadow-sm">{selectedNode.role}</p>
+        </div>
+      </div>
+
+      <LobsterScrollArea className="flex-1 relative" contentClassName="p-8">
+        <div className="space-y-8">
+          <section>
+            <h3 className="text-[10px] font-space-mono text-[var(--text-muted)] uppercase tracking-[0.2em] mb-4 flex items-center gap-2 drop-shadow-sm">
+              <Activity size={12} className="text-[rgb(var(--rgb-accent-main))]" /> Core Diagnostics
+            </h3>
+            <div className="grid grid-cols-2 gap-4">
+              {selectedNode.stats.map((s, i) => (
+                <div key={i} className="bg-[var(--bg-overlay)] border border-[var(--border-color)] backdrop-blur-md rounded-md p-4 flex flex-col justify-center shadow-lg">
+                  <span className="text-[9px] font-space-mono uppercase tracking-widest text-[var(--text-faint)] mb-1">{s.label}</span>
+                  <span className="text-lg font-bold font-space-mono text-[var(--text-main)] drop-shadow-sm">{s.val}</span>
+                </div>
+              ))}
+              <div className="col-span-2 bg-[var(--bg-overlay)] border border-[var(--border-color)] backdrop-blur-md rounded-md p-4 flex items-center justify-between shadow-lg">
+                <span className="text-[9px] font-space-mono uppercase tracking-widest text-[var(--text-faint)]">System Memory</span>
+                <div className="w-1/2 h-1.5 bg-[var(--bg-base)] rounded-sm overflow-hidden shadow-inner">
+                  <div className="h-full bg-[rgb(var(--rgb-accent-main))] w-[68%] shadow-[0_0_8px_rgba(var(--rgb-accent-main),0.8)]" />
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <section>
+            <h3 className="text-[10px] font-space-mono text-[var(--text-muted)] uppercase tracking-[0.2em] mb-4 flex items-center gap-2 drop-shadow-sm">
+              <Settings size={12} className="text-[rgb(var(--rgb-accent-main))]" /> Interface Commands
+            </h3>
+            <div className="flex flex-col gap-3">
+              <button className="w-full py-3 rounded-md border border-[rgba(var(--rgb-accent-main),0.5)] bg-[rgba(var(--rgb-accent-main),0.1)] text-[rgb(var(--rgb-accent-main))] text-[10px] font-space-mono uppercase tracking-widest font-bold hover:bg-[rgba(var(--rgb-accent-main),0.2)] transition-all shadow-[0_0_20px_rgba(var(--rgb-accent-main),0.2)] backdrop-blur-md">
+                Override Directives
+              </button>
+              <button className="w-full py-3 rounded-md border border-[var(--border-color)] bg-[var(--bg-overlay)] backdrop-blur-md text-[var(--text-muted)] text-[10px] font-space-mono uppercase tracking-widest hover:text-[var(--text-main)] hover:bg-[var(--border-highlight)] transition-all shadow-lg">
+                Ping Node
+              </button>
+            </div>
+          </section>
+        </div>
+      </LobsterScrollArea>
+    </motion.div>
+  );
+};
+
 // PNG avatar mappings
 const knightPNGs = {
   'clawdette': '269bd57c-88ba-4d02-9b70-40511a27d1bc.png',
@@ -23,7 +132,8 @@ const knightPNGs = {
   'clawthchilds': '99f2a89b-8c51-4078-af63-10046a333434.png',
   'claudnelius': 'c44a0f21-6530-4e4b-8eb7-a27c8674299b.png',
   'labrina': '6f9d0fbf-6011-471b-8740-397b7eeb708f.png',
-  'shrimp-soldier': 'a3010206-b78c-4da9-8971-f83294efe9a6.png'
+  'shrimp-soldier': 'a3010206-b78c-4da9-8971-f83294efe9a6.png',
+  'guapdad': 'guapdad-avatar.png'
 };
 
 // SVG map
@@ -37,119 +147,11 @@ const knightSVGs = {
   'shrimp-soldier': ShrimpSoldier
 };
 
-// --- CUSTOM LOBSTER SCROLLBAR ---
-const DOT_COUNT = 30;
-
-const LobsterScrollArea = ({ children, className = '', contentClassName = '' }) => {
-  const contentRef = useRef(null);
-  const trackRef = useRef(null);
-  const [isDragging, setIsDragging] = useState(false);
-  const [isHovered, setIsHovered] = useState(false);
-  const [isFacingUp, setIsFacingUp] = useState(false);
-  const [clickedIndex, setClickedIndex] = useState(null);
-  const clickTimeout = useRef(null);
-  const lastScroll = useRef(0);
-
-  const { scrollYProgress } = useScroll({ container: contentRef });
-
-  useMotionValueEvent(scrollYProgress, "change", (latest) => {
-    if (latest < lastScroll.current) setIsFacingUp(true);
-    else if (latest > lastScroll.current) setIsFacingUp(false);
-    lastScroll.current = latest;
-  });
-
-  const thumbPos = useTransform(scrollYProgress, [0, 1], ['0%', '100%']);
-
-  useEffect(() => {
-    const handlePointerMove = (e) => {
-      if (!isDragging || !trackRef.current || !contentRef.current) return;
-      const trackRect = trackRef.current.getBoundingClientRect();
-      const y = Math.max(0, Math.min(e.clientY - trackRect.top, trackRect.height));
-      const percentage = y / trackRect.height;
-      const maxScroll = contentRef.current.scrollHeight - contentRef.current.clientHeight;
-      contentRef.current.scrollTop = percentage * maxScroll;
-    };
-    const handlePointerUp = () => setIsDragging(false);
-
-    if (isDragging) {
-      window.addEventListener('pointermove', handlePointerMove);
-      window.addEventListener('pointerup', handlePointerUp);
-      document.body.style.userSelect = 'none';
-    }
-    return () => {
-      window.removeEventListener('pointermove', handlePointerMove);
-      window.removeEventListener('pointerup', handlePointerUp);
-      document.body.style.userSelect = '';
-    };
-  }, [isDragging]);
-
-  const handleTrackClick = (e) => {
-    if (!trackRef.current || !contentRef.current) return;
-    const trackRect = trackRef.current.getBoundingClientRect();
-    const y = Math.max(0, Math.min(e.clientY - trackRect.top, trackRect.height));
-    const percentage = y / trackRect.height;
-
-    setClickedIndex(Math.round(percentage * (DOT_COUNT - 1)));
-    if (clickTimeout.current) clearTimeout(clickTimeout.current);
-    clickTimeout.current = setTimeout(() => setClickedIndex(null), 1000);
-
-    const maxScroll = contentRef.current.scrollHeight - contentRef.current.clientHeight;
-    contentRef.current.scrollTo({ top: percentage * maxScroll, behavior: 'smooth' });
-  };
-
-  return (
-    <div className={`relative flex overflow-hidden flex-row ${className}`}>
-      <div ref={contentRef} className={`flex-1 overflow-auto scrollbar-hide pr-6 ${contentClassName}`} style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
-        {children}
-      </div>
-      <div ref={trackRef} onPointerDown={handleTrackClick} className={`shrink-0 flex justify-center relative cursor-pointer touch-none group/track z-50 w-10 py-6 flex-col`}>
-        <div className={`absolute bg-[var(--bg-overlay)] opacity-0 group-hover/track:opacity-100 rounded-full transition-opacity duration-300 pointer-events-none inset-y-0 w-8`} />
-        <div className={`absolute w-full flex justify-between items-center z-0 pointer-events-none inset-y-6 flex-col`}>
-          {Array.from({ length: DOT_COUNT }).map((_, i) => {
-            const dotProgress = i / (DOT_COUNT - 1);
-            const dotOpacity = useTransform(scrollYProgress, [dotProgress - 0.05, dotProgress], [1, 0.2]);
-            const isTarget = clickedIndex !== null && Math.abs(i - clickedIndex) <= 2;
-            const isCenterTarget = clickedIndex === i;
-            return (
-              <motion.div key={i} style={{ opacity: dotOpacity }} animate={{ scale: isCenterTarget ? 2 : isTarget ? 1.5 : 1 }} transition={{ type: 'spring', stiffness: 400, damping: 15 }}
-                className={`w-1.5 h-1.5 rounded-full transition-colors duration-300 ${isTarget ? 'bg-[rgb(var(--rgb-accent-main))] shadow-[0_0_10px_rgba(var(--rgb-accent-main),0.8)] z-10' : 'bg-[var(--text-faint)]'}`}
-              />
-            );
-          })}
-        </div>
-        <motion.div style={{ top: thumbPos }} className={`absolute flex items-center justify-center z-10 cursor-grab active:cursor-grabbing left-0 right-0 w-full h-12 -mt-6`}
-          onPointerDown={(e) => { e.stopPropagation(); setIsDragging(true); }}
-          onMouseEnter={() => setIsHovered(true)} onMouseLeave={() => setIsHovered(false)}
-        >
-          <motion.div animate={{ rotate: isFacingUp ? 0 : 180 }} transition={{ type: 'spring', stiffness: 200, damping: 20 }} className="flex items-center justify-center relative w-full h-full">
-            <motion.div animate={{ scale: isDragging ? 1.2 : isHovered ? 1.1 : 1, rotate: isDragging ? [0, -5, 5, -5, 5, 0] : 0 }} transition={{ rotate: { repeat: isDragging ? Infinity : 0, duration: 0.5 }, scale: { type: 'spring', stiffness: 400, damping: 20 } }}
-              className={`transition-colors duration-300 relative flex items-center justify-center ${isDragging || isHovered ? 'text-[rgb(var(--rgb-accent-main))] drop-shadow-[0_0_12px_rgba(var(--rgb-accent-main),0.8)]' : 'text-[var(--text-main)] drop-shadow-[0_0_8px_rgba(var(--text-main),0.2)]'}`}
-            >
-              <svg width="24" height="28" viewBox="0 0 24 36" fill="none" className="transform origin-center pointer-events-none">
-                <motion.path d="M 6 12 C 0 8 0 0 6 4 C 12 6 8 12 8 14 Z" fill="currentColor" animate={{ rotate: isDragging || isHovered ? -15 : 0 }} style={{ originX: '8px', originY: '14px' }} transition={{ type: 'spring', stiffness: 300 }} />
-                <motion.path d="M 18 12 C 24 8 24 0 18 4 C 12 6 16 12 16 14 Z" fill="currentColor" animate={{ rotate: isDragging || isHovered ? 15 : 0 }} style={{ originX: '16px', originY: '14px' }} transition={{ type: 'spring', stiffness: 300 }} />
-                <path d="M 10 10 L 8 4 M 14 10 L 16 4" stroke="currentColor" strokeWidth="1" strokeLinecap="round" opacity="0.6" />
-                <rect x="8" y="12" width="8" height="14" rx="3" fill="currentColor" />
-                <path d="M 8 16 L 16 16 M 8 20 L 16 20" stroke="var(--bg-base)" strokeWidth="1.5" />
-                <path d="M 8 25 L 5 32 L 12 30 L 19 32 L 16 25 Z" fill="currentColor" strokeLinejoin="round" />
-                <line x1="8" y1="15" x2="4" y2="18" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-                <line x1="16" y1="15" x2="20" y2="18" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-                <line x1="8" y1="19" x2="3" y2="22" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-                <line x1="16" y1="19" x2="21" y2="22" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-                <line x1="8" y1="23" x2="4" y2="26" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-                <line x1="16" y1="23" x2="20" y2="26" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-              </svg>
-            </motion.div>
-          </motion.div>
-        </motion.div>
-      </div>
-    </div>
-  );
-};
+// (LobsterScrollArea imported from shared ui component)
 
 // --- DATA GRAPH & HIERARCHY ---
 const NETWORK_DATA = {
-  id: 'admin', title: 'Guapdad 4000', role: 'System Admin / Root', icon: Cpu,
+  id: 'admin', knightId: 'guapdad', title: 'Guapdad 4000', role: 'System Admin / Root', icon: Cpu,
   stats: [{ label: 'SYS STATUS', val: 'NOMINAL' }, { label: 'UPTIME', val: '99.9%' }],
   children: [
     {
@@ -369,17 +371,17 @@ const TreeRender = ({ node, onSelect, selectedId }) => {
 // --- MISSION CONTROL COMMAND CENTER MODAL ---
 const CommandCenterModal = ({ isOpen, onClose }) => {
   const MISSION_CONTROL_URL = 'http://localhost:3001';
-  
+
   if (!isOpen) return null;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
       {/* Backdrop */}
-      <div 
+      <div
         className="absolute inset-0 bg-black/80 backdrop-blur-sm"
         onClick={onClose}
       />
-      
+
       {/* Modal */}
       <div className="relative w-[95vw] h-[90vh] bg-[var(--bg-main)] border border-[var(--border-color)] rounded-2xl overflow-hidden shadow-2xl">
         {/* Header */}
@@ -389,16 +391,16 @@ const CommandCenterModal = ({ isOpen, onClose }) => {
             <span className="font-space-mono text-sm font-bold text-[var(--text-main)]">MISSION CONTROL</span>
             <span className="text-[10px] px-2 py-0.5 bg-emerald-500/20 text-emerald-400 rounded-full font-space-mono">LIVE</span>
           </div>
-          <button 
+          <button
             onClick={onClose}
             className="p-2 hover:bg-[var(--bg-hover)] rounded-lg transition-colors"
           >
             <X size={18} className="text-[var(--text-muted)]" />
           </button>
         </div>
-        
+
         {/* Mission Control iframe */}
-        <iframe 
+        <iframe
           src={MISSION_CONTROL_URL}
           className="w-full h-full pt-12"
           title="Mission Control"
@@ -476,7 +478,7 @@ export default function RoundTableView() {
       </svg>
 
       {/* Command Center Button - Floating */}
-      <button 
+      <button
         onClick={() => setShowCommandCenter(true)}
         className="absolute top-4 right-4 z-50 bg-[var(--bg-card)] border border-[var(--border-color)] hover:border-[rgb(var(--rgb-accent-main))] p-3 rounded-full shadow-lg hover:shadow-[0_0_20px_rgba(var(--rgb-accent-main),0.3)] transition-all group"
       >
@@ -500,7 +502,7 @@ export default function RoundTableView() {
         </div>
 
         <div className="absolute inset-0 bg-tech-grid pointer-events-none z-0" />
-        <div className="absolute inset-0 pointer-events-none z-0" style={{backgroundImage: "url(/backgrounds/roundtable-bg.png)", backgroundSize: "cover", backgroundPosition: "center", opacity: 0.5}} />
+        <div className="absolute inset-0 pointer-events-none z-0" style={{ backgroundImage: "url(/backgrounds/roundtable-bg.png)", backgroundSize: "cover", backgroundPosition: "center", opacity: 0.5 }} />
         <div className="absolute inset-0 bg-gradient-to-b from-[var(--bg-base)] via-transparent to-[var(--bg-base)] opacity-80 pointer-events-none z-0" />
 
         {/* Global Ripples */}
@@ -525,7 +527,7 @@ export default function RoundTableView() {
             className="w-[2500px] h-[1500px] flex flex-col items-center justify-start pt-8 pb-32" style={{ marginLeft: '-700px' }}
           >
             {/* Floating Title Box mapped to original sketch */}
-            
+
 
             {/* The Entire Generated Tree Rendered Here */}
             <TreeRender node={NETWORK_DATA} onSelect={handleNodeSelect} selectedId={selectedNode?.id} />
@@ -546,4 +548,3 @@ export default function RoundTableView() {
     </div>
   );
 }
-2

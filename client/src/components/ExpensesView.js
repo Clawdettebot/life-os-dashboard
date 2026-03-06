@@ -69,6 +69,7 @@ export default function ExpensesView({ finances = [], api }) {
     try {
       const res = await fetch('/api/finances/scan', { method: 'POST' });
       const data = await res.json();
+      if (api?.refresh) api.refresh();
       if (data.success) {
         await fetchData();
       }

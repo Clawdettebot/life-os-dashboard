@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   BookOpen, Flame, ChefHat, History, Search, Plus,
-  Clock, Tag, Sparkles, Utensils, X, Upload, Send
+  Clock, Tag, Sparkles, Utensils, X, Upload, Send, Trash2
 } from 'lucide-react';
 import LobsterScrollArea from './ui/LobsterScrollArea';
 
@@ -142,8 +142,17 @@ export default function CortexView() {
     }
   };
 
+  const handleDeleteEntry = async (id) => {
+    try {
+      await fetch(`/api/cortex/${id}`, { method: 'DELETE' });
+      if (api?.refresh) api.refresh();
+      setEntries(prev => prev.filter(e => e.id !== id));
+      setSelectedEntry(null);
+    } catch (e) { console.error('Failed to delete entry:', e); }
+  };
+
   const renderActiveSection = () => {
-    const props = { entries, color: SECTIONS[activeSection].color, onSelectEntry: setSelectedEntry };
+    const props = { entries, color: SECTIONS[activeSection].color, onSelectEntry: setSelectedEntry, onDeleteEntry: handleDeleteEntry };
     switch (activeSection) {
       case 'all_spark': return <CortexAllSpark {...props} />;
       case 'hitchhiker_guide': return <CortexHitchhikersGuide {...props} />;
@@ -313,11 +322,24 @@ export default function CortexView() {
           <LobsterScrollArea className="w-full max-w-2xl bg-[var(--bg-card)] border border-[var(--border-color)] rounded-[2.5rem] shadow-[0_0_60px_rgba(0,0,0,0.8)] max-h-[90vh]" contentClassName="p-10" onClick={e => e.stopPropagation()}>
             <div className="flex justify-between items-center mb-6">
               <h2 className="text-xl font-bold uppercase tracking-widest">{selectedEntry.title}</h2>
-              <button onClick={() => setSelectedEntry(null)} className="text-[var(--text-muted)] hover:text-[var(--text-main)]"><X size={24} /></button>
+              <div className="flex items-center gap-2">
+                {selectedEntry.id && (
+                  <button onClick={(e) => { e.stopPropagation(); handleDeleteEntry(selectedEntry.id); }} className="p-2 hover:bg-red-500/10 rounded-full transition-all" title="Delete entry">
+                    <Trash2 size={20} className="text-red-500" />
+                  </button>
+                )}
+                <button onClick={() => setSelectedEntry(null)} className="text-[var(--text-muted)] hover:text-[var(--text-main)]"><X size={24} /></button>
+              </div>
             </div>
             {selectedEntry.media_url && <img src={selectedEntry.media_url} className="w-full rounded-2xl mb-6 border border-[var(--border-color)]" alt="" />}
             <div className="text-sm text-[var(--text-muted)] leading-relaxed whitespace-pre-wrap font-space-grotesk bg-[var(--bg-base)] p-6 rounded-2xl border border-[var(--border-color)]">
-              {selectedEntry.content}
+              {selectedEntry.content?.split('\n').map((line, i) => {
+                if (line.startsWith('# ')) return <h1 key={i} className="text-2xl font-bold mt-4 mb-2 text-white">{line.slice(2)}</h1>
+                if (line.startsWith('## ')) return <h2 key={i} className="text-xl font-bold mt-4 mb-2 text-white">{line.slice(3)}</h2>
+                if (line.startsWith('**') && line.includes('**')) return <p key={i} className="font-bold my-2 text-white">{line.replace(/\*\*/g, '')}</p>
+                if (line.startsWith('- ')) return <li key={i} className="ml-4 my-1">{line.slice(2)}</li>
+                return <p key={i} className="my-1">{line}</p>
+              })}
             </div>
           </LobsterScrollArea>
         </div>

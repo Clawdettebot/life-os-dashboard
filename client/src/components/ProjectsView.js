@@ -49,6 +49,7 @@ const defaultCategories = [
 ];
 
 export default function ProjectsView({ api }) {
+  const [allProjects, setAllProjects] = useState([]);
   const [projects, setProjects] = useState([]);
   const [activeTab, setActiveTab] = useState('active');
   const [selectedProject, setSelectedProject] = useState(null);
@@ -67,17 +68,23 @@ export default function ProjectsView({ api }) {
   const [newTask, setNewTask] = useState('');
   const [expandedTasks, setExpandedTasks] = useState({});
 
-  // Fetch projects from API
+  // Fetch all projects from API
   const fetchProjects = async () => {
     try {
-      const endpoint = activeTab === 'archived'
-        ? '/api/projects/archived'
-        : '/api/projects/active';
-      const res = await fetch(endpoint);
+      // Fetch ALL projects to ensure counts are always accurate
+      const res = await fetch('/api/projects');
       const data = await res.json();
-      setProjects(data.projects || []);
+      const p = data.projects || [];
+      setAllProjects(p);
+
+      // Filter for current view
+      const filtered = activeTab === 'archived'
+        ? p.filter(x => x.status === 'archived')
+        : p.filter(x => x.status !== 'archived');
+      setProjects(filtered);
     } catch (error) {
       console.error('Error fetching projects:', error);
+      setAllProjects([]);
       setProjects([]);
     }
   };
@@ -110,6 +117,7 @@ export default function ProjectsView({ api }) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(projectData)
       });
+      if (api?.refresh) api.refresh();
       setShowNewProjectForm(false);
       setNewProject({
         title: '',
@@ -133,6 +141,7 @@ export default function ProjectsView({ api }) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(updates)
       });
+      if (api?.refresh) api.refresh();
       fetchProjects();
       if (selectedProject) {
         const res = await fetch(`/api/projects/${id}`);
@@ -148,6 +157,7 @@ export default function ProjectsView({ api }) {
   const handleArchiveProject = async (id) => {
     try {
       await fetch(`/api/projects/${id}/archive`, { method: 'POST' });
+      if (api?.refresh) api.refresh();
       fetchProjects();
       if (selectedProject?.id === id) {
         setSelectedProject(null);
@@ -161,6 +171,7 @@ export default function ProjectsView({ api }) {
   const handleUnarchiveProject = async (id) => {
     try {
       await fetch(`/api/projects/${id}/unarchive`, { method: 'POST' });
+      if (api?.refresh) api.refresh();
       fetchProjects();
     } catch (error) {
       console.error('Error unarchiving project:', error);
@@ -172,6 +183,7 @@ export default function ProjectsView({ api }) {
     if (!confirm('Are you sure you want to delete this project?')) return;
     try {
       await fetch(`/api/projects/${id}`, { method: 'DELETE' });
+      if (api?.refresh) api.refresh();
       fetchProjects();
       if (selectedProject?.id === id) {
         setSelectedProject(null);
@@ -190,6 +202,7 @@ export default function ProjectsView({ api }) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ content: newNote })
       });
+      if (api?.refresh) api.refresh();
       setNewNote('');
       setShowNoteForm(false);
       const res = await fetch(`/api/projects/${selectedProject.id}`);
@@ -209,6 +222,7 @@ export default function ProjectsView({ api }) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ title: newTask })
       });
+      if (api?.refresh) api.refresh();
       setNewTask('');
       setShowTaskForm(false);
       const res = await fetch(`/api/projects/${selectedProject.id}`);
@@ -227,6 +241,7 @@ export default function ProjectsView({ api }) {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' }
       });
+      if (api?.refresh) api.refresh();
       const res = await fetch(`/api/projects/${selectedProject.id}`);
       const data = await res.json();
       setSelectedProject(data.project);
@@ -252,8 +267,8 @@ export default function ProjectsView({ api }) {
         <div className="flex flex-wrap items-center justify-between gap-6 pb-6 border-b border-white/5">
           <div className="flex bg-white/5 p-1 rounded-2xl border border-white/10">
             {[
-              { id: 'active', label: 'Active Strategy', count: projects.filter(p => p.status !== 'archived').length, icon: Folder },
-              { id: 'archived', label: 'Archived Matrix', count: projects.filter(p => p.status === 'archived').length, icon: Archive }
+              { id: 'active', label: 'Active Strategy', count: allProjects.filter(p => p.status !== 'archived').length, icon: Folder },
+              { id: 'archived', label: 'Archived Matrix', count: allProjects.filter(p => p.status === 'archived').length, icon: Archive }
             ].map(tab => (
               <button
                 key={tab.id}
@@ -369,7 +384,9 @@ export default function ProjectsView({ api }) {
               <div className="w-20 h-20 rounded-full border border-dashed border-white/20 flex items-center justify-center mb-8">
                 <Folder size={40} />
               </div>
-              <p className="text-sm font-black uppercase tracking-[0.4em]">Zero Active Signals in Current Sector</p>
+              <p className="text-sm font-black uppercase tracking-[0.4em]">
+                {activeTab === 'archived' ? 'Zero Archived Signals in Current Sector' : 'Zero Active Signals in Current Sector'}
+              </p>
             </div>
           ) : (
             Object.entries(projectsByCategory).map(([category, categoryProjects]) => (
