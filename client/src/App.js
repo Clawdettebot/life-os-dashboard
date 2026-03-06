@@ -1,4 +1,5 @@
 import RoyalConchView from './components/RoyalConchView';
+import AbyssalDispatchView from './components/AbyssalDispatchView';
 // API_FIX_BUILD 
 // NEW_BUILD_1772622558
 // Life OS Dashboard - Full Design Integration
@@ -12,7 +13,7 @@ import {
   Utensils, Compass, History, Navigation, Leaf, Droplet, Tent, Send, Edit2,
   Trash2, BarChart2, Globe, Video, PenTool, Eye, RefreshCw, ChevronLeft,
   Folder, Archive, Home, Wallet, TrendingUp, TrendingDown, Coffee, HomeIcon,
-  Car, Heart, Briefcase as WorkIcon, Gift
+  Car, Heart, Briefcase as WorkIcon, Gift, Waves
 } from 'lucide-react';
 import { createClient } from '@supabase/supabase-js';
 
@@ -57,6 +58,7 @@ const NAV_SECTIONS = [
   {
     id: 'command', title: "Command", items: [
       { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
+      { id: 'abyssal-dispatch', label: 'Daily Tide', icon: Waves },
       { id: 'round-table', label: 'The Round Table', icon: Users },
       { id: 'knight', label: 'Knowledge Knight', icon: Brain },
     ]
@@ -525,6 +527,7 @@ export default function App() {
       case 'habits': return <HabitsView {...data} {...viewProps} />;
       case 'notes': return <NotesView {...data} {...viewProps} />;
       case 'royal-conch': return <RoyalConchView {...viewProps} />;
+      case 'abyssal-dispatch': return <AbyssalDispatchView />;
       case 'journal': return <div className="h-full flex items-center justify-center"><Card title="Journal"><p>Journal view coming soon</p></Card></div>;
       case 'cortex': return <CortexView {...viewProps} />;
       case 'contacts': return <ContactsView {...viewProps} />;

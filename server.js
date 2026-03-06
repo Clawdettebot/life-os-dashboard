@@ -356,15 +356,11 @@ app.post('/api/recordings', async (req, res) => {
 app.patch('/api/recordings/:id', async (req, res) => {
   try {
     const { id } = req.params;
-    const { status, file_path, duration_seconds } = req.body;
+    const { status } = req.body;
     const { data, error } = await lifeos
       .from('recordings')
       .update({ 
-        status, 
-        file_path, 
-        duration_seconds,
-        ...(status === 'transcribed' ? { transcribed_at: new Date().toISOString() } : {}),
-        ...(status === 'analyzed' ? { analyzed_at: new Date().toISOString() } : {})
+        status
       })
       .eq('id', id)
       .select()
@@ -377,10 +373,10 @@ app.patch('/api/recordings/:id', async (req, res) => {
 // Save transcript
 app.post('/api/transcripts', async (req, res) => {
   try {
-    const { recording_id, content, word_count, duration_seconds } = req.body;
+    const { recording_id, content } = req.body;
     const { data, error } = await lifeos
       .from('transcripts')
-      .insert([{ recording_id, content, word_count, duration_seconds }])
+      .insert([{ recording_id, content }])
       .select()
       .single();
     if (error) throw error;
@@ -400,9 +396,7 @@ app.post('/api/analysis', async (req, res) => {
         ideas: ideas || [],
         projects: projects || [],
         summary,
-        key_topics: key_topics || [],
-        status: 'completed',
-        completed_at: new Date().toISOString()
+        key_topics: key_topics || []
       }])
       .select()
       .single();
@@ -431,25 +425,425 @@ const recordingsUpload = multer({ dest: '/tmp/' });
 app.post('/api/recordings/:id/upload', recordingsUpload.single('audio'), async (req, res) => {
   try {
     const { id } = req.params;
+    console.log(`[UPLOAD] Recording ID: ${id}, File:`, req.file);
     if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
     
-    // Move to permanent storage
+    // Move to permanent storage (copy + delete because cross-device rename fails)
     const destPath = `/mnt/7DC21CFC5AB9C3AB/Apps/code/life-os-dashboard/data/recordings/${req.file.filename}`;
     require('fs').mkdirSync(require('path').dirname(destPath), { recursive: true });
-    require('fs').renameSync(req.file.path, destPath);
+    require('fs').copyFileSync(req.file.path, destPath);
+    require('fs').unlinkSync(req.file.path); // Clean up temp file
+    console.log(`[UPLOAD] File copied to: ${destPath}`);
     
-    await lifeos.from('recordings').update({ 
-      file_path: destPath,
+    // Update status only (file_path column may not exist in Supabase)
+    const updateResult = await lifeos.from('recordings').update({ 
       status: 'transcribing'
     }).eq('id', id);
+    console.log(`[UPLOAD] DB status update:`, updateResult.error ? updateResult.error.message : 'ok');
     
     res.json({ success: true, path: destPath });
-  } catch (e) { res.json({ error: e.message }); }
+  } catch (e) { 
+    console.error(`[UPLOAD] Error:`, e);
+    res.json({ error: e.message }); 
+  }
 });
 
 // ══════════════════════════════════════════════════════════════
 // END VOICE RECORDER API
 // ══════════════════════════════════════════════════════════════
+
+// ══════════════════════════════════════════════════════════════
+// ROYAL CONCH TRANSCRIPTION PIPELINE
+// ══════════════════════════════════════════════════════════════
+
+// Get all transcripts (for Royal Conch display)
+app.get('/api/transcripts', async (req, res) => {
+  try {
+    const { data: transcripts, error } = await lifeos
+      .from('transcripts')
+      .select('*')
+      .order('created_at', { ascending: false });
+    if (error) throw error;
+    res.json({ transcripts: transcripts || [] });
+  } catch (e) { res.json({ error: e.message, transcripts: [] }); }
+});
+
+// Get transcript by recording ID
+app.get('/api/recordings/:id/transcript', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { data: transcript } = await lifeos
+      .from('transcripts')
+      .select('*')
+      .eq('recording_id', id)
+      .single();
+    res.json({ transcript });
+  } catch (e) { res.json({ transcript: null }); }
+});
+
+// Transcribe audio using local Whisper
+app.post('/api/recordings/:id/transcribe', async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    // Get recording info
+    const { data: recording } = await lifeos
+      .from('recordings')
+      .select('*')
+      .eq('id', id)
+      .single();
+    
+    if (!recording) {
+      return res.json({ error: 'Recording not found' });
+    }
+    
+    // Look for audio file in local recordings directory
+    const recordingsDir = '/mnt/7DC21CFC5AB9C3AB/Apps/code/life-os-dashboard/data/recordings';
+    const files = await fs.readdir(recordingsDir);
+    // Find files that start with the recording ID (multer generates unique filenames)
+    const audioFile = files.find(f => f.includes(id) || f.startsWith(id.split('-')[0]));
+    
+    if (!audioFile) {
+      // Try to find any recently modified file as fallback
+      const recentFiles = files
+        .map(f => ({ name: f, mtime: require('fs').statSync(path.join(recordingsDir, f)).mtime }))
+        .sort((a, b) => b.mtime - a.mtime);
+      
+      if (recentFiles.length === 0) {
+        return res.json({ error: 'Recording not found or no audio file' });
+      }
+      var audioPath = path.join(recordingsDir, recentFiles[0].name);
+      console.log(`[TRANSCRIBE] Using recent file: ${recentFiles[0].name}`);
+    } else {
+      var audioPath = path.join(recordingsDir, audioFile);
+    }
+    
+    // Check if file exists
+    try {
+      await fs.access(audioPath);
+    } catch {
+      return res.json({ error: 'Audio file not found on disk' });
+    }
+    
+    // Run Whisper transcription
+    console.log(`🎙️ Starting transcription for ${id}...`);
+    
+    const { exec: execAsync } = require('child_process');
+    const { promisify } = require('util');
+    const execPromise = promisify(execAsync);
+    
+    // Use local whisper CLI - output JSON for easy parsing
+    const whisperCmd = `whisper "${audioPath}" --model base --language en --output_format json --output_dir /tmp`;
+    
+    let whisperOutput = '';
+    try {
+      const { stdout, stderr } = await execPromise(whisperCmd, { timeout: 600000 }); // 10min timeout
+      whisperOutput = stdout + stderr;
+    } catch (whisperErr) {
+      console.error('Whisper error:', whisperErr.message);
+      return res.json({ error: `Whisper failed: ${whisperErr.message}` });
+    }
+    
+    // Find the generated JSON file
+    const baseName = path.basename(audioPath, path.extname(audioPath));
+    const jsonPath = `/tmp/${baseName}.json`;
+    
+    let transcriptText = '';
+    try {
+      const jsonContent = await fs.readFile(jsonPath, 'utf-8');
+      const whisperResult = JSON.parse(jsonContent);
+      transcriptText = whisperResult.text || '';
+    } catch {
+      // Try to find any json file
+      const files = await fs.readdir('/tmp');
+      const matchingFile = files.find(f => f.startsWith(baseName) && f.endsWith('.json'));
+      if (matchingFile) {
+        const jsonContent = await fs.readFile(`/tmp/${matchingFile}`, 'utf-8');
+        const whisperResult = JSON.parse(jsonContent);
+        transcriptText = whisperResult.text || '';
+      }
+    }
+    
+    if (!transcriptText) {
+      return res.json({ error: 'No transcript generated' });
+    }
+    
+    // Calculate word count
+    const wordCount = transcriptText.split(/\s+/).filter(w => w.length > 0).length;
+    
+    // Save transcript to database
+    const { data: transcriptData, error: transcriptError } = await lifeos
+      .from('transcripts')
+      .insert([{
+        recording_id: id,
+        content: transcriptText
+      }])
+      .select()
+      .single();
+    
+    if (transcriptError) throw transcriptError;
+    
+    // Update recording status
+    await lifeos.from('recordings').update({ 
+      status: 'transcribed'
+    }).eq('id', id);
+    
+    console.log(`✅ Transcription complete: ${wordCount} words`);
+    
+    res.json({ 
+      success: true, 
+      transcript: transcriptData,
+      wordCount
+    });
+    
+  } catch (e) {
+    console.error('Transcription error:', e);
+    res.json({ error: e.message });
+  }
+});
+
+// Analyze transcript - extract tasks, ideas, blog topics
+app.post('/api/recordings/:id/analyze', async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    // Get transcript
+    const { data: transcript } = await lifeos
+      .from('transcripts')
+      .select('*')
+      .eq('recording_id', id)
+      .single();
+    
+    if (!transcript) {
+      return res.json({ error: 'No transcript found' });
+    }
+    
+    const transcriptText = transcript.content;
+    
+    // Use Ollama for intelligent analysis
+    const analysisPrompt = `You are a helpful assistant that analyzes voice transcripts and extracts structured information. 
+
+Analyze this transcript and extract:
+1. TASKS - Action items, things to do, follow-ups (prefix with "[TASK]")
+2. IDEAS - Business ideas, creative concepts, project ideas (prefix with "[IDEA]")
+3. BLOG TOPICS - Interesting topics worth writing about (prefix with "[BLOG]")
+4. SOLID ENTRIES - Facts, knowledge, or insights worth saving to a knowledge base (prefix with "[KNOWLEDGE]")
+5. SUMMARY - A brief 2-3 sentence summary of what this recording was about
+
+Return your response as a JSON object with this exact structure:
+{
+  "tasks": ["task 1", "task 2"],
+  "ideas": ["idea 1", "idea 2"],
+  "blogTopics": ["topic 1", "topic 2"],
+  "knowledge": ["knowledge item 1", "knowledge item 2"],
+  "summary": "brief summary here"
+}
+
+Transcript:
+${transcriptText}`;
+
+    let analysisResult = null;
+    
+    try {
+      // Try Minimax API
+      const minimaxKey = process.env.MINIMAX_API_KEY;
+      if (minimaxKey) {
+        const mmResponse = await axios.post('https://api.minimax.chat/v1/text/chatcompletion_pro', {
+          model: 'MiniMax-M2.5',
+          messages: [{ role: 'user', content: analysisPrompt }],
+          temperature: 0.3
+        }, {
+          headers: { 'Authorization': `Bearer ${minimaxKey}`, 'Content-Type': 'application/json' }
+        });
+        
+        const responseText = mmResponse.data.choices?.[0]?.message?.content || '';
+        // Try to extract JSON from response
+        const jsonMatch = responseText.match(/\{[\s\S]*\}/);
+        if (jsonMatch) {
+          analysisResult = JSON.parse(jsonMatch[0]);
+        }
+      } else {
+        throw new Error('No Minimax API key');
+      }
+    } catch (ollamaErr) {
+      console.log('AI not available, using rule-based analysis');
+      
+      // Fallback: Rule-based extraction
+      const lines = transcriptText.split(/[.!?\n]+/).filter(l => l.trim().length > 10);
+      
+      const tasks = [];
+      const ideas = [];
+      const blogTopics = [];
+      const knowledge = [];
+      
+      const taskKeywords = ['todo', 'task', 'need to', 'have to', 'should', 'must', 'remember to', 'don\'t forget', 'follow up', 'schedule', 'call', 'email', 'fix', 'update', 'create', 'build', 'make', 'remind me', 'add to task', 'action item'];
+      const ideaKeywords = ['idea', 'concept', 'what if', 'could', 'would be cool', 'we should', 'think about', 'new', 'build', 'start', 'launch', 'thought of', 'realized', 'journal'];
+      const blogKeywords = ['story', 'blog', 'post', 'write about', 'explain', 'teach', 'how to', 'why i', 'my thoughts on', 'opinion on', 'blog about', 'write a post'];
+      
+      for (const line of lines) {
+        const lower = line.toLowerCase();
+        
+        if (taskKeywords.some(k => lower.includes(k))) {
+          tasks.push(line.trim());
+        } else if (ideaKeywords.some(k => lower.includes(k))) {
+          ideas.push(line.trim());
+        } else if (blogKeywords.some(k => lower.includes(k))) {
+          blogTopics.push(line.trim());
+        } else if (line.length > 30 && line.length < 200) {
+          knowledge.push(line.trim());
+        }
+      }
+      
+      analysisResult = {
+        tasks: tasks.slice(0, 5),
+        ideas: ideas.slice(0, 5),
+        blogTopics: blogTopics.slice(0, 5),
+        knowledge: knowledge.slice(0, 5),
+        summary: transcriptText.substring(0, 200) + '...'
+      };
+    }
+    
+    console.log(`[ANALYSIS] Result:`, JSON.stringify(analysisResult));
+    
+    // Save analysis to database
+    const { data: analysisData, error: analysisError } = await lifeos
+      .from('recording_analysis')
+      .insert([{
+        recording_id: id,
+        tasks: analysisResult.tasks || [],
+        ideas: analysisResult.ideas || [],
+        summary: analysisResult.summary || ''
+      }])
+      .select()
+      .single();
+    
+    if (analysisError) throw analysisError;
+    
+    // Save extracted items to Cortex (properly categorized)
+    const cortexEntries = [];
+    console.log(`[CORTEX] Saving tasks: ${JSON.stringify(analysisResult.tasks)}`);
+    console.log(`[CORTEX] Saving ideas: ${JSON.stringify(analysisResult.ideas)}`);
+    
+    // Save TASKS as tasks
+    for (const task of analysisResult.tasks || []) {
+      try {
+        const { data: cortexTask, error: taskErr } = await lifeos.from('lifeos_cortex').insert([{
+          title: `Task: ${task.substring(0, 50)}`,
+          content: task,
+          section: 'all_spark',
+          category: 'project'
+        }]).select().single();
+        if (taskErr) {
+          console.error('[CORTEX] Task save error:', taskErr.message);
+        } else {
+          cortexEntries.push({ type: 'task', id: cortexTask?.id });
+          console.log(`[CORTEX] Task saved: ${cortexTask?.id}`);
+        }
+      } catch (e) { console.error('Task save error:', e.message); }
+    }
+    
+    // Save IDEAS to Cortex
+    for (const idea of analysisResult.ideas || []) {
+      try {
+        const { data: cortexIdea, error: ideaErr } = await lifeos.from('lifeos_cortex').insert([{
+          title: `Idea: ${idea.substring(0, 50)}`,
+          content: idea,
+          section: 'all_spark',
+          category: 'idea'
+        }]).select().single();
+        if (ideaErr) {
+          console.error('[CORTEX] Idea save error:', ideaErr.message);
+        } else {
+          cortexEntries.push({ type: 'idea', id: cortexIdea?.id });
+          console.log(`[CORTEX] Idea saved: ${cortexIdea?.id}`);
+        }
+      } catch (e) { console.error('Idea save error:', e.message); }
+    }
+    
+    // Save BLOG TOPICS to Idea Bank
+    for (const topic of analysisResult.blogTopics || []) {
+      try {
+        const { data: blogIdea, error: blogErr } = await lifeos.from('lifeos_cortex').insert([{
+          title: `Blog: ${topic.substring(0, 50)}`,
+          content: topic,
+          section: 'all_spark',
+          category: 'content'
+        }]).select().single();
+        if (blogErr) {
+          console.error('[CORTEX] Blog save error:', blogErr.message);
+        } else {
+          cortexEntries.push({ type: 'blog', id: blogIdea?.id });
+          console.log(`[CORTEX] Blog saved: ${blogIdea?.id}`);
+        }
+      } catch (e) { console.error('Blog save error:', e.message); }
+    }
+    
+    // Save KNOWLEDGE to Cortex (solid entries)
+    for (const item of analysisResult.knowledge || []) {
+      try {
+        const { data: cortexItem, error: knowErr } = await lifeos.from('lifeos_cortex').insert([{
+          title: `Knowledge: ${item.substring(0, 50)}`,
+          content: item,
+          section: 'all_spark',
+          category: 'tech'
+        }]).select().single();
+        if (knowErr) {
+          console.error('[CORTEX] Knowledge save error:', knowErr.message);
+        } else {
+          cortexEntries.push({ type: 'knowledge', id: cortexItem?.id });
+          console.log(`[CORTEX] Knowledge saved: ${cortexItem?.id}`);
+        }
+      } catch (e) { console.error('Knowledge save error:', e.message); }
+    }
+    
+    // Update recording status
+    await lifeos.from('recordings').update({ 
+      status: 'analyzed'
+    }).eq('id', id);
+    
+    console.log(`✅ Analysis complete: ${cortexEntries.length} items saved to Cortex`);
+    
+    res.json({ 
+      success: true, 
+      analysis: analysisData,
+      cortexEntries
+    });
+    
+  } catch (e) {
+    console.error('Analysis error:', e);
+    res.json({ error: e.message });
+  }
+});
+
+// Full pipeline: transcribe + analyze in one call
+app.post('/api/recordings/:id/process', async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    // Step 1: Transcribe
+    const transcriptRes = await axios.post(`http://localhost:3000/api/recordings/${id}/transcribe`, {}, {
+      headers: { 'Content-Type': 'application/json' }
+    });
+    
+    if (transcriptRes.data.error) {
+      return res.json({ error: 'Transcription failed: ' + transcriptRes.data.error });
+    }
+    
+    // Step 2: Analyze
+    const analyzeRes = await axios.post(`http://localhost:3000/api/recordings/${id}/analyze`, {}, {
+      headers: { 'Content-Type': 'application/json' }
+    });
+    
+    res.json({
+      success: true,
+      transcript: transcriptRes.data,
+      analysis: analyzeRes.data
+    });
+    
+  } catch (e) {
+    res.json({ error: e.message });
+  }
+});
 
 // Blog Posts API - now from Supabase
 app.post('/api/blog/posts', async (req, res) => {
@@ -3943,3 +4337,140 @@ app.post('/api/agents/status', async (req, res) => {
     res.status(500).json({ error: e.message });
   }
 });
+
+// ============================================================
+// ABYSSAL DISPATCH - Daily Digest System
+// ============================================================
+
+// Generate new dispatch
+app.post('/api/abyssal-dispatch/generate', async (req, res) => {
+  try {
+    const { generateDailyDigest } = require('./abyssal-dispatch.js');
+    const result = await generateDailyDigest();
+    res.json({ success: true, dispatch: result });
+  } catch (e) {
+    console.error('Dispatch generation error:', e);
+    res.json({ error: e.message });
+  }
+});
+
+// Get today's dispatch
+app.get('/api/abyssal-dispatch/today', async (req, res) => {
+  try {
+    const today = new Date().toISOString().split('T')[0];
+    const { data, error } = await lifeos
+      .from('abyssal_dispatches')
+      .select('*')
+      .eq('date', today)
+      .single();
+    
+    if (error || !data) {
+      // Generate if doesn't exist
+      const { generateDailyDigest } = require('./abyssal-dispatch.js');
+      const result = await generateDailyDigest();
+      return res.json({ dispatch: result });
+    }
+    
+    res.json({ dispatch: data });
+  } catch (e) {
+    res.json({ error: e.message });
+  }
+});
+
+// Get dispatch by date
+app.get('/api/abyssal-dispatch/:date', async (req, res) => {
+  try {
+    const { date } = req.params;
+    const { data, error } = await lifeos
+      .from('abyssal_dispatches')
+      .select('*')
+      .eq('date', date)
+      .single();
+    
+    res.json({ dispatch: data || null });
+  } catch (e) {
+    res.json({ error: e.message });
+  }
+});
+
+// Get all dispatches (for timeline)
+app.get('/api/abyssal-dispatch', async (req, res) => {
+  try {
+    const { data, error } = await lifeos
+      .from('abyssal_dispatches')
+      .select('*')
+      .order('date', { ascending: false })
+      .limit(30);
+    
+    res.json({ dispatches: data || [] });
+  } catch (e) {
+    res.json({ error: e.message, dispatches: [] });
+  }
+});
+
+// Regenerate specific section
+app.post('/api/abyssal-dispatch/regenerate-section', async (req, res) => {
+  try {
+    const { section } = req.body;
+    const { getWordOfTheDay, getTagalogLesson, getFrenchLesson, getCurrentEvents, getRantIdeas, getViralPrompt, getBrainPrompts, getQuote } = require('./abyssal-dispatch.js');
+    
+    let newContent;
+    switch (section) {
+      case 'word':
+        newContent = await getWordOfTheDay();
+        break;
+      case 'tagalog':
+        newContent = getTagalogLesson();
+        break;
+      case 'french':
+        newContent = getFrenchLesson();
+        break;
+      case 'events':
+        newContent = await getCurrentEvents(3);
+        break;
+      case 'rants':
+        newContent = getRantIdeas();
+        break;
+      case 'viral':
+        newContent = getViralPrompt();
+        break;
+      case 'prompts':
+        newContent = getBrainPrompts();
+        break;
+      case 'quote':
+        newContent = getQuote();
+        break;
+      default:
+        return res.json({ error: 'Unknown section' });
+    }
+    
+    res.json({ success: true, section, content: newContent });
+  } catch (e) {
+    res.json({ error: e.message });
+  }
+});
+
+// ============================================================
+// ABYSSAL DISPATCH - Daily Cron Job (10am PST)
+// ============================================================
+const cron = require('cron');
+
+function scheduleAbyssalDispatch() {
+  // 10am PST = 18:00 UTC
+  const job = new cron.CronJob('0 18 * * *', async () => {
+    console.log('🔱 Generating Abyssal Dispatch...');
+    try {
+      const { generateDailyDigest } = require('./abyssal-dispatch.js');
+      const result = await generateDailyDigest();
+      console.log('✅ Abyssal Dispatch generated:', result?.date);
+    } catch (e) {
+      console.error('❌ Abyssal Dispatch failed:', e.message);
+    }
+  }, null, false, 'America/Los_Angeles');
+  
+  job.start();
+  console.log('⏰ Abyssal Dispatch scheduled for 10am PST');
+}
+
+// Run on startup
+setTimeout(scheduleAbyssalDispatch, 5000);

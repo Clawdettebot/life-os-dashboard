@@ -118,6 +118,11 @@ const BigAnalyzingCrab = () => (
 export default function RoyalConchView({ api, data, loading }) {
     const [history, setHistory] = useState([]);
     const [loadingHistory, setLoadingHistory] = useState(true);
+    const [selectedRecording, setSelectedRecording] = useState(null);
+    const [recordingDetails, setRecordingDetails] = useState(null);
+    const [showModal, setShowModal] = useState(false);
+    const [searchQuery, setSearchQuery] = useState('');
+    const [searchExpanded, setSearchExpanded] = useState(false);
 
     // States: 'idle', 'recording', 'paused', 'analyzing'
     const [recState, setRecState] = useState('idle');
@@ -137,6 +142,50 @@ export default function RoyalConchView({ api, data, loading }) {
     useEffect(() => {
         fetchHistory();
     }, []);
+
+    // Load transcript when selecting a recording
+    useEffect(() => {
+        if (selectedRecording && selectedRecording.status === 'analyzed') {
+            loadTranscript(selectedRecording.id);
+        }
+    }, [selectedRecording]);
+
+    const loadTranscript = async (recordingId) => {
+        try {
+            const resp = await fetch(`/api/recordings/${recordingId}/transcript`);
+            const data = await resp.json();
+            if (data.transcript?.content) {
+                // Convert transcript to display format
+                const lines = data.transcript.content.split(/[.!?\n]+/).filter(l => l.trim());
+                const formatted = lines.map((line, idx) => ({
+                    speaker: 'USR',
+                    text: line.trim(),
+                    time: `${Math.floor(idx * 30 / 60).toString().padStart(2, '0')}:${(idx * 30 % 60).toString().padStart(2, '0')}`
+                }));
+                setTranscript([
+                    { speaker: 'SYS', text: `LOADED TRANSCRIPT (${data.transcript.word_count} words)`, time: '00:00' },
+                    ...formatted
+                ]);
+            }
+        } catch (e) {
+            console.error('Failed to load transcript:', e);
+        }
+    };
+
+    const handleSelectRecording = async (item) => {
+        if (recState === 'recording' || recState === 'paused') return;
+        setSelectedRecording(item);
+        
+        // Fetch transcript and analysis
+        try {
+            const resp = await fetch(`/api/recordings/${item.id}`);
+            const data = await resp.json();
+            setRecordingDetails(data);
+            setShowModal(true);
+        } catch (e) {
+            console.error('Failed to fetch recording details:', e);
+        }
+    };
 
     const fetchHistory = async () => {
         try {
@@ -290,10 +339,15 @@ export default function RoyalConchView({ api, data, loading }) {
                 setTranscript(prev => [...prev, { speaker: 'SYS', text: 'UPLOADING AUDIO...', time: formatTime(finalTimer).split('.')[0] }]);
 
                 // 1. Upload the file
-                await fetch(`/api/recordings/${recordingId}/upload`, {
+                const uploadResp = await fetch(`/api/recordings/${recordingId}/upload`, {
                     method: 'POST',
                     body: formData
                 });
+                const uploadData = await uploadResp.json();
+
+                if (uploadData.error) {
+                    throw new Error(uploadData.error);
+                }
 
                 // 2. Update duration in DB
                 await fetch(`/api/recordings/${recordingId}`, {
@@ -305,32 +359,64 @@ export default function RoyalConchView({ api, data, loading }) {
                     })
                 });
 
-                setTranscript(prev => [...prev, { speaker: 'SYS', text: 'AUDIO UPLOADED. ANALYSIS STARTED.', time: formatTime(finalTimer).split('.')[0] }]);
+                setTranscript(prev => [...prev, { speaker: 'SYS', text: 'TRANSCRIBING WITH WHISPER...', time: formatTime(finalTimer).split('.')[0] }]);
 
-                // Refresh history to show updated duration and status
-                fetchHistory();
+                // 3. Run full pipeline: transcribe + analyze
+                let pipelineAttempts = 0;
+                const maxAttempts = 20; // ~60 seconds max wait
 
-                // Poll for completion
-                let attempts = 0;
-                const pollInterval = setInterval(async () => {
-                    attempts++;
+                const pollPipeline = async () => {
+                    pipelineAttempts++;
+
                     try {
-                        const checkResp = await fetch(`/api/recordings/${recordingId}`);
-                        const { recording } = await checkResp.json();
+                        // Call the process endpoint
+                        const processResp = await fetch(`/api/recordings/${recordingId}/process`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' }
+                        });
+                        const processData = await processResp.json();
 
-                        if (recording.status === 'analyzed' || attempts > 5) {
-                            clearInterval(pollInterval);
+                        if (processData.success) {
+                            setTranscript(prev => [...prev, {
+                                speaker: 'SYS',
+                                text: `ANALYSIS COMPLETE! ${processData.analysis?.cortexEntries?.length || 0} items saved to Cortex.`,
+                                time: formatTime(finalTimer).split('.')[0]
+                            }]);
                             setRecState('idle');
-                            setTranscript(prev => [
-                                ...prev,
-                                { speaker: 'SYS', text: 'PROCESS COMPLETE. VIEW IN CORTEX.', time: formatTime(finalTimer).split('.')[0] }
-                            ]);
                             fetchHistory();
+                            return true;
+                        } else if (processData.error && pipelineAttempts < maxAttempts) {
+                            // Keep polling
+                            setTimeout(pollPipeline, 3000);
+                            return false;
+                        } else {
+                            setTranscript(prev => [...prev, {
+                                speaker: 'SYS',
+                                text: processData.error || 'PIPELINE COMPLETE.',
+                                time: formatTime(finalTimer).split('.')[0]
+                            }]);
+                            setRecState('idle');
+                            fetchHistory();
+                            return true;
                         }
                     } catch (e) {
-                        console.error("Polling error:", e);
+                        if (pipelineAttempts < maxAttempts) {
+                            setTimeout(pollPipeline, 3000);
+                        } else {
+                            setTranscript(prev => [...prev, {
+                                speaker: 'SYS',
+                                text: 'PROCESSING TIMEOUT. Check Cortex manually.',
+                                time: formatTime(finalTimer).split('.')[0]
+                            }]);
+                            setRecState('idle');
+                            fetchHistory();
+                        }
+                        return false;
                     }
-                }, 3000);
+                };
+
+                // Start polling
+                pollPipeline();
 
             } catch (e) {
                 console.error("Upload failed:", e);
@@ -348,21 +434,51 @@ export default function RoyalConchView({ api, data, loading }) {
     return (
         <div className="w-full h-full bg-transparent text-[var(--text-main)] font-space-grotesk relative overflow-hidden flex flex-col items-center transition-colors duration-700">
 
-            {/* THE ROYAL CONCH - Animated Title */}
-            <motion.h1
-                initial={{ opacity: 0, y: -20, letterSpacing: '0em' }}
-                animate={{ opacity: 1, y: 0, letterSpacing: '0.15em' }}
-                transition={{ duration: 0.8, ease: "easeOut" }}
-                style={{ filter: 'drop-shadow(0 0 15px var(--text-faint))' }}
-                className="text-[var(--text-main)] font-black text-3xl md:text-5xl uppercase font-space-grotesk mt-8 md:mt-12 z-40 relative transition-colors duration-700"
-            >
-                The Royal Conch
-            </motion.h1>
+            {/* HEADER AREA: Title + Search */}
+            <div className="w-full max-w-5xl relative flex flex-col items-center mt-6 md:mt-8 z-40 px-4">
+                {/* Expandable Search at Top Right - Above Title */}
+                <div className="absolute right-0 top-0 hidden md:block z-50">
+                    <motion.div
+                        initial={false}
+                        animate={{ width: searchExpanded ? 280 : 48 }}
+                        className="relative"
+                    >
+                        <div 
+                            onClick={() => setSearchExpanded(true)}
+                            className={`absolute right-0 top-1/2 -translate-y-1/2 flex items-center justify-center w-12 h-10 cursor-pointer rounded-lg transition-colors ${searchExpanded ? 'bg-[var(--bg-overlay)]' : 'hover:bg-[var(--bg-overlay)]'}`}
+                        >
+                            <Search size={14} className="text-[var(--text-muted)]" />
+                        </div>
+                        <motion.input
+                            initial={false}
+                            animate={{ opacity: searchExpanded ? 1 : 0, x: searchExpanded ? 0 : 20 }}
+                            transition={{ duration: 0.2 }}
+                            type="text"
+                            placeholder="SEARCH RECORDINGS..."
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.target.value)}
+                            onFocus={() => setSearchExpanded(true)}
+                            onBlur={() => setTimeout(() => setSearchExpanded(false), 200)}
+                            className="w-full h-10 pl-12 pr-4 bg-[var(--bg-overlay)] border border-[var(--border-color)] rounded-lg text-[10px] font-space-mono uppercase tracking-wider text-[var(--text-main)] placeholder-[var(--text-faint)] focus:outline-none focus:border-[var(--border-highlight)] transition-colors"
+                        />
+                    </motion.div>
+                </div>
+                
+                <motion.h1
+                    initial={{ opacity: 0, y: -20, letterSpacing: '0em' }}
+                    animate={{ opacity: 1, y: 0, letterSpacing: '0.15em' }}
+                    transition={{ duration: 0.8, ease: "easeOut" }}
+                    style={{ filter: 'drop-shadow(0 0 15px var(--text-faint))' }}
+                    className="text-[var(--text-main)] font-black text-3xl md:text-5xl uppercase font-space-grotesk relative transition-colors duration-700"
+                >
+                    The Royal Conch
+                </motion.h1>
+            </div>
 
             {/* HORIZONTAL SCROLLABLE TIMELINE (Replaces Pill Nav) */}
             <motion.div
                 layout
-                className="w-full max-w-5xl mx-auto flex flex-col md:flex-row items-center justify-between gap-4 mt-8 mb-6 z-50 shrink-0 px-4"
+                className="w-full max-w-5xl mx-auto flex items-center justify-between gap-4 mt-8 mb-6 z-50 shrink-0 px-4"
             >
                 <div className="flex-1 flex items-center gap-3 overflow-x-auto scrollbar-hide w-full pb-2 relative">
                     <AnimatePresence>
@@ -370,11 +486,14 @@ export default function RoyalConchView({ api, data, loading }) {
                             <motion.div
                                 key={item.id}
                                 initial={{ opacity: 0, x: -30, scale: 0.9 }}
-                                animate={{ opacity: 1, x: 0, scale: 1 }}
+                                animate={{ opacity: 1, x: 0, scale: selectedRecording?.id === item.id ? 1.05 : 1 }}
                                 layout
-                                className={`min-w-[160px] md:min-w-[180px] p-3 rounded-xl border flex flex-col gap-1.5 shrink-0 transition-colors cursor-pointer relative overflow-hidden ${item.duration === '--'
-                                    ? 'bg-[var(--bg-overlay)] border-[rgb(var(--rgb-accent-main))] shadow-[0_0_15px_rgba(var(--rgb-accent-main),0.2)]'
-                                    : 'bg-[var(--bg-panel)] border-[var(--border-color)] hover:border-[var(--border-highlight)]'
+                                onClick={() => handleSelectRecording(item)}
+                                className={`min-w-[160px] md:min-w-[180px] p-3 rounded-xl border flex flex-col gap-1.5 shrink-0 transition-colors cursor-pointer relative overflow-hidden ${selectedRecording?.id === item.id
+                                    ? 'bg-[var(--bg-overlay)] border-[rgb(var(--rgb-accent-main))] shadow-[0_0_20px_rgba(var(--rgb-accent-main),0.4)]'
+                                    : item.duration === '--'
+                                        ? 'bg-[var(--bg-overlay)] border-[rgb(var(--rgb-accent-main))] shadow-[0_0_15px_rgba(var(--rgb-accent-main),0.2)]'
+                                        : 'bg-[var(--bg-panel)] border-[var(--border-color)] hover:border-[var(--border-highlight)]'
                                     }`}
                             >
                                 {/* Active Recording Pulse Indicator */}
@@ -402,16 +521,6 @@ export default function RoyalConchView({ api, data, loading }) {
                         ))}
                     </AnimatePresence>
                 </div>
-
-                {/* Search Bar appended to the end of the timeline row */}
-                <div className="relative w-full md:w-64 shrink-0 pb-2 md:pb-0">
-                    <Search size={14} className="absolute left-5 top-1/2 -translate-y-1/2 text-[var(--text-muted)] md:-mt-1" />
-                    <input
-                        type="text"
-                        placeholder="SEARCH RECORDS..."
-                        className="w-full bg-[var(--bg-base)] border border-[var(--border-color)] rounded-xl py-2.5 pl-10 pr-4 text-[10px] font-space-mono uppercase tracking-widest text-[var(--text-main)] placeholder-[var(--text-faint)] focus:outline-none focus:border-[var(--border-highlight)] transition-colors shadow-inner md:-mt-2"
-                    />
-                </div>
             </motion.div>
 
             {/* MAIN VERTICAL CONTENT STACK */}
@@ -435,12 +544,12 @@ export default function RoyalConchView({ api, data, loading }) {
                     {/* ========================================================= */}
                     <div className="absolute -right-4 -bottom-4 opacity-30 pointer-events-none w-[200px] h-[200px] flex items-center justify-center">
 
-                        {/* 1. PLACEHOLDER FOR MAIN SHRIMP PNG (Replaces the big Radio icon) */}
+                        {/* 1. MAIN SHRIMP PNG */}
                         <div className="w-full h-full flex items-center justify-center rounded-full bg-[var(--bg-overlay)]/40 overflow-hidden">
-                            <ShrimpSoldier size={180} className="mt-8 scale-x-[-1] opacity-70" />
+                            <img src="/shrimp.png" alt="Shrimp" className="w-[180px] h-[180px] object-contain mt-8 scale-x-[-1] opacity-100" />
                         </div>
 
-                        {/* 2. PLACEHOLDER FOR SMALLER SHRIMP SVG (At the corner of the box) */}
+                        {/* 2. SMALLER SHRIMP SVG (At the corner of the box) */}
                         <div className="absolute bottom-6 right-6 w-[60px] h-[60px] border border-[rgb(var(--rgb-accent-main))] bg-[var(--bg-panel)] rounded-full flex items-center justify-center shadow-[0_0_15px_rgba(var(--rgb-accent-main),0.3)] overflow-hidden">
                             <ShrimpSoldier size={50} className="mt-4" />
                         </div>
@@ -650,6 +759,80 @@ export default function RoyalConchView({ api, data, loading }) {
                         </span>
                     </div>
                 </motion.div>
+
+                {/* Recording Details Modal */}
+                <AnimatePresence>
+                    {showModal && (
+                        <motion.div 
+                            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                            className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+                            onClick={() => setShowModal(false)}
+                        >
+                            <motion.div 
+                                initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.9, opacity: 0 }}
+                                className="bg-[var(--bg-panel)] border border-[var(--border-color)] rounded-xl max-w-2xl w-full max-h-[80vh] overflow-hidden flex flex-col"
+                                onClick={e => e.stopPropagation()}
+                            >
+                                <div className="p-4 border-b border-[var(--border-color)] flex items-center justify-between">
+                                    <h3 className="font-space-mono text-sm tracking-wider text-[var(--text-main)]">
+                                        {selectedRecording?.title || 'VOICE RECORDING'}
+                                    </h3>
+                                    <button onClick={() => setShowModal(false)} className="text-[var(--text-faint)] hover:text-[var(--text-main)]">
+                                        <Square size={16} />
+                                    </button>
+                                </div>
+                                
+                                <div className="flex-1 overflow-y-auto p-4 space-y-4">
+                                    {/* Transcript */}
+                                    {recordingDetails?.transcript && (
+                                        <div>
+                                            <h4 className="text-[10px] font-bold tracking-wider text-[var(--text-faint)] uppercase mb-2">Transcript</h4>
+                                            <p className="text-sm text-[var(--text-main)] leading-relaxed">
+                                                {recordingDetails.transcript.content}
+                                            </p>
+                                        </div>
+                                    )}
+                                    
+                                    {/* Analysis */}
+                                    {recordingDetails?.analysis && (
+                                        <div className="space-y-3">
+                                            <h4 className="text-[10px] font-bold tracking-wider text-[var(--text-faint)] uppercase mt-4">Extracted Items</h4>
+                                            
+                                            {recordingDetails.analysis.tasks?.length > 0 && (
+                                                <div className="bg-[var(--bg-base)] rounded-lg p-3 border border-[var(--border-color)]">
+                                                    <span className="text-[10px] font-bold text-[var(--rgb-accent-main)] uppercase">Tasks</span>
+                                                    <ul className="mt-2 space-y-1">
+                                                        {recordingDetails.analysis.tasks.map((t, i) => (
+                                                            <li key={i} className="text-xs text-[var(--text-main)]">• {t}</li>
+                                                        ))}
+                                                    </ul>
+                                                </div>
+                                            )}
+                                            
+                                            {recordingDetails.analysis.ideas?.length > 0 && (
+                                                <div className="bg-[var(--bg-base)] rounded-lg p-3 border border-[var(--border-color)]">
+                                                    <span className="text-[10px] font-bold text-purple-400 uppercase">Ideas</span>
+                                                    <ul className="mt-2 space-y-1">
+                                                        {recordingDetails.analysis.ideas.map((t, i) => (
+                                                            <li key={i} className="text-xs text-[var(--text-main)]">• {t}</li>
+                                                        ))}
+                                                    </ul>
+                                                </div>
+                                            )}
+                                            
+                                            {recordingDetails.analysis.summary && (
+                                                <div className="bg-[var(--bg-base)] rounded-lg p-3 border border-[var(--border-color)]">
+                                                    <span className="text-[10px] font-bold text-[var(--text-faint)] uppercase">Summary</span>
+                                                    <p className="text-xs text-[var(--text-muted)] mt-1">{recordingDetails.analysis.summary}</p>
+                                                </div>
+                                            )}
+                                        </div>
+                                    )}
+                                </div>
+                            </motion.div>
+                        </motion.div>
+                    )}
+                </AnimatePresence>
 
             </div>
         </div>
