@@ -1,5 +1,6 @@
 import RoyalConchView from './components/RoyalConchView';
 import AbyssalDispatchView from './components/AbyssalDispatchView';
+import JournalView from './components/JournalView';
 // API_FIX_BUILD 
 // NEW_BUILD_1772622558
 // Life OS Dashboard - Full Design Integration
@@ -13,7 +14,7 @@ import {
   Utensils, Compass, History, Navigation, Leaf, Droplet, Tent, Send, Edit2,
   Trash2, BarChart2, Globe, Video, PenTool, Eye, RefreshCw, ChevronLeft,
   Folder, Archive, Home, Wallet, TrendingUp, TrendingDown, Coffee, HomeIcon,
-  Car, Heart, Briefcase as WorkIcon, Gift, Waves
+  Car, Heart, Briefcase as WorkIcon, Gift, Waves, Scissors
 } from 'lucide-react';
 import { createClient } from '@supabase/supabase-js';
 
@@ -28,6 +29,7 @@ import InventoryView from './components/InventoryView';
 import CortexView from './components/CortexView';
 import ProjectsView from './components/ProjectsView';
 import StreamsView from './components/StreamsView';
+import StreamClipperView from './components/StreamClipperView';
 import BlogVoiceView from './components/BlogVoiceView';
 import IdeaBankView from './components/IdeaBankView';
 import ContactsView from './components/ContactsView';
@@ -70,6 +72,7 @@ const NAV_SECTIONS = [
       { id: 'projects', label: 'Projects', icon: Briefcase },
       { id: 'calendar', label: 'Calendar', icon: Calendar },
       { id: 'streams', label: 'Streams', icon: Radio },
+      { id: 'stream-clipper', label: '🎬 Clips', icon: Scissors },
       { id: 'inventory', label: 'Inventory', icon: Box },
     ]
   },
@@ -521,6 +524,7 @@ export default function App() {
       case 'projects': return <ProjectsView {...data} {...viewProps} />;
       case 'calendar': return <CalendarView {...data} {...viewProps} />;
       case 'streams': return <StreamsView {...data} {...viewProps} />;
+      case 'stream-clipper': return <StreamClipperView theme={currentTheme} />;
       case 'inventory': return <InventoryView {...data} {...viewProps} />;
       case 'scheduler': return <ContentSchedulerView {...data} {...viewProps} />;
       case 'social': return <LabrinavSocialView {...viewProps} />;
@@ -531,7 +535,7 @@ export default function App() {
       case 'notes': return <NotesView {...data} {...viewProps} />;
       case 'royal-conch': return <RoyalConchView {...viewProps} />;
       case 'abyssal-dispatch': return <AbyssalDispatchView theme={currentTheme} />;
-      case 'journal': return <div className="h-full flex items-center justify-center"><Card title="Journal"><p>Journal view coming soon</p></Card></div>;
+      case 'journal': return <JournalView theme={currentTheme} />;
       case 'cortex': return <CortexView {...viewProps} />;
       case 'contacts': return <ContactsView {...viewProps} />;
       default:

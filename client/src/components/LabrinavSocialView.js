@@ -114,20 +114,6 @@ const ReleaseCountdownModule = ({ release }) => {
     const timer = setInterval(() => setTimeLeft(calculateTimeLeft()), 1000);
     return () => clearInterval(timer);
   }, [targetDate]);
-  const [timeLeft, setTimeLeft] = useState({ d: 14, h: 8, m: 45, s: 12 });
-  useEffect(() => {
-    const timer = setInterval(() => {
-      setTimeLeft(prev => {
-        let { d, h, m, s } = prev;
-        s--;
-        if (s < 0) { s = 59; m--; }
-        if (m < 0) { m = 59; h--; }
-        if (h < 0) { h = 23; d--; }
-        return { d, h, m, s };
-      });
-    }, 1000);
-    return () => clearInterval(timer);
-  }, []);
 
   return (
     <div className="hover-spotlight bg-[var(--bg-card)] rounded-[2.5rem] border border-[var(--border-color)] p-8 shadow-sm flex flex-col justify-between h-full hover:border-[var(--border-highlight)] transition-colors relative overflow-hidden group">

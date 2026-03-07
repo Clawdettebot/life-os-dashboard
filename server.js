@@ -359,7 +359,7 @@ app.patch('/api/recordings/:id', async (req, res) => {
     const { status } = req.body;
     const { data, error } = await lifeos
       .from('recordings')
-      .update({ 
+      .update({
         status
       })
       .eq('id', id)
@@ -390,8 +390,8 @@ app.post('/api/analysis', async (req, res) => {
     const { recording_id, tasks, ideas, projects, summary, key_topics } = req.body;
     const { data, error } = await lifeos
       .from('recording_analysis')
-      .insert([{ 
-        recording_id, 
+      .insert([{
+        recording_id,
         tasks: tasks || [],
         ideas: ideas || [],
         projects: projects || [],
@@ -401,10 +401,10 @@ app.post('/api/analysis', async (req, res) => {
       .select()
       .single();
     if (error) throw error;
-    
+
     // Update recording status
     await lifeos.from('recordings').update({ status: 'analyzed' }).eq('id', recording_id);
-    
+
     res.json({ analysis: data });
   } catch (e) { res.json({ error: e.message }); }
 });
@@ -427,24 +427,24 @@ app.post('/api/recordings/:id/upload', recordingsUpload.single('audio'), async (
     const { id } = req.params;
     console.log(`[UPLOAD] Recording ID: ${id}, File:`, req.file);
     if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
-    
+
     // Move to permanent storage (copy + delete because cross-device rename fails)
     const destPath = `/mnt/7DC21CFC5AB9C3AB/Apps/code/life-os-dashboard/data/recordings/${req.file.filename}`;
     require('fs').mkdirSync(require('path').dirname(destPath), { recursive: true });
     require('fs').copyFileSync(req.file.path, destPath);
     require('fs').unlinkSync(req.file.path); // Clean up temp file
     console.log(`[UPLOAD] File copied to: ${destPath}`);
-    
+
     // Update status only (file_path column may not exist in Supabase)
-    const updateResult = await lifeos.from('recordings').update({ 
+    const updateResult = await lifeos.from('recordings').update({
       status: 'transcribing'
     }).eq('id', id);
     console.log(`[UPLOAD] DB status update:`, updateResult.error ? updateResult.error.message : 'ok');
-    
+
     res.json({ success: true, path: destPath });
-  } catch (e) { 
+  } catch (e) {
     console.error(`[UPLOAD] Error:`, e);
-    res.json({ error: e.message }); 
+    res.json({ error: e.message });
   }
 });
 
@@ -485,30 +485,30 @@ app.get('/api/recordings/:id/transcript', async (req, res) => {
 app.post('/api/recordings/:id/transcribe', async (req, res) => {
   try {
     const { id } = req.params;
-    
+
     // Get recording info
     const { data: recording } = await lifeos
       .from('recordings')
       .select('*')
       .eq('id', id)
       .single();
-    
+
     if (!recording) {
       return res.json({ error: 'Recording not found' });
     }
-    
+
     // Look for audio file in local recordings directory
     const recordingsDir = '/mnt/7DC21CFC5AB9C3AB/Apps/code/life-os-dashboard/data/recordings';
     const files = await fs.readdir(recordingsDir);
     // Find files that start with the recording ID (multer generates unique filenames)
     const audioFile = files.find(f => f.includes(id) || f.startsWith(id.split('-')[0]));
-    
+
     if (!audioFile) {
       // Try to find any recently modified file as fallback
       const recentFiles = files
         .map(f => ({ name: f, mtime: require('fs').statSync(path.join(recordingsDir, f)).mtime }))
         .sort((a, b) => b.mtime - a.mtime);
-      
+
       if (recentFiles.length === 0) {
         return res.json({ error: 'Recording not found or no audio file' });
       }
@@ -517,24 +517,24 @@ app.post('/api/recordings/:id/transcribe', async (req, res) => {
     } else {
       var audioPath = path.join(recordingsDir, audioFile);
     }
-    
+
     // Check if file exists
     try {
       await fs.access(audioPath);
     } catch {
       return res.json({ error: 'Audio file not found on disk' });
     }
-    
+
     // Run Whisper transcription
     console.log(`🎙️ Starting transcription for ${id}...`);
-    
+
     const { exec: execAsync } = require('child_process');
     const { promisify } = require('util');
     const execPromise = promisify(execAsync);
-    
+
     // Use local whisper CLI - output JSON for easy parsing
     const whisperCmd = `whisper "${audioPath}" --model base --language en --output_format json --output_dir /tmp`;
-    
+
     let whisperOutput = '';
     try {
       const { stdout, stderr } = await execPromise(whisperCmd, { timeout: 600000 }); // 10min timeout
@@ -543,11 +543,11 @@ app.post('/api/recordings/:id/transcribe', async (req, res) => {
       console.error('Whisper error:', whisperErr.message);
       return res.json({ error: `Whisper failed: ${whisperErr.message}` });
     }
-    
+
     // Find the generated JSON file
     const baseName = path.basename(audioPath, path.extname(audioPath));
     const jsonPath = `/tmp/${baseName}.json`;
-    
+
     let transcriptText = '';
     try {
       const jsonContent = await fs.readFile(jsonPath, 'utf-8');
@@ -563,14 +563,14 @@ app.post('/api/recordings/:id/transcribe', async (req, res) => {
         transcriptText = whisperResult.text || '';
       }
     }
-    
+
     if (!transcriptText) {
       return res.json({ error: 'No transcript generated' });
     }
-    
+
     // Calculate word count
     const wordCount = transcriptText.split(/\s+/).filter(w => w.length > 0).length;
-    
+
     // Save transcript to database
     const { data: transcriptData, error: transcriptError } = await lifeos
       .from('transcripts')
@@ -580,22 +580,22 @@ app.post('/api/recordings/:id/transcribe', async (req, res) => {
       }])
       .select()
       .single();
-    
+
     if (transcriptError) throw transcriptError;
-    
+
     // Update recording status
-    await lifeos.from('recordings').update({ 
+    await lifeos.from('recordings').update({
       status: 'transcribed'
     }).eq('id', id);
-    
+
     console.log(`✅ Transcription complete: ${wordCount} words`);
-    
-    res.json({ 
-      success: true, 
+
+    res.json({
+      success: true,
       transcript: transcriptData,
       wordCount
     });
-    
+
   } catch (e) {
     console.error('Transcription error:', e);
     res.json({ error: e.message });
@@ -606,20 +606,20 @@ app.post('/api/recordings/:id/transcribe', async (req, res) => {
 app.post('/api/recordings/:id/analyze', async (req, res) => {
   try {
     const { id } = req.params;
-    
+
     // Get transcript
     const { data: transcript } = await lifeos
       .from('transcripts')
       .select('*')
       .eq('recording_id', id)
       .single();
-    
+
     if (!transcript) {
       return res.json({ error: 'No transcript found' });
     }
-    
+
     const transcriptText = transcript.content;
-    
+
     // Use Ollama for intelligent analysis
     const analysisPrompt = `You are a helpful assistant that analyzes voice transcripts and extracts structured information. 
 
@@ -643,7 +643,7 @@ Transcript:
 ${transcriptText}`;
 
     let analysisResult = null;
-    
+
     try {
       // Try Minimax API
       const minimaxKey = process.env.MINIMAX_API_KEY;
@@ -655,7 +655,7 @@ ${transcriptText}`;
         }, {
           headers: { 'Authorization': `Bearer ${minimaxKey}`, 'Content-Type': 'application/json' }
         });
-        
+
         const responseText = mmResponse.data.choices?.[0]?.message?.content || '';
         // Try to extract JSON from response
         const jsonMatch = responseText.match(/\{[\s\S]*\}/);
@@ -667,22 +667,22 @@ ${transcriptText}`;
       }
     } catch (ollamaErr) {
       console.log('AI not available, using rule-based analysis');
-      
+
       // Fallback: Rule-based extraction
       const lines = transcriptText.split(/[.!?\n]+/).filter(l => l.trim().length > 10);
-      
+
       const tasks = [];
       const ideas = [];
       const blogTopics = [];
       const knowledge = [];
-      
+
       const taskKeywords = ['todo', 'task', 'need to', 'have to', 'should', 'must', 'remember to', 'don\'t forget', 'follow up', 'schedule', 'call', 'email', 'fix', 'update', 'create', 'build', 'make', 'remind me', 'add to task', 'action item'];
       const ideaKeywords = ['idea', 'concept', 'what if', 'could', 'would be cool', 'we should', 'think about', 'new', 'build', 'start', 'launch', 'thought of', 'realized', 'journal'];
       const blogKeywords = ['story', 'blog', 'post', 'write about', 'explain', 'teach', 'how to', 'why i', 'my thoughts on', 'opinion on', 'blog about', 'write a post'];
-      
+
       for (const line of lines) {
         const lower = line.toLowerCase();
-        
+
         if (taskKeywords.some(k => lower.includes(k))) {
           tasks.push(line.trim());
         } else if (ideaKeywords.some(k => lower.includes(k))) {
@@ -693,7 +693,7 @@ ${transcriptText}`;
           knowledge.push(line.trim());
         }
       }
-      
+
       analysisResult = {
         tasks: tasks.slice(0, 5),
         ideas: ideas.slice(0, 5),
@@ -702,9 +702,9 @@ ${transcriptText}`;
         summary: transcriptText.substring(0, 200) + '...'
       };
     }
-    
+
     console.log(`[ANALYSIS] Result:`, JSON.stringify(analysisResult));
-    
+
     // Save analysis to database
     const { data: analysisData, error: analysisError } = await lifeos
       .from('recording_analysis')
@@ -716,14 +716,14 @@ ${transcriptText}`;
       }])
       .select()
       .single();
-    
+
     if (analysisError) throw analysisError;
-    
+
     // Save extracted items to Cortex (properly categorized)
     const cortexEntries = [];
     console.log(`[CORTEX] Saving tasks: ${JSON.stringify(analysisResult.tasks)}`);
     console.log(`[CORTEX] Saving ideas: ${JSON.stringify(analysisResult.ideas)}`);
-    
+
     // Save TASKS as tasks
     for (const task of analysisResult.tasks || []) {
       try {
@@ -741,7 +741,7 @@ ${transcriptText}`;
         }
       } catch (e) { console.error('Task save error:', e.message); }
     }
-    
+
     // Save IDEAS to Cortex
     for (const idea of analysisResult.ideas || []) {
       try {
@@ -759,7 +759,7 @@ ${transcriptText}`;
         }
       } catch (e) { console.error('Idea save error:', e.message); }
     }
-    
+
     // Save BLOG TOPICS to Idea Bank
     for (const topic of analysisResult.blogTopics || []) {
       try {
@@ -777,7 +777,7 @@ ${transcriptText}`;
         }
       } catch (e) { console.error('Blog save error:', e.message); }
     }
-    
+
     // Save KNOWLEDGE to Cortex (solid entries)
     for (const item of analysisResult.knowledge || []) {
       try {
@@ -795,20 +795,20 @@ ${transcriptText}`;
         }
       } catch (e) { console.error('Knowledge save error:', e.message); }
     }
-    
+
     // Update recording status
-    await lifeos.from('recordings').update({ 
+    await lifeos.from('recordings').update({
       status: 'analyzed'
     }).eq('id', id);
-    
+
     console.log(`✅ Analysis complete: ${cortexEntries.length} items saved to Cortex`);
-    
-    res.json({ 
-      success: true, 
+
+    res.json({
+      success: true,
       analysis: analysisData,
       cortexEntries
     });
-    
+
   } catch (e) {
     console.error('Analysis error:', e);
     res.json({ error: e.message });
@@ -819,27 +819,27 @@ ${transcriptText}`;
 app.post('/api/recordings/:id/process', async (req, res) => {
   try {
     const { id } = req.params;
-    
+
     // Step 1: Transcribe
     const transcriptRes = await axios.post(`http://localhost:3000/api/recordings/${id}/transcribe`, {}, {
       headers: { 'Content-Type': 'application/json' }
     });
-    
+
     if (transcriptRes.data.error) {
       return res.json({ error: 'Transcription failed: ' + transcriptRes.data.error });
     }
-    
+
     // Step 2: Analyze
     const analyzeRes = await axios.post(`http://localhost:3000/api/recordings/${id}/analyze`, {}, {
       headers: { 'Content-Type': 'application/json' }
     });
-    
+
     res.json({
       success: true,
       transcript: transcriptRes.data,
       analysis: analyzeRes.data
     });
-    
+
   } catch (e) {
     res.json({ error: e.message });
   }
@@ -4265,7 +4265,7 @@ app.post('/api/discord/send', async (req, res) => {
 app.post('/api/abyssal-dispatch/generate', async (req, res) => {
   try {
     const { generateDailyDigest } = require('./abyssal-dispatch.js');
-require('./labrina-routes')
+    require('./labrina-routes')
     const result = await generateDailyDigest();
     res.json({ success: true, dispatch: result });
   } catch (e) {
@@ -4283,14 +4283,14 @@ app.get('/api/abyssal-dispatch/today', async (req, res) => {
       .select('*')
       .eq('date', today)
       .single();
-    
+
     if (error || !data) {
       const { generateDailyDigest } = require('./abyssal-dispatch.js');
-require('./labrina-routes')
+      require('./labrina-routes')
       const result = await generateDailyDigest();
       return res.json({ dispatch: result });
     }
-    
+
     res.json({ dispatch: data });
   } catch (e) {
     res.json({ error: e.message });
@@ -4306,7 +4306,7 @@ app.get('/api/abyssal-dispatch/:date', async (req, res) => {
       .select('*')
       .eq('date', date)
       .single();
-    
+
     res.json({ dispatch: data || null });
   } catch (e) {
     res.json({ error: e.message });
@@ -4321,7 +4321,7 @@ app.get('/api/abyssal-dispatch', async (req, res) => {
       .select('*')
       .order('date', { ascending: false })
       .limit(30);
-    
+
     res.json({ dispatches: data || [] });
   } catch (e) {
     res.json({ error: e.message, dispatches: [] });
@@ -4333,8 +4333,8 @@ app.post('/api/abyssal-dispatch/regenerate-section', async (req, res) => {
   try {
     const { section } = req.body;
     const { getWordOfTheDay, getTagalogLesson, getFrenchLesson, getCurrentEvents, getRantIdeas, getViralPrompt, getBrainPrompts, getQuote } = require('./abyssal-dispatch.js');
-require('./labrina-routes')
-    
+    require('./labrina-routes')
+
     let newContent;
     switch (section) {
       case 'word': newContent = await getWordOfTheDay(); break;
@@ -4347,11 +4347,282 @@ require('./labrina-routes')
       case 'quote': newContent = getQuote(); break;
       default: return res.json({ error: 'Unknown section' });
     }
-    
+
     res.json({ success: true, section, content: newContent });
   } catch (e) {
     res.json({ error: e.message });
   }
+});
+
+// ============================================
+// STREAM CLIPPER API
+// ============================================
+const fsSync = require('fs');
+const util = require('util');
+const execPromise = util.promisify(exec);
+
+// In-memory clip history (persists for server lifetime)
+const clipHistory = [];
+
+// Stream video file through server
+app.get('/api/stream-clipper/stream', (req, res) => {
+  const videoPath = req.query.path;
+  if (!videoPath) return res.status(400).json({ error: 'No path provided' });
+
+  try {
+    const stat = fsSync.statSync(videoPath);
+    const fileSize = stat.size;
+    const range = req.headers.range;
+
+    if (range) {
+      const parts = range.replace(/bytes=/, '').split('-');
+      const start = parseInt(parts[0], 10);
+      const end = parts[1] ? parseInt(parts[1], 10) : fileSize - 1;
+      const chunksize = end - start + 1;
+      const file = fsSync.createReadStream(videoPath, { start, end });
+      const head = {
+        'Content-Range': `bytes ${start}-${end}/${fileSize}`,
+        'Accept-Ranges': 'bytes',
+        'Content-Length': chunksize,
+        'Content-Type': 'video/mp4',
+      };
+      res.writeHead(206, head);
+      file.pipe(res);
+    } else {
+      const head = {
+        'Content-Length': fileSize,
+        'Content-Type': 'video/mp4',
+      };
+      res.writeHead(200, head);
+      fsSync.createReadStream(videoPath).pipe(res);
+    }
+  } catch (err) {
+    console.error('Stream error:', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.get('/api/stream-clipper/videos', async (req, res) => {
+  const videoPath = req.query.path || '/videos/livestreams';
+  const videoExts = ['.mp4', '.mov', '.avi', '.mkv', '.webm', '.m4v'];
+
+  try {
+    if (!fsSync.existsSync(videoPath)) {
+      return res.json({ videos: [], error: 'Path not found: ' + videoPath });
+    }
+
+    const files = fsSync.readdirSync(videoPath)
+      .filter(f => videoExts.includes(path.extname(f).toLowerCase()))
+      .map(f => {
+        const stats = fsSync.statSync(path.join(videoPath, f));
+        return { name: f, path: path.join(videoPath, f), size: stats.size, modified: stats.mtime };
+      })
+      .sort((a, b) => b.modified - a.modified);
+
+    res.json({ videos: files });
+  } catch (e) {
+    res.json({ videos: [], error: e.message });
+  }
+});
+
+// ffprobe metadata for a video file
+app.get('/api/stream-clipper/probe', async (req, res) => {
+  const videoPath = req.query.path;
+  if (!videoPath) return res.status(400).json({ error: 'No path' });
+  try {
+    const cmd = `ffprobe -v quiet -print_format json -show_streams -show_format "${videoPath}"`;
+    const { stdout } = await execPromise(cmd);
+    const info = JSON.parse(stdout);
+    const videoStream = (info.streams || []).find(s => s.codec_type === 'video') || {};
+    const format = info.format || {};
+    res.json({
+      duration: parseFloat(format.duration || 0),
+      width: videoStream.width || 0,
+      height: videoStream.height || 0,
+      codec: videoStream.codec_name || 'unknown',
+      bitrate: parseInt(format.bit_rate || 0),
+      size: parseInt(format.size || 0)
+    });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// Export clip — uses stream copy (no re-encode = instant)
+app.post('/api/stream-clipper/export', async (req, res) => {
+  const { inputPath, outputName, startTime, endTime, outputDir: customDir } = req.body;
+  const defaultDir = path.join(process.env.HOME || '/home/falcon', 'Videos', 'clips');
+  const outputDir = customDir && customDir.trim() ? customDir.trim() : defaultDir;
+  const outputPath = path.join(outputDir, `${outputName}.mp4`);
+
+  if (!fsSync.existsSync(outputDir)) { fsSync.mkdirSync(outputDir, { recursive: true }); }
+
+  const duration = endTime - startTime;
+  // Use -c copy for instant stream-copy (no re-encoding). -avoid_negative_timestamps
+  // fixes PTS issues common in live recordings.
+  const ffmpegCmd = `ffmpeg -ss ${startTime} -i "${inputPath}" -t ${duration} -c copy -avoid_negative_timestamps 1 "${outputPath}" -y`;
+
+  try {
+    await execPromise(ffmpegCmd);
+    const stats = fsSync.statSync(outputPath);
+    const entry = {
+      id: Date.now(),
+      name: outputName,
+      outputPath,
+      sourceName: path.basename(inputPath),
+      startTime,
+      endTime,
+      duration,
+      size: stats.size,
+      exportedAt: new Date().toISOString()
+    };
+    clipHistory.unshift(entry);
+    if (clipHistory.length > 50) clipHistory.pop(); // Keep last 50
+    res.json({ success: true, outputPath, clip: entry });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// Get clip history
+app.get('/api/stream-clipper/clips', (req, res) => {
+  // Filter out clips whose files no longer exist
+  const live = clipHistory.filter(c => fsSync.existsSync(c.outputPath));
+  res.json({ clips: live });
+});
+
+// Thumbnail: extract a frame from the middle of the video
+app.get('/api/stream-clipper/thumbnail', async (req, res) => {
+  const videoPath = req.query.path;
+  if (!videoPath) return res.status(400).json({ error: 'No path' });
+
+  // Cache thumbs in /tmp by hashing the path
+  const thumbName = Buffer.from(videoPath).toString('base64').replace(/[/+=]/g, '_') + '.jpg';
+  const thumbPath = path.join('/tmp', 'lifeos_thumbs', thumbName);
+
+  if (!fsSync.existsSync(path.join('/tmp', 'lifeos_thumbs'))) {
+    fsSync.mkdirSync(path.join('/tmp', 'lifeos_thumbs'), { recursive: true });
+  }
+
+  if (fsSync.existsSync(thumbPath)) {
+    // Serve cached thumbnail
+    res.setHeader('Content-Type', 'image/jpeg');
+    res.setHeader('Cache-Control', 'public, max-age=86400');
+    return fsSync.createReadStream(thumbPath).pipe(res);
+  }
+
+  try {
+    // Probe duration first so we can snapshot the midpoint
+    const probeCmd = `ffprobe -v quiet -print_format json -show_format "${videoPath}"`;
+    const { stdout } = await execPromise(probeCmd);
+    const info = JSON.parse(stdout);
+    const dur = parseFloat(info.format?.duration || 0);
+    const seekTo = Math.max(1, Math.floor(dur / 2));
+
+    const cmd = `ffmpeg -ss ${seekTo} -i "${videoPath}" -vframes 1 -q:v 5 -vf "scale=320:-1" "${thumbPath}" -y`;
+    await execPromise(cmd);
+    res.setHeader('Content-Type', 'image/jpeg');
+    res.setHeader('Cache-Control', 'public, max-age=86400');
+    fsSync.createReadStream(thumbPath).pipe(res);
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// Waveform: return normalised peak amplitude array (N=200 buckets) for the timeline
+app.get('/api/stream-clipper/waveform', async (req, res) => {
+  const videoPath = req.query.path;
+  const buckets = Math.min(parseInt(req.query.buckets || '200', 10), 500);
+  if (!videoPath) return res.status(400).json({ error: 'No path' });
+
+  try {
+    // Use ffmpeg's astats filter to get RMS per frame, then downsample to buckets
+    // We output one value per frame at 4fps, which is coarse but very fast
+    const cmd = `ffmpeg -i "${videoPath}" -af "aresample=8000,astats=metadata=1:reset=1" -f null - 2>&1 | grep "RMS level" | awk '{print $NF}'`;
+    const { stdout } = await execPromise(`bash -c '${cmd.replace(/'/g, "'\\''")}'`);
+
+    const rawValues = stdout.trim().split('\n')
+      .map(v => parseFloat(v))
+      .filter(v => !isNaN(v) && isFinite(v));
+
+    if (rawValues.length === 0) {
+      // Fallback: generate placeholder flat waveform
+      return res.json({ peaks: Array(buckets).fill(0.1) });
+    }
+
+    // Convert dBFS to linear amplitude (dBFS is negative; 0 dBFS = max)
+    const linear = rawValues.map(db => Math.pow(10, db / 20));
+    const maxVal = Math.max(...linear, 0.0001);
+
+    // Downsample into `buckets` bins by averaging
+    const peaks = Array.from({ length: buckets }, (_, i) => {
+      const start = Math.floor((i / buckets) * linear.length);
+      const end = Math.floor(((i + 1) / buckets) * linear.length);
+      const slice = linear.slice(start, end);
+      if (slice.length === 0) return 0;
+      const avg = slice.reduce((a, b) => a + b, 0) / slice.length;
+      return Math.min(avg / maxVal, 1);
+    });
+
+    res.json({ peaks });
+  } catch (e) {
+    // Return flat waveform on error rather than crashing the UI
+    res.json({ peaks: Array(buckets).fill(0.1), error: e.message });
+  }
+});
+
+// Batch export: process a queue of {inputPath, outputName, startTime, endTime} jobs sequentially
+app.post('/api/stream-clipper/batch-export', async (req, res) => {
+  const { jobs, outputDir: customDir } = req.body;
+  if (!Array.isArray(jobs) || jobs.length === 0) {
+    return res.status(400).json({ error: 'No jobs provided' });
+  }
+
+  const defaultDir = path.join(process.env.HOME || '/home/falcon', 'Videos', 'clips');
+  const outputDir = customDir && customDir.trim() ? customDir.trim() : defaultDir;
+  if (!fsSync.existsSync(outputDir)) { fsSync.mkdirSync(outputDir, { recursive: true }); }
+
+  const results = [];
+  for (const job of jobs) {
+    const { inputPath, outputName, startTime, endTime } = job;
+    const outputPath = path.join(outputDir, `${outputName}.mp4`);
+    const duration = endTime - startTime;
+    const cmd = `ffmpeg -ss ${startTime} -i "${inputPath}" -t ${duration} -c copy -avoid_negative_timestamps 1 "${outputPath}" -y`;
+
+    try {
+      await execPromise(cmd);
+      const stats = fsSync.statSync(outputPath);
+      const entry = {
+        id: Date.now() + results.length,
+        name: outputName,
+        outputPath,
+        sourceName: path.basename(inputPath),
+        startTime,
+        endTime,
+        duration,
+        size: stats.size,
+        exportedAt: new Date().toISOString()
+      };
+      clipHistory.unshift(entry);
+      results.push({ ...entry, success: true });
+    } catch (e) {
+      results.push({ name: outputName, success: false, error: e.message });
+    }
+  }
+  if (clipHistory.length > 50) clipHistory.length = 50;
+
+  res.json({ results, successCount: results.filter(r => r.success).length });
+});
+
+// Download an exported clip as a browser file download
+app.get('/api/stream-clipper/download', (req, res) => {
+  const filePath = req.query.path;
+  if (!filePath) return res.status(400).json({ error: 'No path provided' });
+  if (!fsSync.existsSync(filePath)) return res.status(404).json({ error: 'File not found' });
+  const filename = path.basename(filePath);
+  res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+  res.setHeader('Content-Type', 'video/mp4');
+  fsSync.createReadStream(filePath).pipe(res);
 });
 
 // Serve React (MUST BE LAST)
@@ -4446,14 +4717,14 @@ function scheduleAbyssalDispatch() {
     console.log('🔱 Generating Abyssal Dispatch...');
     try {
       const { generateDailyDigest } = require('./abyssal-dispatch.js');
-require('./labrina-routes')
+      require('./labrina-routes')
       const result = await generateDailyDigest();
       console.log('✅ Abyssal Dispatch generated:', result?.date);
     } catch (e) {
       console.error('❌ Abyssal Dispatch failed:', e.message);
     }
   }, null, false, 'America/Los_Angeles');
-  
+
   job.start();
   console.log('⏰ Abyssal Dispatch scheduled for 10am PST');
 }
@@ -4466,16 +4737,16 @@ app.post('/api/abyssal-dispatch/create-test', async (req, res) => {
   try {
     const designs = [0, 1, 2, 3, 4];
     const dates = ['2026-03-01', '2026-03-02', '2026-03-03', '2026-03-04', '2026-03-05'];
-    
+
     for (let i = 0; i < dates.length; i++) {
       await lifeos.from('abyssal_dispatches').upsert({
         date: dates[i],
         content: {
           date: dates[i],
-          word_of_the_day: { word: `Word${i+1}`, definition: 'Definition here', partOfSpeech: 'noun' },
+          word_of_the_day: { word: `Word${i + 1}`, definition: 'Definition here', partOfSpeech: 'noun' },
           tagalog_lesson: { phrase: 'Lesson phrase', meaning: 'Meaning' },
           french_lesson: { phrase: 'French phrase', meaning: 'Meaning' },
-          current_events: [{ title: `Event ${i+1}`, description: 'Description', source: 'Source' }],
+          current_events: [{ title: `Event ${i + 1}`, description: 'Description', source: 'Source' }],
           rant_ideas: ['Rant idea 1', 'Rant idea 2'],
           viral_prompt: { hook: 'Viral hook', format: 'Video' },
           stream_schedule: [{ day: 'Monday', time: '8PM', activity: 'Stream' }],
@@ -4491,3 +4762,10 @@ app.post('/api/abyssal-dispatch/create-test', async (req, res) => {
     res.json({ error: e.message });
   }
 });
+
+// ============================================
+// STREAM CLIPPER API
+// ============================================
+
+// Note: fs, path, exec already declared at top of file
+// But need sync fs for this module
