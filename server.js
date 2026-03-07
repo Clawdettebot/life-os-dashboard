@@ -156,7 +156,7 @@ app.get('/api/status', (req, res) => {
 });
 
 // PostBridge SMS API
-const POSTBRIDGE_API = 'pb_live_6TxeA2MXDdTeVaXrp8BwG8';
+const POSTBRIDGE_API = 'pb_live_SBr3HYyJLnXSXKgT7GqFZN';
 const POSTBRIDGE_BASE = 'https://api.post-bridge.com/v1';
 
 app.post('/api/sms/send', async (req, res) => {
@@ -3897,7 +3897,7 @@ app.post('/api/discord/webhook', async (req, res) => {
 
 // Postbridge Proxy Endpoints (to avoid CORS)
 app.get('/api/postbridge/accounts', async (req, res) => {
-  const API_KEY = process.env.POSTBRIDGE_API_KEY || 'pb_live_6TxeA2MXDdTeVaXrp8BwG8';
+  const API_KEY = process.env.POSTBRIDGE_API_KEY || 'pb_live_SBr3HYyJLnXSXKgT7GqFZN';
   try {
     const response = await axios.get('https://api.post-bridge.com/v1/social-accounts', {
       headers: { 'Authorization': `Bearer ${API_KEY}` }
@@ -3910,7 +3910,7 @@ app.get('/api/postbridge/accounts', async (req, res) => {
 });
 
 app.get('/api/postbridge/posts', async (req, res) => {
-  const API_KEY = process.env.POSTBRIDGE_API_KEY || 'pb_live_6TxeA2MXDdTeVaXrp8BwG8';
+  const API_KEY = process.env.POSTBRIDGE_API_KEY || 'pb_live_SBr3HYyJLnXSXKgT7GqFZN';
   try {
     const response = await axios.get('https://api.post-bridge.com/v1/posts?limit=50', {
       headers: { 'Authorization': `Bearer ${API_KEY}` }
@@ -3923,7 +3923,7 @@ app.get('/api/postbridge/posts', async (req, res) => {
 });
 
 app.get('/api/postbridge/analytics', async (req, res) => {
-  const API_KEY = process.env.POSTBRIDGE_API_KEY || 'pb_live_6TxeA2MXDdTeVaXrp8BwG8';
+  const API_KEY = process.env.POSTBRIDGE_API_KEY || 'pb_live_SBr3HYyJLnXSXKgT7GqFZN';
   try {
     const response = await axios.get('https://api.post-bridge.com/v1/analytics?timeframe=7d', {
       headers: { 'Authorization': `Bearer ${API_KEY}` }
@@ -3936,7 +3936,7 @@ app.get('/api/postbridge/analytics', async (req, res) => {
 });
 
 app.post('/api/postbridge/posts', async (req, res) => {
-  const API_KEY = process.env.POSTBRIDGE_API_KEY || 'pb_live_6TxeA2MXDdTeVaXrp8BwG8';
+  const API_KEY = process.env.POSTBRIDGE_API_KEY || 'pb_live_SBr3HYyJLnXSXKgT7GqFZN';
   try {
     const response = await axios.post('https://api.post-bridge.com/v1/posts', req.body, {
       headers: { 'Authorization': `Bearer ${API_KEY}`, 'Content-Type': 'application/json' }
@@ -4265,6 +4265,7 @@ app.post('/api/discord/send', async (req, res) => {
 app.post('/api/abyssal-dispatch/generate', async (req, res) => {
   try {
     const { generateDailyDigest } = require('./abyssal-dispatch.js');
+require('./labrina-routes')
     const result = await generateDailyDigest();
     res.json({ success: true, dispatch: result });
   } catch (e) {
@@ -4285,6 +4286,7 @@ app.get('/api/abyssal-dispatch/today', async (req, res) => {
     
     if (error || !data) {
       const { generateDailyDigest } = require('./abyssal-dispatch.js');
+require('./labrina-routes')
       const result = await generateDailyDigest();
       return res.json({ dispatch: result });
     }
@@ -4331,6 +4333,7 @@ app.post('/api/abyssal-dispatch/regenerate-section', async (req, res) => {
   try {
     const { section } = req.body;
     const { getWordOfTheDay, getTagalogLesson, getFrenchLesson, getCurrentEvents, getRantIdeas, getViralPrompt, getBrainPrompts, getQuote } = require('./abyssal-dispatch.js');
+require('./labrina-routes')
     
     let newContent;
     switch (section) {
@@ -4443,6 +4446,7 @@ function scheduleAbyssalDispatch() {
     console.log('🔱 Generating Abyssal Dispatch...');
     try {
       const { generateDailyDigest } = require('./abyssal-dispatch.js');
+require('./labrina-routes')
       const result = await generateDailyDigest();
       console.log('✅ Abyssal Dispatch generated:', result?.date);
     } catch (e) {

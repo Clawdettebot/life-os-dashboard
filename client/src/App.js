@@ -34,6 +34,7 @@ import ContactsView from './components/ContactsView';
 import NotesView from './components/NotesView';
 import FinanceView from './components/FinanceView';
 import ContentSchedulerView from './components/ContentSchedulerView';
+import LabrinavSocialView from './components/LabrinavSocialView';
 import LobsterScrollArea from './components/ui/LobsterScrollArea';
 import { ToastContainer } from './components/ui/Toast';
 import CommandCenter from './components/ui/CommandCenter';
@@ -75,6 +76,7 @@ const NAV_SECTIONS = [
   {
     id: 'content', title: "Content", items: [
       { id: 'scheduler', label: 'Scheduler', icon: CalendarClock },
+      { id: 'social', label: '🦞 Social', icon: Lightbulb },
       { id: 'blog', label: 'Blog & Voice', icon: Mic },
       { id: 'ideas', label: 'Ideas', icon: Lightbulb },
     ]
@@ -521,6 +523,7 @@ export default function App() {
       case 'streams': return <StreamsView {...data} {...viewProps} />;
       case 'inventory': return <InventoryView {...data} {...viewProps} />;
       case 'scheduler': return <ContentSchedulerView {...data} {...viewProps} />;
+      case 'social': return <LabrinavSocialView {...viewProps} />;
       case 'blog': return <BlogVoiceView {...data} {...viewProps} />;
       case 'ideas': return <IdeaBankView {...data} {...viewProps} />;
       case 'finances': return <FinanceView {...data} {...viewProps} />;
