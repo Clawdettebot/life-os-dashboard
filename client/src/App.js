@@ -527,7 +527,7 @@ export default function App() {
       case 'habits': return <HabitsView {...data} {...viewProps} />;
       case 'notes': return <NotesView {...data} {...viewProps} />;
       case 'royal-conch': return <RoyalConchView {...viewProps} />;
-      case 'abyssal-dispatch': return <AbyssalDispatchView />;
+      case 'abyssal-dispatch': return <AbyssalDispatchView theme={currentTheme} />;
       case 'journal': return <div className="h-full flex items-center justify-center"><Card title="Journal"><p>Journal view coming soon</p></Card></div>;
       case 'cortex': return <CortexView {...viewProps} />;
       case 'contacts': return <ContactsView {...viewProps} />;
@@ -704,7 +704,7 @@ export default function App() {
           <div className="p-6">
             <div className="flex items-center justify-between p-4 rounded-[2rem] bg-[var(--bg-card)] border border-[var(--border-color)] cursor-pointer hover:border-[var(--border-highlight)] transition-all group hover-spotlight">
               <div className="flex items-center gap-4">
-                <div className="w-14 h-14 rounded-full bg-[var(--bg-base)] border-2 border-[var(--border-highlight)] flex items-center justify-center overflow-hidden shrink-0">
+                <div className="w-14 h-14 flex items-center justify-center overflow-hidden shrink-0">
                   <img src="/avatars/guapdad-avatar.png" alt="Guapdad 4K" className="w-full h-full object-cover" />
                 </div>
                 <div>

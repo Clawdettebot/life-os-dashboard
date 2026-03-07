@@ -4257,6 +4257,100 @@ app.post('/api/discord/send', async (req, res) => {
   }
 });
 
+// ============================================================
+// ABYSSAL DISPATCH - Daily Digest System
+// ============================================================
+
+// Generate new dispatch
+app.post('/api/abyssal-dispatch/generate', async (req, res) => {
+  try {
+    const { generateDailyDigest } = require('./abyssal-dispatch.js');
+    const result = await generateDailyDigest();
+    res.json({ success: true, dispatch: result });
+  } catch (e) {
+    console.error('Dispatch generation error:', e);
+    res.json({ error: e.message });
+  }
+});
+
+// Get today's dispatch
+app.get('/api/abyssal-dispatch/today', async (req, res) => {
+  try {
+    const today = new Date().toISOString().split('T')[0];
+    const { data, error } = await lifeos
+      .from('abyssal_dispatches')
+      .select('*')
+      .eq('date', today)
+      .single();
+    
+    if (error || !data) {
+      const { generateDailyDigest } = require('./abyssal-dispatch.js');
+      const result = await generateDailyDigest();
+      return res.json({ dispatch: result });
+    }
+    
+    res.json({ dispatch: data });
+  } catch (e) {
+    res.json({ error: e.message });
+  }
+});
+
+// Get dispatch by date
+app.get('/api/abyssal-dispatch/:date', async (req, res) => {
+  try {
+    const { date } = req.params;
+    const { data, error } = await lifeos
+      .from('abyssal_dispatches')
+      .select('*')
+      .eq('date', date)
+      .single();
+    
+    res.json({ dispatch: data || null });
+  } catch (e) {
+    res.json({ error: e.message });
+  }
+});
+
+// Get all dispatches (for timeline)
+app.get('/api/abyssal-dispatch', async (req, res) => {
+  try {
+    const { data, error } = await lifeos
+      .from('abyssal_dispatches')
+      .select('*')
+      .order('date', { ascending: false })
+      .limit(30);
+    
+    res.json({ dispatches: data || [] });
+  } catch (e) {
+    res.json({ error: e.message, dispatches: [] });
+  }
+});
+
+// Regenerate specific section
+app.post('/api/abyssal-dispatch/regenerate-section', async (req, res) => {
+  try {
+    const { section } = req.body;
+    const { getWordOfTheDay, getTagalogLesson, getFrenchLesson, getCurrentEvents, getRantIdeas, getViralPrompt, getBrainPrompts, getQuote } = require('./abyssal-dispatch.js');
+    
+    let newContent;
+    switch (section) {
+      case 'word': newContent = await getWordOfTheDay(); break;
+      case 'tagalog': newContent = getTagalogLesson(); break;
+      case 'french': newContent = getFrenchLesson(); break;
+      case 'events': newContent = await getCurrentEvents(3); break;
+      case 'rants': newContent = getRantIdeas(); break;
+      case 'viral': newContent = getViralPrompt(); break;
+      case 'prompts': newContent = getBrainPrompts(); break;
+      case 'quote': newContent = getQuote(); break;
+      default: return res.json({ error: 'Unknown section' });
+    }
+    
+    res.json({ success: true, section, content: newContent });
+  } catch (e) {
+    res.json({ error: e.message });
+  }
+});
+
 // Serve React (MUST BE LAST)
 app.get('*', (req, res) => {
   res.sendFile(path.join(__dirname, 'client/build', 'index.html'));
@@ -4339,118 +4433,6 @@ app.post('/api/agents/status', async (req, res) => {
 });
 
 // ============================================================
-// ABYSSAL DISPATCH - Daily Digest System
-// ============================================================
-
-// Generate new dispatch
-app.post('/api/abyssal-dispatch/generate', async (req, res) => {
-  try {
-    const { generateDailyDigest } = require('./abyssal-dispatch.js');
-    const result = await generateDailyDigest();
-    res.json({ success: true, dispatch: result });
-  } catch (e) {
-    console.error('Dispatch generation error:', e);
-    res.json({ error: e.message });
-  }
-});
-
-// Get today's dispatch
-app.get('/api/abyssal-dispatch/today', async (req, res) => {
-  try {
-    const today = new Date().toISOString().split('T')[0];
-    const { data, error } = await lifeos
-      .from('abyssal_dispatches')
-      .select('*')
-      .eq('date', today)
-      .single();
-    
-    if (error || !data) {
-      // Generate if doesn't exist
-      const { generateDailyDigest } = require('./abyssal-dispatch.js');
-      const result = await generateDailyDigest();
-      return res.json({ dispatch: result });
-    }
-    
-    res.json({ dispatch: data });
-  } catch (e) {
-    res.json({ error: e.message });
-  }
-});
-
-// Get dispatch by date
-app.get('/api/abyssal-dispatch/:date', async (req, res) => {
-  try {
-    const { date } = req.params;
-    const { data, error } = await lifeos
-      .from('abyssal_dispatches')
-      .select('*')
-      .eq('date', date)
-      .single();
-    
-    res.json({ dispatch: data || null });
-  } catch (e) {
-    res.json({ error: e.message });
-  }
-});
-
-// Get all dispatches (for timeline)
-app.get('/api/abyssal-dispatch', async (req, res) => {
-  try {
-    const { data, error } = await lifeos
-      .from('abyssal_dispatches')
-      .select('*')
-      .order('date', { ascending: false })
-      .limit(30);
-    
-    res.json({ dispatches: data || [] });
-  } catch (e) {
-    res.json({ error: e.message, dispatches: [] });
-  }
-});
-
-// Regenerate specific section
-app.post('/api/abyssal-dispatch/regenerate-section', async (req, res) => {
-  try {
-    const { section } = req.body;
-    const { getWordOfTheDay, getTagalogLesson, getFrenchLesson, getCurrentEvents, getRantIdeas, getViralPrompt, getBrainPrompts, getQuote } = require('./abyssal-dispatch.js');
-    
-    let newContent;
-    switch (section) {
-      case 'word':
-        newContent = await getWordOfTheDay();
-        break;
-      case 'tagalog':
-        newContent = getTagalogLesson();
-        break;
-      case 'french':
-        newContent = getFrenchLesson();
-        break;
-      case 'events':
-        newContent = await getCurrentEvents(3);
-        break;
-      case 'rants':
-        newContent = getRantIdeas();
-        break;
-      case 'viral':
-        newContent = getViralPrompt();
-        break;
-      case 'prompts':
-        newContent = getBrainPrompts();
-        break;
-      case 'quote':
-        newContent = getQuote();
-        break;
-      default:
-        return res.json({ error: 'Unknown section' });
-    }
-    
-    res.json({ success: true, section, content: newContent });
-  } catch (e) {
-    res.json({ error: e.message });
-  }
-});
-
-// ============================================================
 // ABYSSAL DISPATCH - Daily Cron Job (10am PST)
 // ============================================================
 const cron = require('cron');
@@ -4474,3 +4456,34 @@ function scheduleAbyssalDispatch() {
 
 // Run on startup
 setTimeout(scheduleAbyssalDispatch, 5000);
+
+// Test: Create multiple dispatch entries
+app.post('/api/abyssal-dispatch/create-test', async (req, res) => {
+  try {
+    const designs = [0, 1, 2, 3, 4];
+    const dates = ['2026-03-01', '2026-03-02', '2026-03-03', '2026-03-04', '2026-03-05'];
+    
+    for (let i = 0; i < dates.length; i++) {
+      await lifeos.from('abyssal_dispatches').upsert({
+        date: dates[i],
+        content: {
+          date: dates[i],
+          word_of_the_day: { word: `Word${i+1}`, definition: 'Definition here', partOfSpeech: 'noun' },
+          tagalog_lesson: { phrase: 'Lesson phrase', meaning: 'Meaning' },
+          french_lesson: { phrase: 'French phrase', meaning: 'Meaning' },
+          current_events: [{ title: `Event ${i+1}`, description: 'Description', source: 'Source' }],
+          rant_ideas: ['Rant idea 1', 'Rant idea 2'],
+          viral_prompt: { hook: 'Viral hook', format: 'Video' },
+          stream_schedule: [{ day: 'Monday', time: '8PM', activity: 'Stream' }],
+          brain_prompts: ['Prompt 1', 'Prompt 2'],
+          quote: { text: 'Quote text', author: 'Author' }
+        },
+        card_design: designs[i],
+        status: 'generated'
+      }, { onConflict: 'date' });
+    }
+    res.json({ success: true, created: dates.length });
+  } catch (e) {
+    res.json({ error: e.message });
+  }
+});
