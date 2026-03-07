@@ -222,38 +222,8 @@ const SocialAnalyticsChart = () => (
 
 const IdeaBankModule = ({ onOpenIdea }) => {
   const [activePhase, setActivePhase] = useState(IDEA_STAGES[2]);
-  // Real ideas from Supabase
-  const [ideasFromAPI, setIdeasFromAPI] = useState(null);
-  
-  useEffect(() => {
-    const fetchIdeas = async () => {
-      try {
-        const res = await fetch('https://pvavybczlrhwagasriwu.supabase.co/rest/v1/lifeos_notes?section=eq.labrina-ideas&order=created_at.desc&limit=20', {
-          headers: {
-            'apikey': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InB2YXZ5YmN6bHJod2FnYXNyaXd1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTUyMzUyMzIsImV4cCI6MjA3MDgxMTIzMn0.Y0vL36TCuE8QYFpEbVBKzLYazowtYneUpOkSTk3RkZg',
-            'Authorization': 'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InB2YXZ5YmN6bHJod2FnYXNyaXd1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTUyMzUyMzIsImV4cCI6MjA3MDgxMTIzMn0.Y0vL36TCuE8QYFpEbVBKzLYazowtYneUpOkSTk3RkZg'
-          }
-        });
-        const data = await res.json();
-        const ideasByStage = { 's1': [], 's2': [], 's3': [], 's4': [], 's5': [], 's6': [] };
-        data.forEach(idea => {
-          ideasByStage['s1'].push({
-            id: idea.id,
-            title: idea.content ? idea.content.substring(0, 40) + '...' : 'Untitled',
-            date: new Date(idea.created_at).toLocaleDateString(),
-            type: idea.category || 'Concept'
-          });
-        });
-        setIdeasFromAPI(ideasByStage);
-      } catch (e) {
-        console.error('Failed to fetch ideas:', e);
-      }
-    };
-    fetchIdeas();
-  }, []);
-  
   const [ideaIndex, setIdeaIndex] = useState(0);
-  const phaseIdeas = useMemo(() => ideasFromAPI ? ideasFromAPI[activePhase.id] : [] || [], [activePhase]);
+  const phaseIdeas = useMemo(() => IDEAS_DB[activePhase.id] || [], [activePhase]);
   const activeIdea = phaseIdeas[ideaIndex];
 
   useEffect(() => { setIdeaIndex(0); }, [activePhase]);
@@ -287,7 +257,7 @@ const IdeaBankModule = ({ onOpenIdea }) => {
         <div className="absolute left-[5%] md:left-[15%] top-0 flex flex-col gap-2 -translate-x-1/2 bg-[var(--bg-card)]/80 backdrop-blur-md p-4 rounded-3xl z-10 border border-[var(--border-highlight)] shadow-[0_0_30px_rgba(0,0,0,0.2)]">
           {IDEA_STAGES.map((step) => {
             const isActive = activePhase.id === step.id;
-            const nodeCount = (ideasFromAPI ? ideasFromAPI[step.id] : [] || []).length;
+            const nodeCount = (IDEAS_DB[step.id] || []).length;
             return (
               <button key={step.id} onClick={() => setActivePhase(step)} className={`px-5 py-3 rounded-full text-[9px] md:text-[10px] font-bold tracking-widest uppercase transition-all flex items-center justify-between min-w-[180px] md:min-w-[220px] group border ${isActive ? 'bg-[var(--text-main)] text-[var(--bg-base)] border-[var(--text-main)] shadow-[0_0_15px_var(--border-highlight)]' : 'bg-[var(--bg-panel)] border-[var(--border-color)] text-[var(--text-main)] hover:border-[rgb(var(--rgb-accent-main))]'}`}>
                 <div className="flex items-center gap-2">
@@ -337,37 +307,7 @@ const IdeaBankModule = ({ onOpenIdea }) => {
 };
 
 const ModularDraftsDisplay = ({ onOpenDraft }) => {
-  // Real blog drafts from Supabase
-  const [drafts, setDrafts] = useState([]);
-  const [dataLoading, setDataLoading] = useState(true);
-
-  useEffect(() => {
-    const fetchBlogDrafts = async () => {
-      try {
-        const res = await fetch('https://yyoxpcsspmjvolteknsn.supabase.co/rest/v1/blog_post?status=eq.draft&order=created_at.desc&limit=10', {
-          headers: {
-            'apikey': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inl5b3hwY3NzcG1qdm9sdGVrbnNuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTY3MTM5MzAsImV4cCI6MjA3MjI4OTkzMH0.HFFOlmMjiiyQiKAODnz9RAmF3IR7n4KrvGhWp-K_dHM',
-            'Authorization': 'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inl5b3hwY3NzcG1qdm9sdGVrbnNuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTY3MTM5MzAsImV4cCI6MjA3MjI4OTkzMH0.HFFOlmMjiiyQiKAODnz9RAmF3IR7n4KrvGhWp-K_dHM'
-          }
-        });
-        const data = await res.json();
-        setDrafts(data.map(d => ({
-          id: d.id,
-          title: d.title,
-          status: 'DRAFT',
-          words: d.content ? d.content.replace(/<[^>]*>/g, '').length : 0,
-          date: new Date(d.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
-          content: d.content,
-          excerpt: d.excerpt
-        })));
-      } catch (e) {
-        console.error('Failed to fetch blog drafts:', e);
-        setDrafts(INITIAL_BLOG_DRAFTS);
-      }
-      setDataLoading(false);
-    };
-    fetchBlogDrafts();
-  }, []);
+  const [drafts, setDrafts] = useState(INITIAL_BLOG_DRAFTS);
   const addNewDraft = () => {
     const newDraft = { id: `new_${Date.now()}`, title: 'SYS_CONSTRUCT_0X' + Math.floor(Math.random() * 1000), status: 'RAW', date: 'Just Now', words: 0, content: '' };
     setDrafts([newDraft, ...drafts]);
