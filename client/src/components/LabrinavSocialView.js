@@ -91,7 +91,29 @@ const BadgeRenderer = ({ status, inverts = false }) => {
 };
 
 // Sub-modules
-const ReleaseCountdownModule = () => {
+const ReleaseCountdownModule = ({ release }) => {
+  const targetDate = release ? new Date(release.date) : new Date('2026-03-25');
+  const [timeLeft, setTimeLeft] = useState({ d: 0, h: 0, m: 0, s: 0 });
+  
+  useEffect(() => {
+    const calculateTimeLeft = () => {
+      const now = new Date();
+      const diff = targetDate - now;
+      if (diff > 0) {
+        return {
+          d: Math.floor(diff / (1000 * 60 * 60 * 24)),
+          h: Math.floor((diff / (1000 * 60 * 60)) % 24),
+          m: Math.floor((diff / (1000 * 60)) % 60),
+          s: Math.floor((diff / 1000) % 60)
+        };
+      }
+      return { d: 0, h: 0, m: 0, s: 0 };
+    };
+    
+    setTimeLeft(calculateTimeLeft());
+    const timer = setInterval(() => setTimeLeft(calculateTimeLeft()), 1000);
+    return () => clearInterval(timer);
+  }, [targetDate]);
   const [timeLeft, setTimeLeft] = useState({ d: 14, h: 8, m: 45, s: 12 });
   useEffect(() => {
     const timer = setInterval(() => {
@@ -115,7 +137,7 @@ const ReleaseCountdownModule = () => {
           <div className="p-2 bg-[rgb(var(--rgb-accent-main))] text-white rounded-full shadow-[0_0_15px_rgba(var(--rgb-accent-main),0.3)]"><Zap size={16} /></div>
           <div>
             <span className="text-xs font-bold uppercase tracking-widest block text-[var(--text-main)]">Next Major Release</span>
-            <span className="text-[10px] font-space-mono text-[var(--text-muted)] uppercase">Champagne Showers - Single</span>
+            <span className="text-[10px] font-space-mono text-[var(--text-muted)] uppercase">{release?.name || 'Next Release'}</span>
           </div>
         </div>
         <div className="flex gap-2">
@@ -655,7 +677,7 @@ export default function LabrinavSocialView({ api, postbridgeKey }) {
       <div className="grid grid-cols-12 gap-6 w-full">
         {/* ROW 1: Release Countdown */}
         <div className="col-span-12">
-          <ReleaseCountdownModule />
+          <ReleaseCountdownModule release={{ name: 'Hermes Fleece', date: '2026-03-25' }} />
         </div>
 
         {/* ROW 2: Social Stats & Content Performance */}
