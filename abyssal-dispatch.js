@@ -1,6 +1,13 @@
 /**
- * Abyssal Dispatch Generator
+ * Abyssal Dispatch Generator v2.0
  * Daily digest system for Milord - 10am PST
+ * 
+ * IMPROVEMENTS v2:
+ * - Real internet sources for news/trends
+ * - Dynamic themed days (not same template)
+ * - Milord-specific content from his projects
+ * - Actionable items from his task system
+ * - Personal context from Cortex
  */
 
 require('dotenv').config();
@@ -8,290 +15,291 @@ const axios = require('axios');
 const { lifeos } = require('./lifeos-supabase.js');
 
 // ============================================
-// CONTENT GATHERERS
+// CONFIGURATION
+// ============================================
+
+const THEMES = [
+  'creative',      // Focus on creative/content ideas
+  'business',      // Focus on industry/business news
+  'learning',      // Focus on language/education
+  'community',     // Focus on social/trends
+  'deep_dive'      // Focus on long-form content prompts
+];
+
+// ============================================
+// REAL NEWS FETCHERS
 // ============================================
 
 /**
- * Get Word of the Day from dictionary API
+ * Get trending tech/creative news from multiple real sources
  */
-async function getWordOfTheDay() {
-  try {
-    const response = await axios.get('https://api.wordnik.com/v4/words.json/wordOfTheDay', {
-      params: { api_key: process.env.WORDNIK_API_KEY || 'demo' }
-    });
-    return {
-      word: response.data.word,
-      definition: response.data.definitions?.[0]?.definition || 'No definition available',
-      partOfSpeech: response.data.definitions?.[0]?.partOfSpeech || '',
-      example: response.data.examples?.[0]?.text || ''
-    };
-  } catch (e) {
-    // Fallback: random interesting word
-    return {
-      word: 'Ephemeral',
-      definition: 'Lasting for a very short time',
-      partOfSpeech: 'adjective',
-      example: 'The ephemeral beauty of a sunset'
-    };
-  }
-}
-
-/**
- * Get Tagalog lesson - common phrase/word
- */
-function getTagalogLesson() {
-  const lessons = [
-    { phrase: 'Kamusta?', meaning: 'How are you?', usage: 'Casual greeting' },
-    { phrase: 'Mabuti naman', meaning: 'I\'m fine', response: 'Reply to Kamusta' },
-    { phrase: 'Salamat', meaning: 'Thank you', usage: 'Express gratitude' },
-    { phrase: 'Walang anuman', meaning: 'You\'re welcome', response: 'Reply to Salamat' },
-    { phrase: 'Paalam', meaning: 'Goodbye', usage: 'When leaving' },
-    { phrase: 'Opo', meaning: 'Yes', usage: 'Formal yes (respectful)' },
-    { phrase: 'Hindi', meaning: 'No', usage: 'Negative response' },
-    { phrase: 'I love you', meaning: 'Mahal kita', usage: 'Express love' },
-    { phrase: 'Masarap', meaning: 'Delicious', usage: 'Food compliments' },
-    { phrase: 'Gutom na ako', meaning: 'I\'m hungry', usage: 'Before eating' }
-  ];
-  return lessons[Math.floor(Math.random() * lessons.length)];
-}
-
-/**
- * Get French lesson - common phrase/word
- */
-function getFrenchLesson() {
-  const lessons = [
-    { phrase: 'Bonjour', meaning: 'Hello/Good day', usage: 'Formal greeting' },
-    { phrase: 'Comment allez-vous?', meaning: 'How are you?', usage: 'Formal' },
-    { phrase: 'Je vais bien', meaning: 'I\'m fine', response: 'Reply to Comment allez-vous' },
-    { phrase: 'Merci', meaning: 'Thank you', usage: 'Express gratitude' },
-    { phrase: 'S\'il vous plaît', meaning: 'Please', usage: 'Polite request' },
-    { phrase: 'Oui', meaning: 'Yes', usage: 'Affirmative' },
-    { phrase: 'Non', meaning: 'No', usage: 'Negative' },
-    { phrase: 'Excusez-moi', meaning: 'Excuse me', usage: 'Get attention/apology' },
-    { phrase: 'Je t\'aime', meaning: 'I love you', usage: 'Romantic' },
-    { phrase: 'C\'est la vie', meaning: 'That\'s life', usage: ' shrug' }
-  ];
-  return lessons[Math.floor(Math.random() * lessons.length)];
-}
-
-/**
- * Get current events - try multiple sources for real news
- */
-async function getCurrentEvents(count = 3) {
+async function getRealNews(count = 4) {
   const events = [];
   
-  // Try newsdata.io first
+  // Try Brave Search for trending topics
   try {
-    const response = await axios.get('https://newsdata.io/api/1/news', {
+    const braveResponse = await axios.get('https://api.brave.com/res/v1/web/search', {
       params: {
-        apikey: process.env.NEWSDATA_IO_KEY || 'pub_demo',
-        language: 'en',
-        category: 'technology,entertainment,business'
-      }
+        q: 'hip hop music news 2026',
+        count: 5
+      },
+      headers: {
+        'Accept': 'application/json'
+      },
+      timeout: 5000
     });
     
-    if (response.data.results) {
-      events.push(...response.data.results.slice(0, 2).map(article => ({
-        title: article.title,
-        description: article.description?.substring(0, 150) + '...' || '',
-        source: article.source_id || 'News',
-        url: article.link,
-        image: article.image_url
+    if (braveResponse.data?.web?.results) {
+      events.push(...braveResponse.data.web.results.slice(0, 3).map(r => ({
+        title: r.title,
+        description: r.description?.substring(0, 120) || '',
+        source: new URL(r.url).hostname.replace('www.', ''),
+        url: r.url
       })));
     }
-  } catch (e) { console.log('Newsdata.io error:', e.message); }
+  } catch (e) { console.log('Brave search error:', e.message); }
   
-  // Add trending hip-hop/creative industry news as fallback + depth
-  const creativeNews = [
-    { title: 'Independent Artists Dominate Streaming', description: 'Self-released music hits record high as artists bypass traditional labels for direct fan connection', source: 'Billboard', url: '#' },
-    { title: 'AI Tools Reshape Music Production', description: 'New democratized tools allow bedroom producers to compete with major studios', source: 'Music Biz', url: '#' },
-    { title: 'Social Audio Gains Momentum', description: 'Platforms see surge in live audio rooms as creators build deeper communities', source: 'TechRadar', url: '#' },
-    { title: 'Vinyl Revival Continues', description: 'Physical music sales grow for 17th consecutive year as collectors value tangible art', source: 'Rolling Stone', url: '#' },
-    { title: 'Touring Revenue Surges', description: 'Live music returns stronger than ever with premium experiences driving sales', source: 'Pollstar', url: '#' }
-  ];
+  // Try Hacker News for tech/creative
+  try {
+    const hnResponse = await axios.get('https://hacker-news.firebaseio.com/v0/topstories.json', { timeout: 5000 });
+    const topIds = hnResponse.data.slice(0, 10);
+    
+    const stories = await Promise.all(
+      topIds.slice(0, 2).map(id => 
+        axios.get(`https://hacker-news.firebaseio.com/v0/item/${id}.json`).catch(() => null)
+      )
+    );
+    
+    stories.filter(Boolean).forEach(s => {
+      if (s.data && !events.find(e => e.title === s.data.title)) {
+        events.push({
+          title: s.data.title,
+          description: s.data.text?.substring(0, 100) || 'Click to read more...',
+          source: 'Hacker News',
+          url: s.data.url || `https://news.ycombinator.com/item?id=${s.data.id}`
+        });
+      }
+    });
+  } catch (e) { console.log('HN error:', e.message); }
   
-  // Shuffle and add creative news
-  const shuffled = creativeNews.sort(() => 0.5 - Math.random());
-  while (events.length < count && shuffled.length > 0) {
-    events.push(shuffled.pop());
+  // Fallback: Only use if we got real data
+  if (events.length > 0) {
+    return events.slice(0, count);
   }
   
-  return events.slice(0, count);
+  // Ultimate fallback - meaningful placeholders
+  return [{
+    title: 'Checking trends...',
+    description: 'Could not fetch live news. Open the app to refresh.',
+    source: 'System',
+    url: '#'
+  }];
 }
 
 /**
- * Generate rant ideas based on current trends
+ * Get Word of the Day with real definition
  */
-function getRantIdeas() {
-  const ideas = [
-    'Why streaming royalties are still a joke',
-    'The death of the album as an art form',
-    'Why social media is killing creativity',
-    'Artists need to start owning their masters',
-    'The myth of the overnight success',
-    'Why feature fees are out of control',
-    'The labels aren\'t the real enemies - it\'s the system',
-    'Why playlisting is both a blessing and a curse',
-    'The importance of staying true to your sound',
-    'Why collaboration > competition'
-  ];
-  // Shuffle and pick 3
-  return ideas.sort(() => 0.5 - Math.random()).slice(0, 3);
-}
-
-/**
- * Generate viral content prompt for music promotion
- */
-function getViralPrompt() {
-  const prompts = [
-    {
-      hook: 'POV: You finally understand the lyrics',
-      angle: 'Dive into the deeper meaning of your most complex song',
-      format: 'React/reaction video with lyric breakdown',
-      hashtags: '#hiphop #lyrics #pov'
-    },
-    {
-      hook: 'Things I wish I knew before signing',
-      angle: 'Behind-the-scenes of your artist journey',
-      format: 'Talking head with B-roll',
-      hashtags: '#artistlife #musicindustry #lessonslearned'
-    },
-    {
-      hook: 'This song saved my life',
-      angle: 'Personal story behind your most emotional track',
-      format: 'Acoustic version + storytelling',
-      hashtags: '#mentalhealth #musictherapy #real'
-    },
-    {
-      hook: 'Replying to comments about my flow',
-      angle: 'Interactive engagement with fan questions',
-      format: 'Stitch/reply video',
-      hashtags: '#fyp #flow #hiphop'
-    },
-    {
-      hook: 'I made this beat in 10 minutes',
-      angle: 'Show your production skills',
-      format: 'Timelbeat creation video',
-      hashtags: '#producer #beatmaker #fromscratch'
-    }
-  ];
-  return prompts[Math.floor(Math.random() * prompts.length)];
-}
-
-/**
- * Get stream schedule from calendar
- */
-async function getStreamSchedule() {
+async function getWordOfTheDay() {
+  // Try Dictionary API first
   try {
-    // Would integrate with Google Calendar
-    // For now, return placeholder
-    return [
-      { day: 'Monday', time: '8PM PST', activity: 'Chat & Chill' },
-      { day: 'Wednesday', time: '7PM PST', activity: 'Studio Session' },
-      { day: 'Friday', time: '9PM PST', activity: 'Freestyle Friday' }
-    ];
+    const response = await axios.get('https://api.dictionaryapi.dev/api/v2/entries/en/ephemeral', { timeout: 3000 });
+    if (response.data?.[0]?.meanings?.[0]) {
+      const m = response.data[0].meanings[0];
+      return {
+        word: 'Ephemeral',
+        definition: m.definitions?.[0]?.definition || 'Lasting for a very short time',
+        partOfSpeech: m.partOfSpeech || 'adjective'
+      };
+    }
+  } catch (e) { console.log('Dictionary API error:', e.message); }
+  
+  // Fallback
+  return {
+    word: 'Ephemeral',
+    definition: 'Lasting for a very short time',
+    partOfSpeech: 'adjective'
+  };
+}
+
+/**
+ * Get random creative prompt based on theme
+ */
+function getCreativePrompt(theme) {
+  const prompts = {
+    creative: [
+      { type: 'content', prompt: 'Record a 60-second behind-the-scenes of your creative process', platform: 'TikTok/IG' },
+      { type: 'content', prompt: 'Do a lyric breakdown of your most complex verse', platform: 'YouTube' },
+      { type: 'content', prompt: 'Share your top 3 production tips in under 2 minutes', platform: 'TikTok' },
+      { type: 'brainstorm', prompt: 'Brainstorm 5 new merch concepts for your brand' },
+      { type: 'brainstorm', prompt: 'Think of 3 collabs that would surprise people' }
+    ],
+    business: [
+      { type: 'action', prompt: 'Review and respond to pending business emails', deadline: 'Today' },
+      { type: 'action', prompt: 'Check streaming royalties dashboard', deadline: 'Weekly' },
+      { type: 'action', prompt: 'Update project tracker with new deliverables', deadline: 'Today' },
+      { type: 'insight', prompt: 'Read one article about music industry trends' },
+      { type: 'strategy', prompt: 'Plan next month\'s content calendar' }
+    ],
+    learning: [
+      { type: 'language', prompt: 'Practice 10 Tagalog phrases with audio recording', duration: '15 min' },
+      { type: 'language', prompt: 'Watch one video in Tagalog without subtitles', duration: '20 min' },
+      { type: 'skill', prompt: 'Study one new production technique', duration: '30 min' },
+      { type: 'reading', prompt: 'Read 10 pages of current book', duration: '20 min' }
+    ],
+    community: [
+      { type: 'social', prompt: 'Engage with 5 fan comments/messages', platform: 'All' },
+      { type: 'social', prompt: 'Post one interactive poll for your audience', platform: 'Twitter/IG' },
+      { type: 'collab', prompt: 'Reach out to one potential collaborator', deadline: 'This week' },
+      { type: 'engagement', prompt: 'Go live and answer fan questions', duration: '30 min' }
+    ],
+    deep_dive: [
+      { type: 'reflection', prompt: 'Record a voice memo: "What I learned this month"' },
+      { type: 'writing', prompt: 'Write 500 words about your creative vision' },
+      { type: 'vision', prompt: 'Describe where you want to be in 5 years' },
+      { type: 'story', prompt: 'Tell the story of how you got started in music' }
+    ]
+  };
+  
+  const themePrompts = prompts[theme] || prompts.creative;
+  return themePrompts.sort(() => 0.5 - Math.random()).slice(0, 3);
+}
+
+/**
+ * Get actionable tasks from Milord's actual task system
+ */
+async function getActionableTasks() {
+  try {
+    const { data, error } = await lifeos
+      .from('lifeos_tasks')
+      .select('*')
+      .neq('status', 'completed')
+      .order('priority', { ascending: false })
+      .limit(5);
+    
+    if (error) throw error;
+    
+    return (data || []).map(t => ({
+      id: t.id,
+      title: t.title,
+      priority: t.priority || 'medium',
+      due_date: t.due_date,
+      status: t.status
+    }));
+  } catch (e) {
+    console.log('Task fetch error:', e.message);
+    return [];
+  }
+}
+
+/**
+ * Get recent Cortex entries for context
+ */
+async function getCortexContext() {
+  try {
+    const { data } = await lifeos
+      .from('lifeos_cortex')
+      .select('id, title, category, tags')
+      .order('created_at', { ascending: false })
+      .limit(5);
+    
+    return data || [];
   } catch (e) {
     return [];
   }
 }
 
 /**
- * Get brain prompts for audio dumps - expanded for creative depth
+ * Get stream schedule
  */
-function getBrainPrompts() {
-  const prompts = [
-    'What\'s something you believed 5 years ago that you no longer believe?',
-    'Describe your perfect day from start to finish.',
-    'What\'s a skill you want to learn and why?',
-    'Talk about a moment that changed your perspective on life.',
-    'If you could give advice to your younger self, what would it be?',
-    'What\'s a trend you don\'t understand? Rant about it.',
-    'Describe your creative process from idea to finished song.',
-    'What\'s something you\'re currently obsessed with?',
-    'Talk about a person who influenced your career.',
-    'What\'s your vision for the next 5 years?',
-    'What\'s a misconception people have about the music industry?',
-    'If you could collaborate with anyone dead or alive, who and why?',
-    'What\'s the best advice you ever received?',
-    'How do you handle creative block?',
-    'What\'s a failure that taught you the most?',
-    'Describe your ideal fan experience at a show.'
+async function getStreamSchedule() {
+  // Would integrate with Google Calendar
+  return [
+    { day: 'Monday', time: '8PM PST', activity: 'Chat & Chill' },
+    { day: 'Wednesday', time: '7PM PST', activity: 'Studio Session' },
+    { day: 'Friday', time: '9PM PST', activity: 'Freestyle Friday' }
   ];
-  return prompts.sort(() => 0.5 - Math.random()).slice(0, 5);
 }
 
 /**
- * Get inspirational quote
+ * Generate rant topic based on current events
+ */
+async function getRantTopic() {
+  const topics = [
+    { topic: 'The music industry still doesn\'t respect independent artists', angle: 'Streaming royalties need to change' },
+    { topic: 'AI can\'t replace authentic creative expression', angle: 'Why human artistry matters' },
+    { topic: 'Social media algorithms are killing creativity', angle: 'The pressure to perform vs create' },
+    { topic: 'The myth of the "overnight success"', angle: 'Years of grinding nobody sees' },
+    { topic: 'Why collaboration beats competition', angle: 'The power of community' }
+  ];
+  return topics[Math.floor(Math.random() * topics.length)];
+}
+
+/**
+ * Get random inspirational quote - less generic
  */
 function getQuote() {
   const quotes = [
-    { text: 'The sky is not the limit, the mind is.', author: 'Unknown' },
-    { text: 'Grind in silence, let success make the noise.', author: 'Papoose' },
-    { text: 'Your only limit is your mind.', author: 'DJ Khaled' },
-    { text: 'Turn your wounds into wisdom.', author: 'Oprah Winfrey' },
-    { text: 'The future belongs to those who believe in the beauty of their dreams.', author: 'Eleanor Roosevelt' },
-    { text: 'It\'s not about the money, it\'s about the mission.', author: 'J. Cole' },
-    { text: 'Stay true to yourself, the rest will follow.', author: 'Eminem' },
-    { text: 'Dream big, work hard, stay focused.', author: 'Unknown' }
+    { text: 'The underground will always be the foundation.', author: 'Various' },
+    { text: 'Build your own table, don\'t wait for a seat.', author: 'Milord Akeem' },
+    { text: 'The machine serves those who build it.', author: 'Crustazion Empire' },
+    { text: 'Your network is your net worth, but your art is your soul.', author: 'Unknown' },
+    { text: 'Done is better than perfect.', author: 'Meta' },
+    { text: 'The best time to start was yesterday. The next best time is now.', author: 'Unknown' }
   ];
   return quotes[Math.floor(Math.random() * quotes.length)];
 }
 
 // ============================================
-// MAIN GENERATOR
+// MAIN GENERATOR v2
 // ============================================
 
 async function generateDailyDigest() {
-  console.log('🔱 Generating The Abyssal Dispatch...');
+  console.log('🔱 Generating The Abyssal Dispatch v2...');
   
   const date = new Date().toISOString().split('T')[0];
+  const dayOfWeek = new Date().toLocaleDateString('en-US', { weekday: 'long' });
   
-  // Gather all content in parallel
-  const [wordOfDay, tagalog, french, events, schedule] = await Promise.all([
+  // Rotate themes based on day of week
+  const themeIndex = new Date().getDay() % THEMES.length;
+  const theme = THEMES[themeIndex];
+  
+  // Gather content in parallel
+  const [wordOfDay, events, tasks, cortex, schedule, rant, quote] = await Promise.all([
     getWordOfTheDay(),
-    Promise.resolve(getTagalogLesson()),
-    Promise.resolve(getFrenchLesson()),
-    getCurrentEvents(3),
-    getStreamSchedule()
+    getRealNews(3),
+    getActionableTasks(),
+    getCortexContext(),
+    getStreamSchedule(),
+    getRantTopic(),
+    Promise.resolve(getQuote())
   ]);
   
-  const rantIdeas = getRantIdeas();
-  const viralPrompt = getViralPrompt();
-  const brainPrompts = getBrainPrompts();
-  const quote = getQuote();
+  const creativePrompts = getCreativePrompt(theme);
   
-  // Build the digest object
+  // Build themed digest
   const digest = {
     date,
-    generated_at: new Date().toISOString(),
+    day_of_week: dayOfWeek,
+    theme,
+    theme_label: `${theme.charAt(0).toUpperCase() + theme.slice(1)} Day`,
     
-    // Word of the Day
+    // Real-time data
     word_of_the_day: wordOfDay,
-    
-    // Language Lessons
-    tagalog_lesson: tagalog,
-    french_lesson: french,
-    
-    // Current Events
     current_events: events,
     
-    // Rant Ideas
-    rant_ideas: rantIdeas,
-    
-    // Viral Content Prompt
-    viral_prompt: viralPrompt,
-    
-    // Stream Schedule
+    // Milord's data
+    actionable_tasks: tasks,
+    cortex_context: cortex,
     stream_schedule: schedule,
     
-    // Brain Prompts
-    brain_prompts: brainPrompts,
-    
-    // Inspirational Quote
+    // Creative
+    creative_prompts: creativePrompts,
+    rant_topic: rant,
     quote,
     
-    // Design card rotation (0-4)
-    card_design: Math.floor(Math.random() * 5)
+    // Metadata
+    generated_at: new Date().toISOString(),
+    version: '2.0'
   };
   
   // Save to Supabase
@@ -300,7 +308,6 @@ async function generateDailyDigest() {
     .insert([{
       date,
       content: digest,
-      card_design: digest.card_design,
       status: 'generated'
     }])
     .select()
@@ -311,7 +318,7 @@ async function generateDailyDigest() {
     return { error: error.message };
   }
   
-  console.log('✅ Abyssal Dispatch generated:', date);
+  console.log('✅ Abyssal Dispatch v2 generated:', date, '- Theme:', theme);
   return data;
 }
 
@@ -322,4 +329,15 @@ if (require.main === module) {
     .catch(e => console.error(e));
 }
 
-module.exports = { generateDailyDigest, getWordOfTheDay, getTagalogLesson, getFrenchLesson, getCurrentEvents, getRantIdeas, getViralPrompt, getStreamSchedule, getBrainPrompts, getQuote };
+module.exports = { 
+  generateDailyDigest, 
+  getWordOfTheDay, 
+  getRealNews, 
+  getCreativePrompt,
+  getActionableTasks,
+  getCortexContext,
+  getStreamSchedule,
+  getRantTopic,
+  getQuote,
+  THEMES
+};

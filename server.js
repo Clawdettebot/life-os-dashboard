@@ -4451,13 +4451,28 @@ app.get('/api/stream-clipper/probe', async (req, res) => {
 // Export clip — uses stream copy (no re-encode = instant)
 app.post('/api/stream-clipper/export', async (req, res) => {
   const { inputPath, outputName, startTime, endTime, outputDir: customDir } = req.body;
+
+  // Validate required fields
+  if (!inputPath || !outputName || startTime === undefined || endTime === undefined) {
+    return res.status(400).json({ error: 'Missing required fields: inputPath, outputName, startTime, endTime' });
+  }
+  if (!fsSync.existsSync(inputPath)) {
+    return res.status(400).json({ error: `Input file not found: ${inputPath}` });
+  }
+
   const defaultDir = path.join(process.env.HOME || '/home/falcon', 'Videos', 'clips');
   const outputDir = customDir && customDir.trim() ? customDir.trim() : defaultDir;
-  const outputPath = path.join(outputDir, `${outputName}.mp4`);
+  // Sanitize output name (remove characters that could break the command)
+  const safeName = outputName.replace(/[^a-zA-Z0-9_\-. ]/g, '_');
+  const outputPath = path.join(outputDir, `${safeName}.mp4`);
 
   if (!fsSync.existsSync(outputDir)) { fsSync.mkdirSync(outputDir, { recursive: true }); }
 
   const duration = endTime - startTime;
+  if (duration <= 0) {
+    return res.status(400).json({ error: 'End time must be after start time' });
+  }
+
   // Use -c copy for instant stream-copy (no re-encoding). -avoid_negative_timestamps
   // fixes PTS issues common in live recordings.
   const ffmpegCmd = `ffmpeg -ss ${startTime} -i "${inputPath}" -t ${duration} -c copy -avoid_negative_timestamps 1 "${outputPath}" -y`;
@@ -4467,7 +4482,7 @@ app.post('/api/stream-clipper/export', async (req, res) => {
     const stats = fsSync.statSync(outputPath);
     const entry = {
       id: Date.now(),
-      name: outputName,
+      name: safeName,
       outputPath,
       sourceName: path.basename(inputPath),
       startTime,
@@ -4480,6 +4495,8 @@ app.post('/api/stream-clipper/export', async (req, res) => {
     if (clipHistory.length > 50) clipHistory.pop(); // Keep last 50
     res.json({ success: true, outputPath, clip: entry });
   } catch (e) {
+    console.error('Export clip error:', e.message);
+    console.error('Failed ffmpeg cmd:', ffmpegCmd);
     res.status(500).json({ error: e.message });
   }
 });
@@ -4623,6 +4640,90 @@ app.get('/api/stream-clipper/download', (req, res) => {
   res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
   res.setHeader('Content-Type', 'video/mp4');
   fsSync.createReadStream(filePath).pipe(res);
+});
+
+// Mobile clip export with crop filter (9:16 Dual Cam for Reels/Shorts/TikTok)
+app.post('/api/stream-clipper/export-mobile', async (req, res) => {
+  const {
+    inputPath, outputName, startTime, endTime,
+    topBox, bottomBox, videoWidth, videoHeight,
+    outputDir: customDir
+  } = req.body;
+
+  if (!inputPath || outputName === undefined || startTime === undefined || endTime === undefined) {
+    return res.status(400).json({ error: 'Missing required fields' });
+  }
+
+  const defaultDir = path.join(process.env.HOME || '/home/falcon', 'Videos', 'clips');
+  const outputDir = customDir && customDir.trim() ? customDir.trim() : defaultDir;
+  if (!fsSync.existsSync(outputDir)) { fsSync.mkdirSync(outputDir, { recursive: true }); }
+
+  const outputPath = path.join(outputDir, `${outputName}_dualcam.mp4`);
+  const duration = endTime - startTime;
+
+  const srcH = Math.round(parseFloat(videoHeight) || 1080);
+  const srcW = Math.round(parseFloat(videoWidth) || 1920);
+
+  // Parse Top Box Box Dimensions
+  const tx = Math.max(0, Math.round(topBox.x * srcW));
+  const ty = Math.max(0, Math.round(topBox.y * srcH));
+  const tw = Math.min(srcW - tx, Math.round(topBox.w * srcW));
+  const th = Math.min(srcH - ty, Math.round(topBox.h * srcH));
+
+  // Parse Bottom Box Dimensions
+  const bx = Math.max(0, Math.round(bottomBox.x * srcW));
+  const by = Math.max(0, Math.round(bottomBox.y * srcH));
+  const bw = Math.min(srcW - bx, Math.round(bottomBox.w * srcW));
+  const bh = Math.min(srcH - by, Math.round(bottomBox.h * srcH));
+
+  // The output width is 1080.
+  // We calculate proportional output heights based on the actual aspect ratios.
+  // (Both scales must be even numbers for h264 encode)
+  const targetW = 1080;
+  let topTargetH = Math.round(targetW * (th / tw));
+  if (topTargetH % 2 !== 0) topTargetH += 1;
+
+  let botTargetH = Math.round(targetW * (bh / bw));
+  if (botTargetH % 2 !== 0) botTargetH += 1;
+
+  // Final vstacked video will be exactly 1080x(topTargetH + botTargetH), 
+  // which will functionally equal 1080x1920.
+
+  const filterComplex = `[0:v]crop=${tw}:${th}:${tx}:${ty},scale=${targetW}:${topTargetH}:flags=bicubic[top]; [0:v]crop=${bw}:${bh}:${bx}:${by},scale=${targetW}:${botTargetH}:flags=bicubic[bottom]; [top][bottom]vstack[out]`;
+
+  const ffmpegCmd = [
+    `ffmpeg -ss ${startTime}`,
+    `-i "${inputPath}"`,
+    `-t ${duration}`,
+    `-filter_complex "${filterComplex}"`,
+    `-map "[out]"`,
+    `-map 0:a?`,
+    `-c:v libx264 -preset fast -crf 22`,
+    `-c:a aac -b:a 192k`,
+    `-movflags +faststart`,
+    `"${outputPath}" -y`
+  ].join(' ');
+
+  try {
+    await execPromise(ffmpegCmd);
+    const stats = fsSync.statSync(outputPath);
+    const entry = {
+      id: Date.now(),
+      name: outputName + '_mobile',
+      outputPath,
+      sourceName: path.basename(inputPath),
+      startTime, endTime, duration,
+      size: stats.size,
+      exportedAt: new Date().toISOString(),
+      isMobile: true
+    };
+    clipHistory.unshift(entry);
+    if (clipHistory.length > 50) clipHistory.length = 50;
+    res.json({ success: true, outputPath, clip: entry });
+  } catch (e) {
+    console.error('Mobile export error:', e.message);
+    res.status(500).json({ error: e.message });
+  }
 });
 
 // Serve React (MUST BE LAST)

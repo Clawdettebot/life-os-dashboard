@@ -126,18 +126,23 @@ const parseBackendDataToUI = (data) => {
 
   let cardData = {};
 
+  // Check if v2 format (has theme)
+  const isV2 = content.version === '2.0' || content.theme;
+
   // 1. MAP TO SPECIFIC GRID CARD PREVIEWS based on card_design
   if (type === 'hero-split') {
     cardData = {
-      headlineMain: ".DAILY", headlineSub1: "TIDE", headlineSub2: "REPORT",
-      subtitle: `WOTD: ${content.word_of_the_day?.word?.toUpperCase() || 'LOADING'} - ${content.word_of_the_day?.definition || 'Awaiting...'}`,
+      headlineMain: isV2 ? `.${content.theme?.toUpperCase() || 'DAILY'}` : ".DAILY",
+      headlineSub1: isV2 ? "TIDE" : "TIDE",
+      headlineSub2: isV2 ? content.theme_label || "REPORT" : "REPORT",
+      subtitle: `THEME: ${content.theme?.toUpperCase() || 'STANDARD'} // ${content.word_of_the_day?.word?.toUpperCase() || 'LOADING'}`,
       meta1: "DATE", meta1Value: content.date || new Date().toISOString().split('T')[0],
-      meta2: "AUTHOR", meta2Value: "ABYSSAL",
+      meta2: "PRIORITY", meta2Value: isV2 ? `${content.actionable_tasks?.length || 0} TASKS` : "ABYSSAL",
       meta3: "EVENTS", meta3Value: `${content.current_events?.length || 0} LOGGED`
     };
   } else if (type === 'image-text-block') {
     cardData = {
-      title: ".NEWS_FEED",
+      title: isV2 ? ".FEED" : ".NEWS_FEED",
       bodyTitle: content.current_events?.[0]?.title || "NO EVENTS LOGGED",
       bodyText: content.current_events?.[0]?.description || "Awaiting data stream...",
       metaLeft: `DATE: ${content.date || '--'}`,
@@ -145,58 +150,100 @@ const parseBackendDataToUI = (data) => {
     };
   } else if (type === 'vertical-title-list') {
     cardData = {
-      verticalLabel: "RANT IDEAS",
-      heading1: `CONTENT FUEL - ${content.date || '--'}`,
-      heading2: `VIRAL HOOK: ${content.viral_prompt?.hook || '...'}`,
-      listItems: content.rant_ideas?.slice(0, 4) || [],
-      paragraph: `ANGLE: ${content.viral_prompt?.angle || '--'} | FORMAT: ${content.viral_prompt?.format || '--'}`
+      verticalLabel: isV2 ? "ACTION ITEMS" : "RANT IDEAS",
+      heading1: isV2 ? `PRIORITY FOCUS // ${content.date || '--'}` : `CONTENT FUEL - ${content.date || '--'}`,
+      heading2: isV2 ? `RANT: ${content.rant_topic?.topic || '...'}` : `VIRAL HOOK: ${content.viral_prompt?.hook || '...'}`,
+      listItems: isV2 
+        ? (content.actionable_tasks || []).slice(0, 4).map(t => t.title)
+        : content.rant_ideas?.slice(0, 4) || [],
+      paragraph: isV2 
+        ? `RANT ANGLE: ${content.rant_topic?.angle || '--'}`
+        : `ANGLE: ${content.viral_prompt?.angle || '--'} | FORMAT: ${content.viral_prompt?.format || '--'}`
     };
   } else if (type === 'split-color-horizontal') {
     cardData = {
-      verticalLabel: "PROMPTS",
-      heading1: "IDEATION ENGINE ACTIVE",
+      verticalLabel: isV2 ? "CREATIVE" : "PROMPTS",
+      heading1: isV2 ? "IDEATION ENGINE ACTIVE" : "IDEATION ENGINE ACTIVE",
       heading2: `LOG DATE: ${content.date || '--'}`,
-      listItems: content.brain_prompts?.slice(0, 4) || []
+      listItems: isV2 
+        ? (content.creative_prompts || []).slice(0, 4).map(p => p.prompt)
+        : content.brain_prompts?.slice(0, 4) || []
     };
   } else if (type === 'complex-column') {
     cardData = {
-      title: ".SCHEDULE",
-      paragraph: `UPCOMING PROTOCOLS & LINGUISTIC TARGETS // ${content.date || '--'}`,
-      col1Title: "STREAM\nSCHEDULE",
-      col1Text: content.stream_schedule?.[0]?.activity || "No streams",
-      col1Footer: content.stream_schedule?.[0]?.time || "--",
-      col2Title: "TAGALOG\nLESSON",
-      col2Text: content.tagalog_lesson?.meaning || "--",
-      col2Footer: content.tagalog_lesson?.phrase || "--",
-      col3Title: "FRENCH\nLESSON",
-      col3Text: content.french_lesson?.meaning || "--",
-      col3Footer: content.french_lesson?.phrase || "--",
+      title: isV2 ? ".FOCUS" : ".SCHEDULE",
+      paragraph: isV2 
+        ? `TODAY'S PRIORITY PROTOCOLS // ${content.date || '--'}`
+        : `UPCOMING PROTOCOLS & LINGUISTIC TARGETS // ${content.date || '--'}`,
+      col1Title: isV2 ? "TOP\nTASK" : "STREAM\nSCHEDULE",
+      col1Text: isV2 ? content.actionable_tasks?.[0]?.title || "No tasks" : content.stream_schedule?.[0]?.activity || "No streams",
+      col1Footer: isV2 ? content.actionable_tasks?.[0]?.priority || "--" : content.stream_schedule?.[0]?.time || "--",
+      col2Title: isV2 ? "CORTEX\nLATEST" : "TAGALOG\nLESSON",
+      col2Text: isV2 ? content.cortex_context?.[0]?.title || "No cortex" : content.tagalog_lesson?.meaning || "--",
+      col2Footer: isV2 ? content.cortex_context?.[0]?.category || "--" : content.tagalog_lesson?.phrase || "--",
+      col3Title: isV2 ? "RANT\nTOPIC" : "FRENCH\nLESSON",
+      col3Text: isV2 ? content.rant_topic?.topic?.substring(0, 30) || "--" : content.french_lesson?.meaning || "--",
+      col3Footer: isV2 ? content.rant_topic?.angle?.substring(0, 20) || "--" : content.french_lesson?.phrase || "--",
     };
   }
 
-  // 2. MAP EVERYTHING TO THE EXPANDED ARTICLE VIEW
-  const articleContent = [
-    { type: 'title', text: `DAILY TIDE AGGREGATION: ${content.date || '--'}` },
-    { type: 'callout', text: `WORD OF THE DAY: ${content.word_of_the_day?.word?.toUpperCase() || 'N/A'} (${content.word_of_the_day?.partOfSpeech || ''}) - ${content.word_of_the_day?.definition || ''}` },
-    { type: 'quote', text: content.quote?.text || "The depths remember.", author: content.quote?.author || "Crustazion" },
+  // 2. MAP EVERYTHING TO THE EXPANDED ARTICLE VIEW (v2 format)
+  let articleContent;
+  
+  if (isV2) {
+    // v2 format with themes
+    articleContent = [
+      { type: 'title', text: `🔱 ABYSSAL DISPATCH v2 // ${content.date || '--'}` },
+      { type: 'callout', text: `🎯 TODAY'S THEME: ${content.theme?.toUpperCase() || 'STANDARD'} - ${content.theme_label || ''}` },
+      { type: 'callout', text: `WORD OF THE DAY: ${content.word_of_the_day?.word?.toUpperCase() || 'N/A'} (${content.word_of_the_day?.partOfSpeech || ''}) - ${content.word_of_the_day?.definition || ''}` },
+      { type: 'quote', text: content.quote?.text || "The depths remember.", author: content.quote?.author || "Crustazion" },
 
-    { type: 'title', text: "CURRENT EVENTS & SIGNALS" },
-    ...(content.current_events || []).map(ev => ({ type: 'body', text: `[${ev.source.toUpperCase()}] ${ev.title} - ${ev.description}` })),
+      { type: 'title', text: "📰 CURRENT EVENTS & SIGNALS" },
+      ...(content.current_events || []).map(ev => ({ type: 'body', text: `[${ev.source?.toUpperCase() || 'SOURCE'}] ${ev.title} - ${ev.description}` })),
 
-    { type: 'title', text: "LINGUISTIC MODULES" },
-    { type: 'body', text: `TAGALOG: "${content.tagalog_lesson?.phrase || '--'}" (${content.tagalog_lesson?.meaning || '--'})\nUsage: ${content.tagalog_lesson?.usage || '--'}` },
-    { type: 'body', text: `FRENCH: "${content.french_lesson?.phrase || '--'}" (${content.french_lesson?.meaning || '--'})\nUsage: ${content.french_lesson?.usage || '--'}` },
+      { type: 'title', text: "✅ ACTIONABLE TASKS" },
+      ...(content.actionable_tasks || []).map(t => ({ type: 'body', text: `[${t.priority?.toUpperCase() || 'MEDIUM'}] ${t.title} ${t.due_date ? `(Due: ${t.due_date})` : ''}` })),
 
-    { type: 'title', text: "CONTENT STRATEGY" },
-    { type: 'callout', text: `VIRAL PROMPT: "${content.viral_prompt?.hook || 'No prompt'}"` },
-    { type: 'body', text: `FORMAT: ${content.viral_prompt?.format || '--'} | ANGLE: ${content.viral_prompt?.angle || '--'} | HASHTAGS: ${content.viral_prompt?.hashtags || '--'}` },
-    { type: 'body', text: `RANT TOPICS LOGGED:\n${(content.rant_ideas || []).map(r => `> ${r}`).join('\n')}` },
+      { type: 'title', text: "🧠 CORTEX CONTEXT" },
+      ...(content.cortex_context || []).map(c => ({ type: 'body', text: `[${c.category?.toUpperCase() || 'NOTE'}] ${c.title}` })),
 
-    { type: 'title', text: "CREATIVE PROMPTS" },
-    { type: 'body', text: (content.brain_prompts || []).join('  //  ') },
+      { type: 'title', text: "🎨 CREATIVE PROMPTS" },
+      ...(content.creative_prompts || []).map(p => ({ type: 'body', text: `[${p.type?.toUpperCase() || 'PROMPT'}] ${p.prompt} ${p.platform ? `(Platform: ${p.platform})` : ''} ${p.duration ? `(${p.duration})` : ''}` })),
 
-    { type: 'image', alt: "End of Report Diagnostic", caption: "FIG 9.9 - EOL STATUS CHECK" }
-  ];
+      { type: 'title', text: "🔥 RANT OF THE DAY" },
+      { type: 'body', text: `TOPIC: ${content.rant_topic?.topic || 'No topic'}` },
+      { type: 'body', text: `ANGLE: ${content.rant_topic?.angle || '--'}` },
+
+      { type: 'title', text: "📅 STREAM SCHEDULE" },
+      ...(content.stream_schedule || []).map(s => ({ type: 'body', text: `${s.day} @ ${s.time}: ${s.activity}` })),
+
+      { type: 'image', alt: "End of Report Diagnostic", caption: "FIG 9.9 - EOL STATUS CHECK" }
+    ];
+  } else {
+    // Legacy v1 format
+    articleContent = [
+      { type: 'title', text: `DAILY TIDE AGGREGATION: ${content.date || '--'}` },
+      { type: 'callout', text: `WORD OF THE DAY: ${content.word_of_the_day?.word?.toUpperCase() || 'N/A'} (${content.word_of_the_day?.partOfSpeech || ''}) - ${content.word_of_the_day?.definition || ''}` },
+      { type: 'quote', text: content.quote?.text || "The depths remember.", author: content.quote?.author || "Crustazion" },
+
+      { type: 'title', text: "CURRENT EVENTS & SIGNALS" },
+      ...(content.current_events || []).map(ev => ({ type: 'body', text: `[${ev.source.toUpperCase()}] ${ev.title} - ${ev.description}` })),
+
+      { type: 'title', text: "LINGUISTIC MODULES" },
+      { type: 'body', text: `TAGALOG: "${content.tagalog_lesson?.phrase || '--'}" (${content.tagalog_lesson?.meaning || '--'})\nUsage: ${content.tagalog_lesson?.usage || '--'}` },
+      { type: 'body', text: `FRENCH: "${content.french_lesson?.phrase || '--'}" (${content.french_lesson?.meaning || '--'})\nUsage: ${content.french_lesson?.usage || '--'}` },
+
+      { type: 'title', text: "CONTENT STRATEGY" },
+      { type: 'callout', text: `VIRAL PROMPT: "${content.viral_prompt?.hook || 'No prompt'}"` },
+      { type: 'body', text: `FORMAT: ${content.viral_prompt?.format || '--'} | ANGLE: ${content.viral_prompt?.angle || '--'} | HASHTAGS: ${content.viral_prompt?.hashtags || '--'}` },
+      { type: 'body', text: `RANT TOPICS LOGGED:\n${(content.rant_ideas || []).map(r => `> ${r}`).join('\n')}` },
+
+      { type: 'title', text: "CREATIVE PROMPTS" },
+      { type: 'body', text: (content.brain_prompts || []).join('  //  ') },
+
+      { type: 'image', alt: "End of Report Diagnostic", caption: "FIG 9.9 - EOL STATUS CHECK" }
+    ];
+  }
 
   return { id: data.id, cardType: type, cardData, articleContent };
 };

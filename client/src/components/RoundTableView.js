@@ -197,8 +197,8 @@ const NETWORK_DATA = {
           children: []
         },
         {
-          id: 'content', knightId: 'labrina', title: 'Lubrina', role: 'Content Deployment', icon: Layers, color: 'emerald',
-          stats: [{ label: 'QUEUE', val: '12' }, { label: 'NEXT DROP', val: 'TUE' }],
+          id: 'content', knightId: 'labrina', title: 'Labrina', role: 'Content Deployment (VPS)', icon: Layers, color: 'emerald',
+          stats: [{ label: 'STATUS', val: 'ONLINE' }, { label: 'INSTANCE', val: 'VPS' }],
           children: []
         }
       ]
